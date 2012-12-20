@@ -7,9 +7,9 @@ Improved logging for Ruby on Rails
 
 ### Overview
 
-Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/ClarityServices/rails_semantic_logger)
+Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/ClarityServices/semantic_logger)
 
-[Semantic Logger](http://github.com/ClarityServices/rails_semantic_logger) takes
+[Semantic Logger](http://github.com/ClarityServices/semantic_logger) takes
 logging in Ruby to a new level by adding several new capabilities to the
 commonly used Logging API:
 

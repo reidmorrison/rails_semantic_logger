@@ -431,7 +431,7 @@ end
 ```
 ### Custom Appenders and Formatters
 
-To write your own appenders or formatting, see [SemanticLogger](http://github.com/ClarityServices/rails_semantic_logger)
+To write your own appenders or formatting, see [SemanticLogger](http://github.com/ClarityServices/semantic_logger)
 
 ### Log Rotation
 
@@ -442,17 +442,6 @@ to be rotated, use a copy-truncate operation rather than deleting the file.
 
 - Ruby MRI 1.8.7, 1.9.3 (or above) Or, JRuby 1.6.3 (or above)
 - Rails 2 or above
-
-Contributing
-------------
-
-Once you've made your great commits:
-
-1. [Fork](http://help.github.com/forking/) rails_semantic_logger
-2. Create a topic branch - `git checkout -b my_branch`
-3. Push to your branch - `git push origin my_branch`
-4. Create an [Issue](http://github.com/ClarityServices/rails_semantic_logger/issues) with a link to your branch
-5. That's it!
 
 Meta
 ----

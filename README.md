@@ -58,12 +58,13 @@ Drop-in Replacement
 * Supports current common logging interface
 * No changes to existing to code to use new logger ( other than replacing the logger )
 
-Rails 2 & 3 Support
+Rails 2, 3 & 4 Support
 
 * Just include the semantic_logger gem into Rails and it will immediately
   replace the existing loggers to improve performance and information
   in the log files
 * The Rails 3 Tagged logging feature is already available for Rails 2 by using Semantic Logger
+* Rails 4 push_tags and pop_tags methods are supported
 
 Thread Aware
 
@@ -441,7 +442,7 @@ to be rotated, use a copy-truncate operation rather than deleting the file.
 ### Dependencies
 
 - Ruby MRI 1.8.7, 1.9.3 (or above) Or, JRuby 1.6.3 (or above)
-- Rails 2 or above
+- Rails 2, 3, 4 or above
 
 Meta
 ----

@@ -424,8 +424,9 @@ config.after_initialize do
   db = Mongo::Connection.new['production_logging']
 
   # Besides logging to the standard Rails logger, also log to MongoDB
-  config.semantic_logger.appenders << SemanticLogger::Appender::MongoDB.new(
+  config.semantic_logger.add_appender SemanticLogger::Appender::MongoDB.new(
     :db              => db,
+    :collection_name => 'semantic_logger',
     :collection_size => 25.gigabytes
   )
 end

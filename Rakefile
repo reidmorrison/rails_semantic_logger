@@ -9,6 +9,6 @@ require 'rails_semantic_logger/version'
 
 desc "Build gem"
 task :gem  do |t|
-  Gem::Package.build(Gem::Specification.load('semantic_logger.gemspec'))
+  Gem::Package.build(Gem::Specification.load('rails_semantic_logger.gemspec'))
 end
 

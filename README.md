@@ -431,6 +431,14 @@ config.after_initialize do
   )
 end
 ```
+
+If the Rails colorized logging is enabled, then the colorized formatter will be used
+by default. To disable colorized logging in both Rails and SemanticLogger:
+
+```ruby
+config.colorize_logging = false
+```
+
 ### Custom Appenders and Formatters
 
 To write your own appenders or formatting, see [SemanticLogger](http://github.com/ClarityServices/semantic_logger)

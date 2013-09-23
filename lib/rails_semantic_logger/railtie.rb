@@ -44,9 +44,11 @@ module RailsSemanticLogger #:nodoc:
         SemanticLogger::Logger.logger = appender
 
         # Add the log file to the list of appenders
-        SemanticLogger.add_appender(path)
+        # Use the colorized formatter if Rails colorized logs are enabled
+        formatter = SemanticLogger::Appender::Base.colorized_formatter if config.colorize_logging
+        SemanticLogger.add_appender(path, nil, &formatter)
         SemanticLogger[Rails]
-      rescue StandardError
+      rescue StandardError => exc
         # If not able to log to file, log to standard error with warning level only
         SemanticLogger.default_level = :warn
 
@@ -56,7 +58,8 @@ module RailsSemanticLogger #:nodoc:
         logger = SemanticLogger[Rails]
         logger.warn(
           "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " +
-            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed."
+            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
+          exc
         )
         logger
       end

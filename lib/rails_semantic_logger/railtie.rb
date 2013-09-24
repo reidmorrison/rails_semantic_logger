@@ -45,7 +45,7 @@ module RailsSemanticLogger #:nodoc:
 
         # Add the log file to the list of appenders
         # Use the colorized formatter if Rails colorized logs are enabled
-        formatter = SemanticLogger::Appender::Base.colorized_formatter if config.colorize_logging
+        formatter = SemanticLogger::Appender::Base.colorized_formatter unless config.colorize_logging == false
         SemanticLogger.add_appender(path, nil, &formatter)
         SemanticLogger[Rails]
       rescue StandardError => exc

@@ -5,7 +5,7 @@ Improved logging for Ruby on Rails
 
 * http://github.com/ClarityServices/rails_semantic_logger
 
-### Overview
+## Overview
 
 Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/ClarityServices/semantic_logger)
 
@@ -137,7 +137,7 @@ Thread Safe
 * Tagged logging keeps any tagging data on a per-thread basis to ensure that
   tags from different threads are not inter-mingled
 
-### Introduction
+## Introduction
 
 Just by including the rails_semantic_logger gem, Rails Semantic Logger will
 replace the default Rails logger with Semantic Logger. Without further
@@ -164,9 +164,9 @@ Started GET "/" for 127.0.0.1 at 2012-10-19 12:05:46 +0000
 2012-10-19 12:05:51.113 I [35940:JRubyWorker-10] ActionController -- Completed 200 OK in 3795ms (Views: 1349.0ms | ActiveRecord: 88.0ms | Mongo: 0.0ms)
 ```
 
-### Logging API
+## Logging API
 
-#### Standard Logging methods
+### Standard Logging methods
 
 The Semantic Logger logging API supports the existing logging interface for
 the Rails and Ruby Loggers. For example:
@@ -212,7 +212,7 @@ logger.debug("Calling Supplier", :request => 'update', :user => 'Jack')
 logger.debug { "A total of #{result.inject(0) {|sum, i| i+sum }} were processed" }
 ```
 
-### Exceptions
+## Exceptions
 
 The Semantic Logger adds an optional parameter to the existing log methods so that
 a corresponding Exception can be logged in a standard way
@@ -227,7 +227,7 @@ rescue Exception => exception
 end
 ```
 
-#### Payload
+### Payload
 
 The Semantic Logger adds an extra parameter to the existing log methods so that
 additional payload can be logged, such as a Hash or a Ruby Exception object.
@@ -241,7 +241,7 @@ regular expressions so that a program can analyze log output. With the MongoDB
 appender the payload is written directly to MongoDB as part of the document and
 is therefore fully searchable
 
-#### Benchmarking
+### Benchmarking
 
 Another common logging requirement is to measure the time it takes to execute a block
 of code based on the log level. For example:
@@ -298,7 +298,7 @@ Parameters
     Optional, Ruby Exception object to log along with the duration of the supplied block
 ```
 
-#### Logging levels
+### Logging levels
 
 The following logging levels are available through Semantic Logger
 
@@ -317,7 +317,7 @@ in the development environment for low level trace logging of methods calls etc.
 If only the rails logger is being used, then :trace level calls will be logged
 as debug calls only if the log level is set to trace
 
-#### Changing the Class name for Log Entries
+### Changing the Class name for Log Entries
 
 When Semantic Logger is included in a Rails project it automatically replaces the
 loggers for Rails, ActiveRecord::Base, ActionController::Base, and ActiveResource::Base
@@ -356,7 +356,7 @@ This will result in the log output identifying the log entry as from the Externa
 
     2012-08-30 15:37:29.474 I [48308:ScriptThreadProcess: script/rails] (5.2ms) ExternalSupplier -- Calling external interface
 
-#### Tagged Logging
+### Tagged Logging
 
 Semantic Logger allows any Ruby or Rails program to also include tagged logging.
 
@@ -374,7 +374,7 @@ logger.tagged(tracking_number) do
 end
 ```
 
-#### Beyond Tagged Logging
+### Beyond Tagged Logging
 
 Blocks of code can be tagged with not only values, but can be tagged with
 entire hashes of data. The additional hash of data will be merged into
@@ -390,7 +390,7 @@ logger.with_payload(:user => 'Jack', :zip_code => 12345) do
 end
 ```
 
-#### Installation
+### Installation
 
 Add the following line to Gemfile
 
@@ -405,7 +405,7 @@ Install required gems with bundler
 This will automatically replace the standard Rails logger with Semantic Logger
 which will write all log data to the configured Rails logger.
 
-#### Configuration
+### Configuration
 
 By default Semantic Logger will detect the log level from Rails. To set the
 log level explicitly, add the following line to
@@ -414,6 +414,8 @@ config/environments/production.rb inside the Application.configure block
 ```ruby
 config.log_level = :trace
 ```
+
+#### MongoDB logging
 
 To log to both the Rails log file and MongoDB add the following lines to
 config/environments/production.rb inside the Application.configure block
@@ -432,6 +434,24 @@ config.after_initialize do
 end
 ```
 
+#### Logging to Syslog
+
+Configuring rails to also log to a local Syslog:
+```ruby
+config.after_initialize do
+  config.semantic_logger.add_appender(SemanticLogger::Appender::Syslog.new)
+end
+```
+
+Configuring rails to also log to a remote Syslog server such as syslog-ng over TCP:
+```ruby
+config.after_initialize do
+  config.semantic_logger.add_appender(SemanticLogger::Appender::Syslog.new(:server => 'tcp://myloghost:514'))
+end
+```
+
+#### Colorized Logging
+
 If the Rails colorized logging is enabled, then the colorized formatter will be used
 by default. To disable colorized logging in both Rails and SemanticLogger:
 
@@ -439,16 +459,16 @@ by default. To disable colorized logging in both Rails and SemanticLogger:
 config.colorize_logging = false
 ```
 
-### Custom Appenders and Formatters
+## Custom Appenders and Formatters
 
 To write your own appenders or formatting, see [SemanticLogger](http://github.com/ClarityServices/semantic_logger)
 
-### Log Rotation
+## Log Rotation
 
 Since the log file is not re-opened with every call, when the log file needs
 to be rotated, use a copy-truncate operation rather than deleting the file.
 
-### Dependencies
+## Dependencies
 
 - Ruby MRI 1.8.7, 1.9.3 (or above) Or, JRuby 1.6.3 (or above)
 - Rails 2, 3, 4 or above
@@ -463,15 +483,20 @@ Meta
 
 This project uses [Semantic Versioning](http://semver.org/).
 
-Authors
--------
+Author
+------
 
 Reid Morrison :: reidmo@gmail.com :: @reidmorrison
+
+Contributors
+------------
+
+Marc Bellingrath :: marrrc.b@gmail.com
 
 License
 -------
 
-Copyright 2012 Clarity Services, Inc.
+Copyright 2012,2013 Reid Morrison
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

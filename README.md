@@ -3,13 +3,13 @@ rails_semantic_logger
 
 Improved logging for Ruby on Rails
 
-* http://github.com/ClarityServices/rails_semantic_logger
+* http://github.com/reidmorrison/rails_semantic_logger
 
 ## Overview
 
-Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/ClarityServices/semantic_logger)
+Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/reidmorrison/semantic_logger)
 
-[Semantic Logger](http://github.com/ClarityServices/semantic_logger) takes
+[Semantic Logger](http://github.com/reidmorrison/semantic_logger) takes
 logging in Ruby to a new level by adding several new capabilities to the
 commonly used Logging API:
 
@@ -461,24 +461,77 @@ config.colorize_logging = false
 
 ## Custom Appenders and Formatters
 
-To write your own appenders or formatting, see [SemanticLogger](http://github.com/ClarityServices/semantic_logger)
+The format of data logged by Semantic Logger is specific to each appender.
+
+To change the text file log format in Rails SemanticLogger, create a rails initializer with the following code and customize as needed.
+For example: 'config/initializers/semantic_logger_formatter.rb'
+
+```ruby
+# Replace the format of the existing log file appender
+SemanticLogger.appenders.first.formatter = Proc.new do |log|
+  tags = log.tags.collect { |tag| "[#{tag}]" }.join(" ") + " " if log.tags && (log.tags.size > 0)
+
+  message = log.message.to_s
+  message << " -- " << log.payload.inspect if log.payload
+  message << " -- " << "#{log.exception.class}: #{log.exception.message}\n#{(log.exception.backtrace || []).join("\n")}" if log.exception
+
+  duration_str = log.duration ? "(#{'%.1f' % log.duration}ms) " : ''
+
+  "#{SemanticLogger::Appender::Base.formatted_time(log.time)} #{log.level.to_s[0..0].upcase} [#{$$}:#{log.thread_name}] #{tags}#{duration_str}#{log.name} : #{message}"
+end
+```
+
+To write your own appenders or formatting, see [SemanticLogger](http://github.com/reidmorrison/semantic_logger)
 
 ## Log Rotation
 
 Since the log file is not re-opened with every call, when the log file needs
 to be rotated, use a copy-truncate operation rather than deleting the file.
 
+## Process Forking
+
+The following frameworks are automatically detected when rails is configured
+so that the necessary callbacks are registered to re-open appenders after a process fork:
+
+- Phusion Passenger
+- Resque
+
+### Unicorn
+
+With Unicorn, add the following code to you Unicorn configuration:
+
+```ruby
+# config/unicorn.conf.rb
+after_fork do |server, worker|
+  # Re-open appenders after forking the process
+  SemanticLogger.reopen
+end
+```
+
+### Puma
+
+If running Puma 2 in Clustered mode and you're preloading your application,
+add the following to your worker boot code:
+
+```ruby
+# config/puma.rb
+on_worker_boot do
+  # Re-open appenders after forking the process
+  SemanticLogger.reopen
+end
+```
+
 ## Dependencies
 
-- Ruby MRI 1.8.7, 1.9.3 (or above) Or, JRuby 1.6.3 (or above)
+- Ruby MRI 1.8.7, 1.9.3, 2.0 (or above) Or, JRuby 1.6.3 (or above)
 - Rails 2, 3, 4 or above
 
 Meta
 ----
 
-* Code: `git clone git://github.com/ClarityServices/rails_semantic_logger.git`
-* Home: <https://github.com/ClarityServices/rails_semantic_logger>
-* Bugs: <http://github.com/ClarityServices/rails_semantic_logger/issues>
+* Code: `git clone git://github.com/reidmorrison/rails_semantic_logger.git`
+* Home: <https://github.com/reidmorrison/rails_semantic_logger>
+* Bugs: <http://github.com/reidmorrison/rails_semantic_logger/issues>
 * Gems: <http://rubygems.org/gems/rails_semantic_logger>
 
 This project uses [Semantic Versioning](http://semver.org/).
@@ -496,7 +549,7 @@ Marc Bellingrath :: marrrc.b@gmail.com
 License
 -------
 
-Copyright 2012,2013 Reid Morrison
+Copyright 2012, 2013, 2014 Reid Morrison
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

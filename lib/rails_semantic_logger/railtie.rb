@@ -6,7 +6,7 @@ module RailsSemanticLogger #:nodoc:
     # Example: Add the MongoDB logging appender in the Rails environment
     #          initializer in file config/environments/development.rb
     #
-    #   Claritybase::Application.configure do
+    #   Rails::Application.configure do
     #     # Add the MongoDB logger appender only once Rails is initialized
     #     config.after_initialize do
     #       config.semantic_logger.add_appender SemanticLogger::Appender::Mongo.new(
@@ -68,6 +68,29 @@ module RailsSemanticLogger #:nodoc:
       ActiveSupport.on_load(:active_record)     { self.logger = SemanticLogger['ActiveRecord'] }
       ActiveSupport.on_load(:action_controller) { self.logger = SemanticLogger['ActionController'] }
       ActiveSupport.on_load(:action_mailer)     { self.logger = SemanticLogger['ActionMailer'] }
+    end
+
+    # Support fork frameworks
+    config.after_initialize do
+      # Passenger provides the :starting_worker_process event for executing
+      # code after it has forked, so we use that and reconnect immediately.
+      if defined?(PhusionPassenger)
+        PhusionPassenger.on_event(:starting_worker_process) do |forked|
+          ::SemanticLogger.reopen if forked
+        end
+      end
+
+      # Re-open appenders after Resque has forked a worker
+      if defined?(Resque)
+        Resque.after_fork { |job| ::SemanticLogger.reopen }
+      end
+    end
+
+    # Before any initializers run
+    config.before_initialize do
+      # Replace the Mongoid Loggers after the gems have been loaded
+      Mongoid.logger = SemanticLogger[Mongoid] if defined?(Mongoid)
+      Moped.logger = SemanticLogger[Moped] if defined?(Moped)
     end
 
   end

@@ -22,7 +22,12 @@ module RailsSemanticLogger #:nodoc:
     #
     # Loaded after Rails logging is initialized since SemanticLogger will continue
     # to forward logging to the Rails Logger
-    initializer :initialize_semantic_logger, :before => :initialize_logger do
+
+    # Stop standard rails logger initializer from running, since the following line causes problems:
+    #   Rails.logger.level = ActiveSupport::Logger.const_get(config.log_level.to_s.upcase)
+    Rails::Application::Bootstrap.initializers.delete_if{|i| i.name == :initialize_logger}
+
+    initializer :initialize_logger, group: :all do
       config = Rails.application.config
 
       # Set the default log level based on the Rails config
@@ -93,7 +98,10 @@ module RailsSemanticLogger #:nodoc:
       Moped.logger = SemanticLogger[Moped] if defined?(Moped)
 
       # Replace the Resque Logger
-      Resque.logger = SemanticLogger[Resque] if defined?(Resque)
+      Resque.logger = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
+
+      # Replace the Sidekiq logger
+      Sidekiq::Logging.logger = SemanticLogger[Sidekiq] if defined?(Sidekiq)
     end
 
   end

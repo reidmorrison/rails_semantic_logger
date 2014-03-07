@@ -73,6 +73,9 @@ module RailsSemanticLogger #:nodoc:
       ActiveSupport.on_load(:active_record)     { self.logger = SemanticLogger['ActiveRecord'] }
       ActiveSupport.on_load(:action_controller) { self.logger = SemanticLogger['ActionController'] }
       ActiveSupport.on_load(:action_mailer)     { self.logger = SemanticLogger['ActionMailer'] }
+
+      # Rails 4 is overwriting existing values for the logger, unless set via config
+      config.action_controller.logger = SemanticLogger['ActionController']
     end
 
     # Support fork frameworks

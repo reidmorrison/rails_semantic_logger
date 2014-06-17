@@ -1,14 +1,16 @@
-lib = File.expand_path('../lib/', __FILE__)
-$:.unshift lib unless $:.include?(lib)
-
-require 'rubygems'
-require 'rubygems/package'
 require 'rake/clean'
 require 'rake/testtask'
+
+$LOAD_PATH.unshift File.expand_path("../lib", __FILE__)
 require 'rails_semantic_logger/version'
 
-desc "Build gem"
-task :gem  do |t|
-  Gem::Package.build(Gem::Specification.load('rails_semantic_logger.gemspec'))
+task :gem do
+  system "gem build rails_semantic_logger.gemspec"
 end
 
+task :publish => :gem do
+  system "git tag -a v#{RailsSemanticLogger::VERSION} -m 'Tagging #{RailsSemanticLogger::VERSION}'"
+  system "git push --tags"
+  system "gem push rails_semantic_logger-#{RailsSemanticLogger::VERSION}.gem"
+  system "rm rails_semantic_logger-#{RailsSemanticLogger::VERSION}.gem"
+end

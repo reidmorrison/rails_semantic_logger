@@ -14,7 +14,7 @@ module RailsSemanticLogger #:nodoc:
     #        )
     #     end
     #   end
-    config.semantic_logger = ::SemanticLogger::Logger
+    config.semantic_logger = ::SemanticLogger
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its

@@ -110,6 +110,9 @@ module RailsSemanticLogger #:nodoc:
 
       # Replace the Sidekiq logger
       Sidekiq::Logging.logger = SemanticLogger[Sidekiq] if defined?(Sidekiq)
+
+      # Replace the Sidetiq logger
+      Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq)
     end
 
   end

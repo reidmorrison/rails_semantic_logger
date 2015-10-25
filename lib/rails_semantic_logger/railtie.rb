@@ -1,4 +1,5 @@
 require 'logger'
+require 'rails/commands/server'
 module RailsSemanticLogger #:nodoc:
   class Railtie < Rails::Railtie #:nodoc:
     # Make the SemanticLogger config available in the Rails application config
@@ -45,7 +46,7 @@ module RailsSemanticLogger #:nodoc:
         # Set internal logger to log to file only, in case another appender
         # experiences errors during writes
         appender = SemanticLogger::Appender::File.new(path, config.log_level)
-        appender.name = "SemanticLogger"
+        appender.name = 'SemanticLogger'
         SemanticLogger::Logger.logger = appender
 
         # Add the log file to the list of appenders
@@ -113,7 +114,33 @@ module RailsSemanticLogger #:nodoc:
 
       # Replace the Sidetiq logger
       Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq)
+
+      # Replace the Bugsnag logger
+      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
     end
 
+  end
+end
+
+# Patch the Rails::Server log_to_stdout so that it logs via SemanticLogger
+module Rails #:nodoc:
+  class Server #:nodoc:
+    private
+
+    def log_to_stdout
+      SemanticLogger.add_appender($stdout, &SemanticLogger::Appender::Base.colorized_formatter)
+    end
+  end
+end
+
+# Patch ActiveJob logger
+if Rails.version.to_f >= 4.2
+  require 'active_job/logging'
+
+  module ActiveJob::Logging
+    private
+    def tag_logger(*tags, &block)
+      logger.tagged(*tags, &block)
+    end
   end
 end

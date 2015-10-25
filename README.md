@@ -1,50 +1,27 @@
-rails_semantic_logger
-=====================
+# rails_semantic_logger
+![](https://img.shields.io/gem/v/rails_semantic_logger.svg) ![](https://img.shields.io/gem/dt/semantic_logger.svg) ![](https://img.shields.io/badge/status-production%20ready-blue.svg)
 
 Next generation logging system for Rails to support highly concurrent, high throughput, low latency systems
 
-Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/reidmorrison/semantic_logger)
+Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](http://github.com/rocketjob/semantic_logger)
 
-* http://github.com/reidmorrison/rails_semantic_logger
+* http://github.com/rocketjob/rails_semantic_logger
 
 ## Documentation
 
-For complete documentation see: http://reidmorrison.github.io/semantic_logger/rails
+For complete documentation see: http://rocketjob.github.io/semantic_logger/rails
 
-## Dependencies
+## Supports
 
-- Ruby 1.8.7, 1.9.3, 2.0, 2.1 (and above) Or, JRuby 1.6.3 (or above)
-- Rails 2, 3, 4 and above
-
-## Meta
-
-* Code: `git clone git://github.com/reidmorrison/rails_semantic_logger.git`
-* Home: <https://github.com/reidmorrison/rails_semantic_logger>
-* Bugs: <http://github.com/reidmorrison/rails_semantic_logger/issues>
-* Gems: <http://rubygems.org/gems/rails_semantic_logger>
-
-This project uses [Semantic Versioning](http://semver.org/).
+- Ruby 1.9.3, 2.0, 2.1, 2.2 (or above) Or, JRuby 1.7, 9.0 (or above)
+- Rails 3, 4, 5 (or above)
 
 ## Author
 
-Reid Morrison :: reidmo@gmail.com :: @reidmorrison
+[Reid Morrison](https://github.com/reidmorrison)
 
-## Contributors
+[Contributors](https://github.com/rocketjob/rails_semantic_logger/graphs/contributors)
 
-Marc Bellingrath :: marrrc.b@gmail.com
+## Versioning
 
-## License
-
-Copyright 2012, 2013, 2014 Reid Morrison
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+This project uses [Semantic Versioning](http://semver.org/).

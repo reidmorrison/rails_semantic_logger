@@ -1,4 +1,4 @@
-$:.push File.expand_path("../lib", __FILE__)
+$:.push File.expand_path('../lib', __FILE__)
 
 # Maintain your gem's version:
 require 'rails_semantic_logger/version'
@@ -11,11 +11,11 @@ Gem::Specification.new do |spec|
   spec.authors     = ['Reid Morrison']
   spec.email       = ['reidmo@gmail.com']
   spec.homepage    = 'https://github.com/rocketjob/rails_semantic_logger'
-  spec.summary     = 'Scalable, next generation enterprise logging for Ruby on Rails'
+  spec.summary     = 'Scalable, next generation enterprise logging for Rails'
   spec.description = 'Replaces the default Rails logger with SemanticLogger'
   spec.files       = Dir['lib/**/*', 'LICENSE.txt', 'Rakefile', 'README.md']
   spec.test_files  = Dir['test/**/*']
   spec.license     = 'Apache License V2.0'
   spec.has_rdoc    = true
-  spec.add_dependency 'semantic_logger', '>= 2.5.0'
+  spec.add_dependency 'semantic_logger', '~> 2.20'
 end

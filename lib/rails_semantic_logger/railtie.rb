@@ -20,23 +20,19 @@ module RailsSemanticLogger #:nodoc:
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
     # additional features
-    #
-    # Loaded after Rails logging is initialized since SemanticLogger will continue
-    # to forward logging to the Rails Logger
 
-    # Stop standard rails logger initializer from running, since the following line causes problems:
-    #   Rails.logger.level = ActiveSupport::Logger.const_get(config.log_level.to_s.upcase)
-    Rails::Application::Bootstrap.initializers.delete_if{|i| i.name == :initialize_logger}
+    # Replace Rails logger initializer
+    Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 
     initializer :initialize_logger, group: :all do
-      config = Rails.application.config
+      config                       = Rails.application.config
 
       # Set the default log level based on the Rails config
       SemanticLogger.default_level = config.log_level
 
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
-      Rails.logger = config.logger = begin
+      Rails.logger                 = config.logger = begin
         # First check for Rails 3.2 path, then fallback to pre-3.2
         path = ((config.paths.log.to_a rescue nil) || config.paths['log']).first
         unless File.exist? File.dirname path
@@ -45,13 +41,13 @@ module RailsSemanticLogger #:nodoc:
 
         # Set internal logger to log to file only, in case another appender
         # experiences errors during writes
-        appender = SemanticLogger::Appender::File.new(path, config.log_level)
-        appender.name = 'SemanticLogger'
+        appender                      = SemanticLogger::Appender::File.new(path, config.log_level)
+        appender.name                 = 'SemanticLogger'
         SemanticLogger::Logger.logger = appender
 
         # Add the log file to the list of appenders
         # Use the colorized formatter if Rails colorized logs are enabled
-        formatter = SemanticLogger::Appender::Base.colorized_formatter unless config.colorize_logging == false
+        formatter                     = SemanticLogger::Appender::Base.colorized_formatter unless config.colorize_logging == false
         SemanticLogger.add_appender(path, nil, &formatter)
         SemanticLogger[Rails]
       rescue StandardError => exc
@@ -70,13 +66,10 @@ module RailsSemanticLogger #:nodoc:
         logger
       end
 
-      # Replace the default Rails loggers
-      ActiveSupport.on_load(:active_record)     { self.logger = SemanticLogger['ActiveRecord'] }
-      ActiveSupport.on_load(:action_controller) { self.logger = SemanticLogger['ActionController'] }
-      ActiveSupport.on_load(:action_mailer)     { self.logger = SemanticLogger['ActionMailer'] }
-
-      # Rails 4 is overwriting existing values for the logger, unless set via config
-      config.action_controller.logger = SemanticLogger['ActionController']
+      # Replace Rails loggers
+      [:active_record, :action_controller, :action_mailer, :action_view, :active_job].each do |name|
+        ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
+      end
     end
 
     # Support fork frameworks
@@ -103,17 +96,17 @@ module RailsSemanticLogger #:nodoc:
     # Before any initializers run, but after the gems have been loaded
     config.before_initialize do
       # Replace the Mongoid Logger
-      Mongoid.logger = SemanticLogger[Mongoid] if defined?(Mongoid)
-      Moped.logger = SemanticLogger[Moped] if defined?(Moped)
+      Mongoid.logger          = SemanticLogger[Mongoid] if defined?(Mongoid)
+      Moped.logger            = SemanticLogger[Moped] if defined?(Moped)
 
       # Replace the Resque Logger
-      Resque.logger = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
+      Resque.logger           = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
 
       # Replace the Sidekiq logger
       Sidekiq::Logging.logger = SemanticLogger[Sidekiq] if defined?(Sidekiq)
 
       # Replace the Sidetiq logger
-      Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq)
+      Sidetiq.logger          = SemanticLogger[Sidetiq] if defined?(Sidetiq)
 
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)

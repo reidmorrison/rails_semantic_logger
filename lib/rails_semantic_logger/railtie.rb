@@ -67,7 +67,7 @@ module RailsSemanticLogger #:nodoc:
       end
 
       # Replace Rails loggers
-      [:active_record, :action_controller, :action_mailer, :action_view, :active_job].each do |name|
+      [:active_record, :action_controller, :action_mailer, :action_view, :active_job, :action_cable].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
     end
@@ -110,6 +110,9 @@ module RailsSemanticLogger #:nodoc:
 
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+
+      # Set the logger for concurrent-ruby
+      Concurrent.global_logger = SemanticLogger[Concurrent] if defined?(Concurrent)
     end
 
   end

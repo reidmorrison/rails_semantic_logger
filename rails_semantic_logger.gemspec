@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   spec.description = 'Replaces the default Rails logger with SemanticLogger'
   spec.files       = Dir['lib/**/*', 'LICENSE.txt', 'Rakefile', 'README.md']
   spec.test_files  = Dir['test/**/*']
-  spec.license     = 'Apache License V2.0'
+  spec.license     = 'Apache-2.0'
   spec.has_rdoc    = true
   spec.add_dependency 'semantic_logger', '~> 3.0'
 end

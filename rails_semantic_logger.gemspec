@@ -17,5 +17,6 @@ Gem::Specification.new do |spec|
   spec.test_files  = Dir['test/**/*']
   spec.license     = 'Apache-2.0'
   spec.has_rdoc    = true
-  spec.add_dependency 'semantic_logger', '~> 3.0'
+  spec.add_dependency 'rails', '>= 3.2'
+  spec.add_dependency 'semantic_logger', '~> 3.1'
 end

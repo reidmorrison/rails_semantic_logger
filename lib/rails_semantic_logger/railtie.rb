@@ -1,5 +1,6 @@
-require 'logger'
-require 'rails/commands/server'
+require('rails_semantic_logger/extensions/rails/server') if defined?(Rails::Server)
+
+# Replace standard Rails logger
 module RailsSemanticLogger #:nodoc:
   class Railtie < Rails::Railtie #:nodoc:
     # Make the SemanticLogger config available in the Rails application config
@@ -11,11 +12,35 @@ module RailsSemanticLogger #:nodoc:
     #     # Add the MongoDB logger appender only once Rails is initialized
     #     config.after_initialize do
     #       config.semantic_logger.add_appender SemanticLogger::Appender::Mongo.new(
-    #         :db => Mongo::Connection.new['development_development']
+    #         db: Mongo::Connection.new['myapp_development']
     #        )
     #     end
     #   end
     config.semantic_logger = ::SemanticLogger
+
+    config.rails_semantic_logger                   = ActiveSupport::OrderedOptions.new
+
+    # Whether to convert action_controller text messages into semantic data
+    #   UserController -- Completed #index -- { :action => "index", :db_runtime => 54.64, :format => "HTML", :method => "GET", :mongo_runtime => 0.0, :path => "/users", :status => 200, :status_message => "OK", :view_runtime => 709.88 }
+    config.rails_semantic_logger.action_controller = true
+
+    # Whether to drop the rack started message to debug level
+    #   Rails -- Started -- { :ip => "127.0.0.1", :method => "GET", :path => "/dashboards/inquiry_recent_activity" }
+    config.rails_semantic_logger.rack_debug        = false
+
+    # Set render messages log level to :debug
+    #   ActionView::Base --   Rendered data/search/_user.html.haml (46.7ms)
+    config.rails_semantic_logger.render_debug      = true
+
+    # Override the Awesome Print options for logging Hash data as text:
+    #
+    #  Any valid AwesomePrint option for rendering data.
+    #  The defaults can changed be creating a `~/.aprc` file.
+    #  See: https://github.com/michaeldv/awesome_print
+    #
+    #  Note: The option :multiline is set to false if not supplied.
+    #  Note: Has no effect if Awesome Print is not installed.
+    config.rails_semantic_logger.ap_options        = {multiline: false}
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
@@ -33,11 +58,8 @@ module RailsSemanticLogger #:nodoc:
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger                 = config.logger = begin
-        # First check for Rails 3.2 path, then fallback to pre-3.2
-        path = ((config.paths.log.to_a rescue nil) || config.paths['log']).first
-        unless File.exist? File.dirname path
-          FileUtils.mkdir_p File.dirname path
-        end
+        path = config.paths['log'].first
+        FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
 
         # Set internal logger to log to file only, in case another appender
         # experiences errors during writes
@@ -47,15 +69,18 @@ module RailsSemanticLogger #:nodoc:
 
         # Add the log file to the list of appenders
         # Use the colorized formatter if Rails colorized logs are enabled
-        formatter                     = SemanticLogger::Appender::Base.colorized_formatter unless config.colorize_logging == false
-        SemanticLogger.add_appender(path, nil, &formatter)
+        options                       = config.rails_semantic_logger.ap_options
+        formatter                     = config.colorize_logging == false ? :default : SemanticLogger::Formatters::Color.new(options)
+        # Check for previous file or stdout loggers
+        SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
+        SemanticLogger.add_appender(file_name: path, formatter: formatter)
         SemanticLogger[Rails]
       rescue StandardError => exc
         # If not able to log to file, log to standard error with warning level only
         SemanticLogger.default_level = :warn
 
-        SemanticLogger::Logger.logger = SemanticLogger::Appender::File.new(STDERR)
-        SemanticLogger.add_appender(STDERR)
+        SemanticLogger::Logger.logger = SemanticLogger::Appender::File.new(io: STDERR)
+        SemanticLogger.add_appender(io: STDERR)
 
         logger = SemanticLogger[Rails]
         logger.warn(
@@ -116,45 +141,25 @@ module RailsSemanticLogger #:nodoc:
 
       # Set the logger for concurrent-ruby
       Concurrent.global_logger = SemanticLogger[Concurrent] if defined?(Concurrent)
-    end
 
-  end
-end
+      # Rails Patches
+      require('rails_semantic_logger/extensions/action_cable/tagged_logger_proxy') if defined?(ActionCable::Connection::TaggedLoggerProxy)
+      require('rails_semantic_logger/extensions/action_controller/live') if defined?(ActionController::Live)
+      require('rails_semantic_logger/extensions/action_dispatch/debug_exceptions') if defined?(ActionDispatch::DebugExceptions)
+      require('rails_semantic_logger/extensions/action_view/streaming_template_renderer') if defined?(ActionView::StreamingTemplateRenderer::Body)
+      require('rails_semantic_logger/extensions/active_job/logging') if defined?(ActiveJob::Logging)
 
-# Patch the Rails::Server log_to_stdout so that it logs via SemanticLogger
-module Rails #:nodoc:
-  class Server #:nodoc:
-    private
-
-    def log_to_stdout
-      SemanticLogger.add_appender($stdout, &SemanticLogger::Appender::Base.colorized_formatter)
-    end
-  end
-end
-
-# Patch ActiveJob logger
-if Rails.version.to_f >= 4.2
-  require 'active_job/logging'
-
-  module ActiveJob::Logging
-    private
-    def tag_logger(*tags, &block)
-      logger.tagged(*tags, &block)
-    end
-  end
-end
-
-if Rails.version.to_f >= 5.0
-  ActionCable::Connection::TaggedLoggerProxy
-
-  module ActionCable
-    module Connection
-      class TaggedLoggerProxy
-        def tag(logger, &block)
-          current_tags = tags - logger.tags
-          logger.tagged(*current_tags, &block)
-        end
+      require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
+      if config.rails_semantic_logger.rack_debug
+        require('rails_semantic_logger/extensions/rails/rack/logger_info_as_debug') if defined?(Rails::Rack::Logger)
       end
+      if config.rails_semantic_logger.render_debug
+        require('rails_semantic_logger/extensions/action_view/log_subscriber') if defined?(ActionView::LogSubscriber)
+      end
+
+      require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
     end
+
   end
 end
+

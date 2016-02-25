@@ -156,6 +156,7 @@ module RailsSemanticLogger #:nodoc:
       if config.rails_semantic_logger.render_debug
         require('rails_semantic_logger/extensions/action_view/log_subscriber') if defined?(ActionView::LogSubscriber)
       end
+      require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
 
       require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
     end

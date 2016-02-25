@@ -160,6 +160,11 @@ module RailsSemanticLogger #:nodoc:
       require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
     end
 
+    # Before any initializers run, but after the gems have been loaded
+    config.after_initialize do
+      # Replace the Bugsnag logger
+      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+    end
   end
 end
 

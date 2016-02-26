@@ -2,6 +2,6 @@
 ActionController::Live
 module ActionController::Live
   def log_error(exception)
-    logger.fatal(exc)
+    logger.fatal(exception)
   end
 end

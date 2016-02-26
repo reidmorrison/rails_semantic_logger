@@ -17,7 +17,7 @@ module Rails
 
       def logger
         @logger ||= begin
-          logger = SemanticLogger['Rack']
+          logger = SemanticLogger['Rails']
           logger.extend(LogInfoAsDebug)
           logger
         end

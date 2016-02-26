@@ -2,6 +2,7 @@ ActionController::LogSubscriber
 
 module ActionController
   class LogSubscriber
+    # Log as debug to hide Processing messages in production
     def start_processing(event)
       controller_logger(event).debug { "Processing ##{event.payload[:action]}" }
     end

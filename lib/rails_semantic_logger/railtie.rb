@@ -18,19 +18,22 @@ module RailsSemanticLogger #:nodoc:
     #   end
     config.semantic_logger = ::SemanticLogger
 
-    config.rails_semantic_logger                   = ActiveSupport::OrderedOptions.new
+    config.rails_semantic_logger            = ActiveSupport::OrderedOptions.new
 
-    # Whether to convert action_controller text messages into semantic data
-    #   UserController -- Completed #index -- { :action => "index", :db_runtime => 54.64, :format => "HTML", :method => "GET", :mongo_runtime => 0.0, :path => "/users", :status => 200, :status_message => "OK", :view_runtime => 709.88 }
-    config.rails_semantic_logger.action_controller = true
-
-    # Whether to drop the rack started message to debug level
+    # Convert Action Controller and Active Record text messages to semantic data
     #   Rails -- Started -- { :ip => "127.0.0.1", :method => "GET", :path => "/dashboards/inquiry_recent_activity" }
-    config.rails_semantic_logger.rack_debug        = false
+    #   UserController -- Completed #index -- { :action => "index", :db_runtime => 54.64, :format => "HTML", :method => "GET", :mongo_runtime => 0.0, :path => "/users", :status => 200, :status_message => "OK", :view_runtime => 709.88 }
+    config.rails_semantic_logger.semantic   = true
 
-    # Set render messages log level to :debug
+    # Change Rack started message to debug so that it does not appear in production
+    config.rails_semantic_logger.started    = false
+
+    # Change Processing message to debug so that it does not appear in production
+    config.rails_semantic_logger.processing = false
+
+    # Change Action View render log messages to debug so that they do not appear in production
     #   ActionView::Base --   Rendered data/search/_user.html.haml (46.7ms)
-    config.rails_semantic_logger.render_debug      = true
+    config.rails_semantic_logger.rendered   = false
 
     # Override the Awesome Print options for logging Hash data as text:
     #
@@ -40,7 +43,7 @@ module RailsSemanticLogger #:nodoc:
     #
     #  Note: The option :multiline is set to false if not supplied.
     #  Note: Has no effect if Awesome Print is not installed.
-    config.rails_semantic_logger.ap_options        = {multiline: false}
+    config.rails_semantic_logger.ap_options = {multiline: false}
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
@@ -149,16 +152,20 @@ module RailsSemanticLogger #:nodoc:
       require('rails_semantic_logger/extensions/action_view/streaming_template_renderer') if defined?(ActionView::StreamingTemplateRenderer::Body)
       require('rails_semantic_logger/extensions/active_job/logging') if defined?(ActiveJob::Logging)
 
-      require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
-      if config.rails_semantic_logger.rack_debug
+      if config.rails_semantic_logger.semantic
+        require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
+        require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
+        require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
+      end
+      unless config.rails_semantic_logger.started
         require('rails_semantic_logger/extensions/rails/rack/logger_info_as_debug') if defined?(Rails::Rack::Logger)
       end
-      if config.rails_semantic_logger.render_debug
+      unless config.rails_semantic_logger.rendered
         require('rails_semantic_logger/extensions/action_view/log_subscriber') if defined?(ActionView::LogSubscriber)
       end
-      require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
-
-      require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
+      if config.rails_semantic_logger.processing
+        require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
+      end
     end
 
     # Before any initializers run, but after the gems have been loaded

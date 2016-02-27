@@ -11,9 +11,10 @@ module RailsSemanticLogger #:nodoc:
     #   Rails::Application.configure do
     #     # Add the MongoDB logger appender only once Rails is initialized
     #     config.after_initialize do
-    #       config.semantic_logger.add_appender SemanticLogger::Appender::Mongo.new(
+    #       appender = SemanticLogger::Appender::Mongo.new(
     #         db: Mongo::Connection.new['myapp_development']
-    #        )
+    #       )
+    #       config.semantic_logger.add_appender(appender: appender)
     #     end
     #   end
     config.semantic_logger = ::SemanticLogger

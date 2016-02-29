@@ -74,7 +74,7 @@ module RailsSemanticLogger #:nodoc:
         # Add the log file to the list of appenders
         # Use the colorized formatter if Rails colorized logs are enabled
         options                       = config.rails_semantic_logger.ap_options
-        formatter                     = config.colorize_logging == false ? :default : SemanticLogger::Formatters::Color.new(options)
+        formatter                     = config.colorize_logging == false ? SemanticLogger::Formatters::Default.new : SemanticLogger::Formatters::Color.new(options)
         # Check for previous file or stdout loggers
         SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
         SemanticLogger.add_appender(file_name: path, formatter: formatter)

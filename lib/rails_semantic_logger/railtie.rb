@@ -46,6 +46,27 @@ module RailsSemanticLogger #:nodoc:
     #  Note: Has no effect if Awesome Print is not installed.
     config.rails_semantic_logger.ap_options = {multiline: false}
 
+    # Procs to call while processing the controller action. This allows
+    # you to add extra information to the controller completion action.
+    #
+    # The procs will be given the controller event and log object.
+    #
+    # Example:
+    #
+    #  class ThingController
+    #    private
+    #
+    #    def append_info_to_payload(payload)
+    #      super
+    #      payload[:user_id] = 42 # or whatever fetches your user_id
+    #    end
+    #  end
+    #
+    #  config.rails_semantic_logger.action_controller_extra_log_procs << proc do |payload, log|
+    #    log[:user_id] = payload[:user_id] if payload[:user_id]
+    #  end
+    config.rails_semantic_logger.action_controller_extra_log_procs = []
+
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
     # additional features
@@ -102,6 +123,10 @@ module RailsSemanticLogger #:nodoc:
       [:action_cable].each do |name|
         ActiveSupport.on_load(name) { self.logger = SemanticLogger['ActionCable'] }
       end
+    end
+
+    config.after_initialize do
+      ActionController::LogSubscriber.extra_log_procs = config.rails_semantic_logger.action_controller_extra_log_procs
     end
 
     # Support fork frameworks

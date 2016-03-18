@@ -2,6 +2,18 @@ ActionController::LogSubscriber
 
 module ActionController
   class LogSubscriber
+    # Sets procs to call when processing the controller action
+    #
+    # The procs will be given the event and the current log hash
+    def self.extra_log_procs=(procs)
+      @extra_log_procs = procs
+    end
+
+    # Procs to call when processing the controller action
+    def self.extra_log_procs
+      @extra_log_procs
+    end
+
     # Log as debug to hide Processing messages in production
     def start_processing(event)
       controller_logger(event).debug { "Processing ##{event.payload[:action]}" }
@@ -30,8 +42,14 @@ module ActionController
           method:         payload[:method],
           duration:       event.duration
         }
+
         collect_runtimes(payload, log)
         log[:params] = params unless params.empty?
+
+        self.class.extra_log_procs.each do |extra_log_proc|
+          extra_log_proc.call(payload, log)
+        end
+
         log
       end
     end

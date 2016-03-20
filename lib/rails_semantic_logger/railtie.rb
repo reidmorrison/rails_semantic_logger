@@ -19,22 +19,22 @@ module RailsSemanticLogger #:nodoc:
     #   end
     config.semantic_logger = ::SemanticLogger
 
-    config.rails_semantic_logger            = ActiveSupport::OrderedOptions.new
+    config.rails_semantic_logger                   = ActiveSupport::OrderedOptions.new
 
     # Convert Action Controller and Active Record text messages to semantic data
     #   Rails -- Started -- { :ip => "127.0.0.1", :method => "GET", :path => "/dashboards/inquiry_recent_activity" }
     #   UserController -- Completed #index -- { :action => "index", :db_runtime => 54.64, :format => "HTML", :method => "GET", :mongo_runtime => 0.0, :path => "/users", :status => 200, :status_message => "OK", :view_runtime => 709.88 }
-    config.rails_semantic_logger.semantic   = true
+    config.rails_semantic_logger.semantic          = true
 
     # Change Rack started message to debug so that it does not appear in production
-    config.rails_semantic_logger.started    = false
+    config.rails_semantic_logger.started           = false
 
     # Change Processing message to debug so that it does not appear in production
-    config.rails_semantic_logger.processing = false
+    config.rails_semantic_logger.processing        = false
 
     # Change Action View render log messages to debug so that they do not appear in production
     #   ActionView::Base --   Rendered data/search/_user.html.haml (46.7ms)
-    config.rails_semantic_logger.rendered   = false
+    config.rails_semantic_logger.rendered          = false
 
     # Override the Awesome Print options for logging Hash data as text:
     #
@@ -44,7 +44,17 @@ module RailsSemanticLogger #:nodoc:
     #
     #  Note: The option :multiline is set to false if not supplied.
     #  Note: Has no effect if Awesome Print is not installed.
-    config.rails_semantic_logger.ap_options = {multiline: false}
+    config.rails_semantic_logger.ap_options        = {multiline: false}
+
+    # Whether to automatically add an environment specific log file appender.
+    # For Example: 'log/development.log'
+    #
+    # Note:
+    #   When Semantic Logger fails to log to an appender it logs the error to an
+    #   internal logger, which by default writes to STDERR.
+    #   Example, change the default internal logger to log to stdout:
+    #     SemanticLogger::Logger.logger = SemanticLogger::Appender::File.new(STDOUT, :warn)
+    config.rails_semantic_logger.add_file_appender = true
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
@@ -62,22 +72,24 @@ module RailsSemanticLogger #:nodoc:
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger                 = config.logger = begin
-        path = config.paths['log'].first
-        FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
+        if config.rails_semantic_logger.add_file_appender
+          path = config.paths['log'].first
+          FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
 
-        # Set internal logger to log to file only, in case another appender
-        # experiences errors during writes
-        appender                      = SemanticLogger::Appender::File.new(path, config.log_level)
-        appender.name                 = 'SemanticLogger'
-        SemanticLogger::Logger.logger = appender
+          # Set internal logger to log to file only, in case another appender
+          # experiences errors during writes
+          appender                      = SemanticLogger::Appender::File.new(path, config.log_level)
+          appender.name                 = 'SemanticLogger'
+          SemanticLogger::Logger.logger = appender
 
-        # Add the log file to the list of appenders
-        # Use the colorized formatter if Rails colorized logs are enabled
-        options                       = config.rails_semantic_logger.ap_options
-        formatter                     = config.colorize_logging == false ? SemanticLogger::Formatters::Default.new : SemanticLogger::Formatters::Color.new(options)
-        # Check for previous file or stdout loggers
-        SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
-        SemanticLogger.add_appender(file_name: path, formatter: formatter)
+          # Add the log file to the list of appenders
+          # Use the colorized formatter if Rails colorized logs are enabled
+          options                       = config.rails_semantic_logger.ap_options
+          formatter                     = config.colorize_logging == false ? SemanticLogger::Formatters::Default.new : SemanticLogger::Formatters::Color.new(options)
+          # Check for previous file or stdout loggers
+          SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
+          SemanticLogger.add_appender(file_name: path, formatter: formatter)
+        end
         SemanticLogger[Rails]
       rescue StandardError => exc
         # If not able to log to file, log to standard error with warning level only

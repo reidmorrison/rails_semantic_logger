@@ -9,30 +9,28 @@ module ActionController
 
     def process_action(event)
       controller_logger(event).info do
-        payload = event.payload
-        params  = payload[:params].except(*INTERNAL_PARAMS)
-        format  = payload[:format]
-        format  = format.to_s.upcase if format.is_a?(Symbol)
-        status  = payload[:status]
+        payload = event.payload.dup
+        payload[:params].except!(*INTERNAL_PARAMS)
+        payload.delete(:params) if payload[:params].empty?
 
-        if status.nil? && payload[:exception].present?
-          exception_class_name = payload[:exception].first
-          status               = ActionDispatch::ExceptionWrapper.status_code_for_exception(exception_class_name)
+        format           = payload[:format]
+        payload[:format] = format.to_s.upcase if format.is_a?(Symbol)
+
+        exception = payload.delete(:exception)
+        if payload[:status].nil? && exception.present?
+          exception_class_name = exception.first
+          payload[:status]     = ActionDispatch::ExceptionWrapper.status_code_for_exception(exception_class_name)
         end
 
-        log = {
-          message:        "Completed ##{payload[:action]}",
-          status:         status,
-          status_message: Rack::Utils::HTTP_STATUS_CODES[status],
-          format:         format,
-          path:           payload[:path],
-          action:         payload[:action],
-          method:         payload[:method],
-          duration:       event.duration
-        }
-        collect_runtimes(payload, log)
-        log[:params] = params unless params.empty?
-        log
+        # Rounds off the runtimes. For example, :view_runtime, :mongo_runtime, etc.
+        payload.keys.each do |key|
+          payload[key] = payload[key].to_f.round(2) if key.to_s.match(/(.*)_runtime/)
+        end
+
+        payload[:message]        = "Completed ##{payload[:action]}"
+        payload[:status_message] = Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
+        payload[:duration]       = event.duration
+        payload
       end
     end
 
@@ -84,16 +82,6 @@ module ActionController
         end
       else
         ActionController::Base.logger
-      end
-    end
-
-    # Returns [Hash] runtimes for all registered runtime collection subscribers
-    # For example, :view_runtime, :mongo_runtime, etc.
-    def collect_runtimes(payload, log)
-      payload.each_pair do |key, value|
-        if match = key.to_s.match(/(.*)_runtime/)
-          log[key] = value.to_f.round(2)
-        end
       end
     end
 

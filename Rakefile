@@ -14,3 +14,15 @@ task :publish => :gem do
   system "gem push rails_semantic_logger-#{RailsSemanticLogger::VERSION}.gem"
   system "rm rails_semantic_logger-#{RailsSemanticLogger::VERSION}.gem"
 end
+
+desc 'Run Test Suite'
+task :test do
+  Rake::TestTask.new(:functional) do |t|
+    t.test_files = FileList['test/**/*_test.rb']
+    t.verbose    = true
+  end
+
+  Rake::Task['functional'].invoke
+end
+
+task default: :test

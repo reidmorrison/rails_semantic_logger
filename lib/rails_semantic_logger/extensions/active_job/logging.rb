@@ -1,5 +1,5 @@
 # Patch ActiveJob logger
-ActiveJob::Logging
+require 'active_job/logging'
 
 module ActiveJob::Logging
   private

@@ -1,8 +1,5 @@
-require('rails_semantic_logger/extensions/rails/server') if defined?(Rails::Server)
-
-# Replace standard Rails logger
-module RailsSemanticLogger #:nodoc:
-  class Railtie < Rails::Railtie #:nodoc:
+module RailsSemanticLogger
+  class Engine < ::Rails::Engine
     # Make the SemanticLogger config available in the Rails application config
     #
     # Example: Add the MongoDB logging appender in the Rails environment
@@ -76,16 +73,16 @@ module RailsSemanticLogger #:nodoc:
           path = config.paths['log'].first
           FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
 
-          # Set internal logger to log to file only, in case another appender
-          # experiences errors during writes
-          appender                      = SemanticLogger::Appender::File.new(path, config.log_level)
+          # Add the log file to the list of appenders
+          # Use the colorized formatter if Rails colorized logs are enabled
+          ap_options                    = config.rails_semantic_logger.ap_options
+          formatter                     = config.colorize_logging == false ? SemanticLogger::Formatters::Default.new : SemanticLogger::Formatters::Color.new(ap: ap_options)
+
+          # Set internal logger to log to file only, in case another appender experiences errors during writes
+          appender                      = SemanticLogger::Appender::File.new(file_name: path, level: config.log_level, formatter: formatter)
           appender.name                 = 'SemanticLogger'
           SemanticLogger::Logger.logger = appender
 
-          # Add the log file to the list of appenders
-          # Use the colorized formatter if Rails colorized logs are enabled
-          options                       = config.rails_semantic_logger.ap_options
-          formatter                     = config.colorize_logging == false ? SemanticLogger::Formatters::Default.new : SemanticLogger::Formatters::Color.new(options)
           # Check for previous file or stdout loggers
           SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
           SemanticLogger.add_appender(file_name: path, formatter: formatter)
@@ -159,11 +156,11 @@ module RailsSemanticLogger #:nodoc:
       Concurrent.global_logger = SemanticLogger[Concurrent] if defined?(Concurrent)
 
       # Rails Patches
-      require('rails_semantic_logger/extensions/action_cable/tagged_logger_proxy') if defined?(ActionCable::Connection::TaggedLoggerProxy)
+      require('rails_semantic_logger/extensions/action_cable/tagged_logger_proxy') if defined?(ActionCable)
       require('rails_semantic_logger/extensions/action_controller/live') if defined?(ActionController::Live)
       require('rails_semantic_logger/extensions/action_dispatch/debug_exceptions') if defined?(ActionDispatch::DebugExceptions)
       require('rails_semantic_logger/extensions/action_view/streaming_template_renderer') if defined?(ActionView::StreamingTemplateRenderer::Body)
-      require('rails_semantic_logger/extensions/active_job/logging') if defined?(ActiveJob::Logging)
+      require('rails_semantic_logger/extensions/active_job/logging') if defined?(ActiveJob)
 
       if config.rails_semantic_logger.semantic
         require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
@@ -186,6 +183,6 @@ module RailsSemanticLogger #:nodoc:
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
     end
+
   end
 end
-

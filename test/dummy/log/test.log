@@ -1,0 +1,9 @@
+2016-03-29 11:13:18.772171 [36mI[0m [92401:70289786608160] [36mRails[0m -- Connecting to database specified by database.yml
+2016-03-29 11:13:18.779593 [32mD[0m [92401:70289786608160] [32mActiveRecord::Base[0m --   [1m[36m (0.2ms)[0m  [1mbegin transaction[0m
+2016-03-29 11:13:18.779853 [32mD[0m [92401:70289786608160] [32mActiveRecord::Base[0m --   [1m[35m (0.0ms)[0m  rollback transaction
+2016-03-29 11:13:41.538626 [36mI[0m [92411:70327568833080] [36mRails[0m -- Connecting to database specified by database.yml
+2016-03-29 11:13:41.546583 [32mD[0m [92411:70327568833080] [32mActiveRecord::Base[0m --   [1m[36m (0.2ms)[0m  [1mbegin transaction[0m
+2016-03-29 11:13:41.546954 [32mD[0m [92411:70327568833080] [32mActiveRecord::Base[0m --   [1m[35m (0.0ms)[0m  rollback transaction
+2016-03-29 11:13:49.524262 [36mI[0m [92416:70287911811640] [36mRails[0m -- Connecting to database specified by database.yml
+2016-03-29 11:13:49.533017 [32mD[0m [92416:70287911811640] [32mActiveRecord::Base[0m --   [1m[36m (0.2ms)[0m  [1mbegin transaction[0m
+2016-03-29 11:13:49.533284 [32mD[0m [92416:70287911811640] [32mActiveRecord::Base[0m --   [1m[35m (0.0ms)[0m  rollback transaction

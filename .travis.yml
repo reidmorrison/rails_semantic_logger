@@ -1,0 +1,42 @@
+language: ruby
+
+gemfile:
+  - gemfiles/rails3_2.gemfile
+  - gemfiles/rails4_1.gemfile
+  - gemfiles/rails4_2.gemfile
+  - gemfiles/rails5_0.gemfile
+
+rvm:
+  - 1.9.3
+  - 2.0.0
+  - 2.2.2
+  - jruby-1.7.23
+  - jruby-9.0.5.0
+
+matrix:
+  exclude:
+    - rvm: 1.9.3
+      gemfile: gemfiles/rails5_0.gemfile
+    - rvm: 2.0.0
+      gemfile: gemfiles/rails5_0.gemfile
+    - rvm: jruby-1.7.23
+      gemfile: gemfiles/rails5_0.gemfile
+
+notifications:
+  email: false
+
+bundler_args: --without development
+
+services:
+  - mongodb
+
+sudo: false
+
+# Gitter integration
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/4d6749e48eb60321640e
+    on_success: change  # options: [always|never|change] default: always
+    on_failure: always  # options: [always|never|change] default: always
+    on_start: never     # options: [always|never|change] default: always

@@ -15,11 +15,11 @@ rvm:
 
 matrix:
   exclude:
-    - rvm: 1.9.3
-      gemfile: gemfiles/rails5_0.gemfile
-    - rvm: 2.0.0
+    - rvm: 2.1.8
       gemfile: gemfiles/rails5_0.gemfile
     - rvm: jruby-1.7.23
+      gemfile: gemfiles/rails5_0.gemfile
+    - rvm: jruby-9.0.5.0
       gemfile: gemfiles/rails5_0.gemfile
 
 notifications:

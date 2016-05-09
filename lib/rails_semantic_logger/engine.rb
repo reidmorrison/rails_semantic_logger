@@ -105,12 +105,10 @@ module RailsSemanticLogger
       end
 
       # Replace Rails loggers
-      [:active_record, :action_controller, :action_mailer, :action_view, :active_job].each do |name|
+      [:active_record, :action_controller, :action_mailer, :action_view, :active_job, :active_model_serializers].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
-      [:action_cable].each do |name|
-        ActiveSupport.on_load(name) { self.logger = SemanticLogger['ActionCable'] }
-      end
+      ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger['ActionCable'] }
     end
 
     # Support fork frameworks
@@ -161,18 +159,22 @@ module RailsSemanticLogger
       require('rails_semantic_logger/extensions/action_dispatch/debug_exceptions') if defined?(ActionDispatch::DebugExceptions)
       require('rails_semantic_logger/extensions/action_view/streaming_template_renderer') if defined?(ActionView::StreamingTemplateRenderer::Body)
       require('rails_semantic_logger/extensions/active_job/logging') if defined?(ActiveJob)
+      require('rails_semantic_logger/extensions/active_model_serializers/logging') if defined?(ActiveModelSerializers)
 
       if config.rails_semantic_logger.semantic
         require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
         require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
         require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
       end
+
       unless config.rails_semantic_logger.started
         require('rails_semantic_logger/extensions/rails/rack/logger_info_as_debug') if defined?(Rails::Rack::Logger)
       end
+
       unless config.rails_semantic_logger.rendered
         require('rails_semantic_logger/extensions/action_view/log_subscriber') if defined?(ActionView::LogSubscriber)
       end
+
       if config.rails_semantic_logger.processing
         require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
       end

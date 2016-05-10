@@ -2,6 +2,8 @@
 require 'active_model_serializers/logging'
 
 module ActiveModelSerializers::Logging
+  include SemanticLogger::Loggable
+
   private
   def tag_logger(*tags, &block)
     logger.tagged(*tags, &block)

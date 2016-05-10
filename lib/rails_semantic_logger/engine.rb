@@ -105,7 +105,7 @@ module RailsSemanticLogger
       end
 
       # Replace Rails loggers
-      [:active_record, :action_controller, :action_mailer, :action_view, :active_job].each do |name|
+      [:active_record, :action_controller, :action_mailer, :action_view].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
       ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger['ActionCable'] }
@@ -163,7 +163,7 @@ module RailsSemanticLogger
 
       if config.rails_semantic_logger.semantic
         require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
-        require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController::LogSubscriber)
+        require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController)
         require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
       end
 

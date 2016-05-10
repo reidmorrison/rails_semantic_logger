@@ -1,3 +1,4 @@
+require 'action_controller/log_subscriber'
 ActionController::LogSubscriber
 
 module ActionController

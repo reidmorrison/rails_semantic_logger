@@ -1,3 +1,4 @@
+require 'action_controller/log_subscriber'
 ActionController::LogSubscriber
 
 module ActionController
@@ -30,6 +31,8 @@ module ActionController
         payload[:message]        = "Completed ##{payload[:action]}"
         payload[:status_message] = Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
         payload[:duration]       = event.duration
+        # Causes excessive log output with Rails 5 RC1
+        payload.delete(:headers)
         payload
       end
     end

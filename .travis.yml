@@ -7,19 +7,19 @@ gemfile:
   - gemfiles/rails5_0.gemfile
 
 rvm:
-  - 2.1.8
-  - 2.2.4
-  - 2.3.0
-  - jruby-1.7.23
-  - jruby-9.0.5.0
+  - 2.1.10
+  - 2.2.5
+  - 2.3.1
+  - jruby-1.7.25
+  - jruby-9.1.2.0
 
 matrix:
   exclude:
-    - rvm: 2.1.8
+    - rvm: 2.1.10
       gemfile: gemfiles/rails5_0.gemfile
-    - rvm: jruby-1.7.23
+    - rvm: jruby-1.7.25
       gemfile: gemfiles/rails5_0.gemfile
-    - rvm: jruby-9.0.5.0
+    - rvm: jruby-9.1.2.0
       gemfile: gemfiles/rails5_0.gemfile
 
 notifications:

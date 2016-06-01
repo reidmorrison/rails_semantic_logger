@@ -17,6 +17,8 @@ module ActionController
         format           = payload[:format]
         payload[:format] = format.to_s.upcase if format.is_a?(Symbol)
 
+        payload[:path]   = extract_path(payload[:path]) if payload.has_key?(:path)
+
         exception = payload.delete(:exception)
         if payload[:status].nil? && exception.present?
           exception_class_name = exception.first
@@ -86,6 +88,11 @@ module ActionController
       else
         ActionController::Base.logger
       end
+    end
+
+    def extract_path(path)
+      index = path.index('?')
+      index ? path[0, index] : path
     end
 
   end

@@ -9,4 +9,5 @@ gem 'awesome_print'
 gem 'sqlite3', platform: :ruby
 gem 'jdbc-sqlite3', platform: :jruby
 gem 'activerecord-jdbcsqlite3-adapter', platform: :jruby
-gem 'active_model_serializers'
+# active_model_serializers v0.10 requires Ruby v2
+gem 'active_model_serializers', '~> 0.9.5'

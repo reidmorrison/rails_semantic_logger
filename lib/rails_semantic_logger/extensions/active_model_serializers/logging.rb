@@ -9,3 +9,7 @@ module ActiveModelSerializers::Logging
     logger.tagged(*tags, &block)
   end
 end
+
+class ActiveModelSerializers::SerializableResource
+  include SemanticLogger::Loggable
+end

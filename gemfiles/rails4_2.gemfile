@@ -2,5 +2,3 @@ eval File.read(File.expand_path('../Gemfile.common.rb', __FILE__)), nil, 'Gemfil
 gemspec :path => '../'
 
 gem 'rails', '~> 4.2.0'
-# mime-types v3 requires Ruby v2
-gem 'mime-types', '~> 2.0'

@@ -134,9 +134,10 @@ module RailsSemanticLogger
 
     # Before any initializers run, but after the gems have been loaded
     config.before_initialize do
-      # Replace the Mongoid Logger
+      # Replace the Mongo Loggers
       Mongoid.logger          = SemanticLogger[Mongoid] if defined?(Mongoid)
       Moped.logger            = SemanticLogger[Moped] if defined?(Moped)
+      Mongo::Logger.logger    = SemanticLogger[Mongo] if defined?(Mongo::Logger)
 
       # Replace the Resque Logger
       Resque.logger           = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)

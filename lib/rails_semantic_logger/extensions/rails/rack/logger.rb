@@ -7,9 +7,11 @@ module Rails
       def started_request_message(request)
         {
           message: 'Started',
-          method:  request.request_method,
-          path:    request.filtered_path,
-          ip:      request.ip
+          payload: {
+            method: request.request_method,
+            path:   request.filtered_path,
+            ip:     request.ip
+          }
         }
       end
 

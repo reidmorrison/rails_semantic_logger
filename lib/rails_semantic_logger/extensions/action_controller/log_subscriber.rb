@@ -30,12 +30,15 @@ module ActionController
           payload[key] = payload[key].to_f.round(2) if key.to_s.match(/(.*)_runtime/)
         end
 
-        payload[:message]        = "Completed ##{payload[:action]}"
         payload[:status_message] = Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
-        payload[:duration]       = event.duration
         # Causes excessive log output with Rails 5 RC1
         payload.delete(:headers)
-        payload
+
+        {
+          message:  "Completed ##{payload[:action]}",
+          duration: event.duration,
+          payload:  payload
+        }
       end
     end
 

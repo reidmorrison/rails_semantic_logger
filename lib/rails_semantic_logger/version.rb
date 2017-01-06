@@ -1,3 +1,3 @@
 module RailsSemanticLogger #:nodoc
-  VERSION = '3.4.1'
+  VERSION = '4.0.0.beta2'
 end

@@ -18,6 +18,7 @@ module Rails
       def logger
         @logger ||= begin
           logger = SemanticLogger['Rails']
+          logger.filter = Rails.logger.filter
           logger.extend(LogInfoAsDebug)
           logger
         end

@@ -53,6 +53,9 @@ module RailsSemanticLogger
     #     SemanticLogger::Processor.logger = SemanticLogger::Appender::File.new(STDOUT, :warn)
     config.rails_semantic_logger.add_file_appender = true
 
+    # Silence asset logging
+    config.rails_semantic_logger.quiet_assets      = false
+
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
     # additional features
@@ -87,7 +90,14 @@ module RailsSemanticLogger
           SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
           SemanticLogger.add_appender(file_name: path, formatter: formatter)
         end
-        SemanticLogger[Rails]
+
+        logger = SemanticLogger[Rails]
+        # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
+        if config.rails_semantic_logger.quiet_assets && config.assets.prefix
+          assets_regex  = %r(\A/{0,2}#{config.assets.prefix})
+          logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
+        end
+        logger
       rescue StandardError => exc
         # If not able to log to file, log to standard error with warning level only
         SemanticLogger.default_level = :warn

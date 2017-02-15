@@ -4,6 +4,12 @@ Rails::Rack::Logger
 module Rails
   module Rack
     class Logger
+      @@logger = SemanticLogger['Rack']
+
+      def self.logger
+        @@logger
+      end
+
       def started_request_message(request)
         {
           message: 'Started',
@@ -13,6 +19,12 @@ module Rails
             ip:     request.ip
           }
         }
+      end
+
+      private
+
+      def logger
+        self.class.logger
       end
 
     end

@@ -92,11 +92,6 @@ module RailsSemanticLogger
         end
 
         logger = SemanticLogger[Rails]
-        # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
-        if config.rails_semantic_logger.quiet_assets && config.assets.prefix
-          assets_regex  = %r(\A/{0,2}#{config.assets.prefix})
-          logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
-        end
         logger
       rescue StandardError => exc
         # If not able to log to file, log to standard error with warning level only
@@ -123,6 +118,17 @@ module RailsSemanticLogger
 
     # Support fork frameworks
     config.after_initialize do
+      # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
+      if config.rails_semantic_logger.quiet_assets && config.assets.prefix #&& defined?(Rails::Rack::Logger)
+        assets_regex = %r(\A/{0,2}#{config.assets.prefix})
+        if Rails.version.to_i >= 5
+          Rails::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
+        else
+          # Also strips the empty log lines
+          Rails::Rack::Logger.logger.filter = -> log { log.payload.nil? ? (log.message != '') : (log.payload[:path] !~ assets_regex) }
+        end
+      end
+
       # Passenger provides the :starting_worker_process event for executing
       # code after it has forked, so we use that and reconnect immediately.
       if defined?(PhusionPassenger)

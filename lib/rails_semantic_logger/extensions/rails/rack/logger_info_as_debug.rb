@@ -4,6 +4,10 @@ Rails::Rack::Logger
 module Rails
   module Rack
     class Logger
+      def self.logger
+        @@logger
+      end
+
       private
 
       module LogInfoAsDebug
@@ -16,14 +20,11 @@ module Rails
       end
 
       def logger
-        @logger ||= begin
-          logger = SemanticLogger['Rails']
-          logger.filter = Rails.logger.filter
-          logger.extend(LogInfoAsDebug)
-          logger
-        end
+        self.class.logger
       end
 
+      @@logger = SemanticLogger['Rack']
+      @@logger.extend(LogInfoAsDebug)
     end
   end
 end

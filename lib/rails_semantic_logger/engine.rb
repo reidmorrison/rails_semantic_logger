@@ -91,8 +91,7 @@ module RailsSemanticLogger
           SemanticLogger.add_appender(file_name: path, formatter: formatter)
         end
 
-        logger = SemanticLogger[Rails]
-        logger
+        SemanticLogger[Rails]
       rescue StandardError => exc
         # If not able to log to file, log to standard error with warning level only
         SemanticLogger.default_level = :warn

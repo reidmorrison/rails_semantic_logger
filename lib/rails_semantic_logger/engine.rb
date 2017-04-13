@@ -56,6 +56,20 @@ module RailsSemanticLogger
     # Silence asset logging
     config.rails_semantic_logger.quiet_assets      = false
 
+    # Hash of named tags.
+    # Use in a similar fashion to the Rails config.log_tags, except that it is now a hash.
+    #
+    # Example:
+    #   config.rails_semantic_logger.named_tags = {
+    #     request_id: :request_id,
+    #     ip:         :remote_ip,
+    #     user:       -> request { request.cookie_jar['login'] }
+    #   }
+    #
+    # Notes:
+    # - Nil Values are ignored and will be left out of the named tags.
+    config.rails_semantic_logger.named_tags        = nil
+
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
     # additional features
@@ -193,6 +207,10 @@ module RailsSemanticLogger
 
       if config.rails_semantic_logger.processing
         require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
+      end
+
+      if config.rails_semantic_logger.named_tags && defined?(Rails::Rack::Logger)
+        Rails::Rack::Logger.named_tags = config.rails_semantic_logger.named_tags
       end
     end
 

@@ -5,7 +5,7 @@ module Rails
   module Rack
     class Logger
       def self.logger
-        @@logger
+        @logger
       end
 
       private
@@ -23,8 +23,8 @@ module Rails
         self.class.logger
       end
 
-      @@logger = SemanticLogger['Rack']
-      @@logger.extend(LogInfoAsDebug)
+      @logger = SemanticLogger['Rack']
+      @logger.extend(LogInfoAsDebug)
     end
   end
 end

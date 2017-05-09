@@ -11,7 +11,7 @@ module ActionController
     def process_action(event)
       controller_logger(event).info do
         payload = event.payload.dup
-        payload[:params].except!(*INTERNAL_PARAMS)
+        payload[:params] = payload[:params].to_unsafe_h.except(*INTERNAL_PARAMS)
         payload.delete(:params) if payload[:params].empty?
 
         format           = payload[:format]

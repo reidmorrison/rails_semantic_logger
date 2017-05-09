@@ -69,6 +69,7 @@ module ActionController
        expire_fragment expire_page write_page).each do |method|
       class_eval <<-METHOD, __FILE__, __LINE__ + 1
         def #{method}(event)
+          return unless ActionController::Base.enable_fragment_cache_logging
           controller_logger(event).info do
             key_or_path = event.payload[:key] || event.payload[:path]
             {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration}

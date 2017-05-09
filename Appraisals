@@ -7,5 +7,5 @@ appraise 'rails_5.0' do
 end
 
 appraise 'rails_5.1' do
-  gem 'rails', '~> 5.1.0.rc1'
+  gem 'rails', '~> 5.1.0'
 end

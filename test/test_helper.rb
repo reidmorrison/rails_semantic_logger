@@ -1,13 +1,15 @@
-$LOAD_PATH.unshift File.dirname(__FILE__) + '/../lib'
-
-# Configure Rails Environment
-ENV['RAILS_ENV'] = 'test'
-
-require File.expand_path('../dummy/config/environment.rb', __FILE__)
-
-Rails.backtrace_cleaner.remove_silencers!
+ENV['RAILS_ENV'] ||= 'test'
+require_relative 'dummy/config/environment'
 
 require 'minitest/autorun'
 require 'minitest/stub_any_instance'
 require 'awesome_print'
-require 'rails_semantic_logger'
+
+require 'rails/test_help'
+require 'minitest/rails'
+require 'minitest/reporters'
+require_relative 'mock_logger'
+
+# Include the complete backtrace?
+Minitest.backtrace_filter = Minitest::BacktraceFilter.new if ENV['BACKTRACE'].present?
+Rails.backtrace_cleaner.remove_silencers!

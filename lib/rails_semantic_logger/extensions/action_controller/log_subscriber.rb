@@ -10,8 +10,11 @@ module ActionController
 
     def process_action(event)
       controller_logger(event).info do
-        payload = event.payload.dup
-        payload[:params] = payload[:params].to_unsafe_h.except(*INTERNAL_PARAMS)
+        payload          = event.payload.dup
+        # According to PR https://github.com/rocketjob/rails_semantic_logger/pull/37/files
+        # payload[:params] is not always a Hash.
+        payload[:params] = payload[:params].to_unsafe_h unless payload[:params].is_a?(Hash)
+        payload[:params].except!(*INTERNAL_PARAMS)
         payload.delete(:params) if payload[:params].empty?
 
         format           = payload[:format]
@@ -43,19 +46,19 @@ module ActionController
     end
 
     def halted_callback(event)
-      controller_logger(event).info { "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected" }
+      controller_logger(event).info {"Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected"}
     end
 
     def send_file(event)
-      controller_logger(event).info('Sent file') { {path: event.payload[:path], duration: event.duration} }
+      controller_logger(event).info('Sent file') {{path: event.payload[:path], duration: event.duration}}
     end
 
     def redirect_to(event)
-      controller_logger(event).info('Redirected to') { {location: event.payload[:location]} }
+      controller_logger(event).info('Redirected to') {{location: event.payload[:location]}}
     end
 
     def send_data(event)
-      controller_logger(event).info('Sent data') { {file_name: event.payload[:filename], duration: event.duration} }
+      controller_logger(event).info('Sent data') {{file_name: event.payload[:filename], duration: event.duration}}
     end
 
     def unpermitted_parameters(event)
@@ -69,7 +72,8 @@ module ActionController
        expire_fragment expire_page write_page).each do |method|
       class_eval <<-METHOD, __FILE__, __LINE__ + 1
         def #{method}(event)
-          return unless ActionController::Base.enable_fragment_cache_logging
+          # enable_fragment_cache_logging as of Rails 5
+          return if ActionController::Base.respond_to?(:enable_fragment_cache_logging) && !ActionController::Base.enable_fragment_cache_logging
           controller_logger(event).info do
             key_or_path = event.payload[:key] || event.payload[:path]
             {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration}

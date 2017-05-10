@@ -1,8 +1,13 @@
-.DS_Store
-*.gem
-.idea/*
-Gemfile.lock
-._test
+.bundle/
 *.log
+pkg/
+test/dummy/tmp/
+test/dummy/.sass-cache
+*.gem
+/.idea
+tags
+*.DS_Store
+Gemfile.lock
+/gemfiles/*.lock
 
-*.lock
+*.sqlite3

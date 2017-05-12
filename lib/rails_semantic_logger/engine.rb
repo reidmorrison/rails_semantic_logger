@@ -56,18 +56,44 @@ module RailsSemanticLogger
     # Silence asset logging
     config.rails_semantic_logger.quiet_assets      = false
 
-    # Hash of named tags.
-    # Use in a similar fashion to the Rails config.log_tags, except that it is now a hash.
+    # Override the output format for the primary Rails log file.
     #
-    # Example:
-    #   config.rails_semantic_logger.named_tags = {
-    #     request_id: :request_id,
-    #     ip:         :remote_ip,
-    #     user:       -> request { request.cookie_jar['login'] }
-    #   }
+    # Valid options:
+    # * :default
+    #     Plain text output with no color.
+    # * :color
+    #     Plain text output with color.
+    # * :json
+    #     JSON output format.
+    # * class
     #
-    # Notes:
-    # - Nil Values are ignored and will be left out of the named tags.
+    # * Proc
+    #     A block that will be called to format the output.
+    #     It is supplied with the `log` entry and should return the formatted data.
+    #
+    # Note:
+    # * `:default` is automatically changed to `:color` if `config.colorize_logging` is `true`.
+    #
+    # JSON Example, in `application.rb`:
+    #
+    #   config.rails_semantic_logger.format = :json
+    #
+    # Custom Example, create `app/lib/my_formatter.rb`:
+    #
+    #   # My Custom colorized formatter
+    #   class MyFormatter < SemanticLogger::Formatters::Color
+    #     # Return the complete log level name in uppercase
+    #     def level
+    #       "#{color}log.level.upcase#{color_map.clear}"
+    #     end
+    #   end
+    #
+    #   # In application.rb:
+    #   config.rails_semantic_logger.format = MyFormatter.new
+    config.rails_semantic_logger.format            = :default
+
+    # DEPRECATED
+    # Instead, supply a Hash to config.log_tags
     config.rails_semantic_logger.named_tags        = nil
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
@@ -93,7 +119,8 @@ module RailsSemanticLogger
           # Add the log file to the list of appenders
           # Use the colorized formatter if Rails colorized logs are enabled
           ap_options                       = config.rails_semantic_logger.ap_options
-          formatter                        = config.colorize_logging == false ? SemanticLogger::Formatters::Default.new : SemanticLogger::Formatters::Color.new(ap: ap_options)
+          formatter                        = config.rails_semantic_logger.format
+          formatter                        = SemanticLogger::Formatters::Color.new(ap: ap_options) if (formatter == :default) && (config.colorize_logging != false)
 
           # Set internal logger to log to file only, in case another appender experiences errors during writes
           appender                         = SemanticLogger::Appender::File.new(file_name: path, level: config.log_level, formatter: formatter)
@@ -209,8 +236,9 @@ module RailsSemanticLogger
         require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
       end
 
-      if config.rails_semantic_logger.named_tags && defined?(Rails::Rack::Logger)
-        Rails::Rack::Logger.named_tags = config.rails_semantic_logger.named_tags
+      # Backward compatibility
+      if config.rails_semantic_logger.named_tags
+        config.log_tags = config.rails_semantic_logger.named_tags
       end
     end
 

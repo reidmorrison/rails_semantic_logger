@@ -4,8 +4,6 @@ Rails::Rack::Logger
 module Rails
   module Rack
     class Logger
-      mattr_accessor :named_tags
-
       @logger = SemanticLogger['Rack']
 
       def self.logger
@@ -15,9 +13,13 @@ module Rails
       def call(env)
         request = ActionDispatch::Request.new(env)
 
-        proc = -> { call_app(request, env) }
-        proc = -> { logger.tagged(compute_tags(request), &proc) } if @taggers && !@taggers.empty?
-        named_tags ? SemanticLogger.named_tagged(compute_named_tags(request), &proc) : proc.call
+        # Check for named tags (Hash)
+        if @taggers && !@taggers.empty?
+          tags = @taggers.is_a?(Hash) ? compute_named_tags(request) : compute_tags(request)
+          logger.tagged(tags) { call_app(request, env) }
+        else
+          call_app(request, env)
+        end
       end
 
       def started_request_message(request)
@@ -37,10 +39,11 @@ module Rails
         self.class.logger
       end
 
+      # Leave out any named tags with a nil value
       def compute_named_tags(request) # :doc:
         tagged = {}
-        named_tags.each_pair do |tag, value|
-          resolved =
+        @taggers.each_pair do |tag, value|
+          resolved    =
             case value
             when Proc
               value.call(request)

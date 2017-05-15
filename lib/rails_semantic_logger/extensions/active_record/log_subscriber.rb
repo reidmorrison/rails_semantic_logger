@@ -20,13 +20,12 @@ module ActiveRecord
       }
       unless (payload[:binds] || []).empty?
         log_payload[:binds] = binds = {}
-        # Changed with Rails 5
-        if Rails.version.to_f >= 5.1
+        if Rails.version >= "5.0.3"
           casted_params = type_casted_binds(payload[:binds], payload[:type_casted_binds])
           payload[:binds].zip(casted_params).map { |attr, value|
             render_bind(attr, value)
           }
-        elsif Rails.version.to_i >= 5
+        elsif Rails.version >= "5.0.0"
           payload[:binds].each do |attr|
             attr_name, value = render_bind(attr)
             binds[attr_name] = value

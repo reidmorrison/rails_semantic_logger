@@ -242,7 +242,7 @@ module RailsSemanticLogger
       end
     end
 
-    # Before any initializers run, but after the gems have been loaded
+    # After any initializers run, but after the gems have been loaded
     config.after_initialize do
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)

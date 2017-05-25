@@ -1,6 +1,8 @@
 ENV['RAILS_ENV'] ||= 'test'
 require_relative 'dummy/config/environment'
 
+# Needed for Dummy test app
+require 'rails_semantic_logger/extensions/active_record/log_subscriber'
 require 'minitest/autorun'
 require 'minitest/stub_any_instance'
 require 'awesome_print'

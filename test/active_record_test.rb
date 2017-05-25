@@ -25,7 +25,6 @@ class ActiveRecordTest < Minitest::Test
 
         SemanticLogger.flush
         actual = @mock_logger.message
-        ap actual
         assert actual[:message].include?('Sample'), actual[:message]
         assert actual[:payload], actual
         assert actual[:payload][:sql], actual[:payload]

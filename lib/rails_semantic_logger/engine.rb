@@ -96,6 +96,13 @@ module RailsSemanticLogger
     # Instead, supply a Hash to config.log_tags
     config.rails_semantic_logger.named_tags        = nil
 
+    # Add a filter to the file logger [Regexp|Proc]
+    #   RegExp: Only include log messages where the class name matches the supplied
+    #           regular expression. All other messages will be ignored.
+    #   Proc: Only include log messages where the supplied Proc returns true.
+    #         The Proc must return true or false.
+    config.rails_semantic_logger.filter            = nil
+
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
     # additional features
@@ -129,7 +136,7 @@ module RailsSemanticLogger
 
           # Check for previous file or stdout loggers
           SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
-          SemanticLogger.add_appender(file_name: path, formatter: formatter)
+          SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter )
         end
 
         SemanticLogger[Rails]

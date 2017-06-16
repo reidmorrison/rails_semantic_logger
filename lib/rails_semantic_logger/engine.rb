@@ -125,9 +125,9 @@ module RailsSemanticLogger
 
           # Add the log file to the list of appenders
           # Use the colorized formatter if Rails colorized logs are enabled
-          ap_options                       = config.rails_semantic_logger.ap_options
-          formatter                        = config.rails_semantic_logger.format
-          formatter                        = SemanticLogger::Formatters::Color.new(ap: ap_options) if (formatter == :default) && (config.colorize_logging != false)
+          ap_options = config.rails_semantic_logger.ap_options
+          formatter  = config.rails_semantic_logger.format
+          formatter  = {color: {ap: ap_options}} if (formatter == :default) && (config.colorize_logging != false)
 
           # Set internal logger to log to file only, in case another appender experiences errors during writes
           appender                         = SemanticLogger::Appender::File.new(file_name: path, level: config.log_level, formatter: formatter)
@@ -135,8 +135,12 @@ module RailsSemanticLogger
           SemanticLogger::Processor.logger = appender
 
           # Check for previous file or stdout loggers
-          SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
-          SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter )
+          if SemanticLogger::VERSION.to_f >= 4.2
+            SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
+          elsif config.colorize_logging == false
+            SemanticLogger.appenders.each { |appender| appender.formatter = SemanticLogger::Formatters::Default.new if appender.is_a?(SemanticLogger::Appender::File) }
+          end
+          SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
         end
 
         SemanticLogger[Rails]

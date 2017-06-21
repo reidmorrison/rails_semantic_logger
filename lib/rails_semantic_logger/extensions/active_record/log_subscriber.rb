@@ -1,6 +1,9 @@
 ActiveRecord::LogSubscriber
 module ActiveRecord
   class LogSubscriber
+    # Support Rails 3.2
+    IGNORE_PAYLOAD_NAMES = ['SCHEMA', 'EXPLAIN'] unless defined?(IGNORE_PAYLOAD_NAMES)
+    
     def sql(event)
       self.class.runtime += event.duration
 
@@ -8,7 +11,7 @@ module ActiveRecord
 
       payload = event.payload
       name    = payload[:name]
-      return if ['SCHEMA', 'EXPLAIN'].include?(name)
+      return if IGNORE_PAYLOAD_NAMES.include?(name)
 
       log_payload = {
         sql: payload[:sql],

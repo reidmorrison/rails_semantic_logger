@@ -8,7 +8,7 @@ module ActiveRecord
 
       payload = event.payload
       name    = payload[:name]
-      return if IGNORE_PAYLOAD_NAMES.include?(name)
+      return if ['SCHEMA', 'EXPLAIN'].include?(name)
 
       log_payload = {
         sql: payload[:sql],

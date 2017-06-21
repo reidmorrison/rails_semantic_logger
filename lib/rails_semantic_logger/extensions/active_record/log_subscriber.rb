@@ -33,10 +33,18 @@ module ActiveRecord
           payload[:binds].zip(casted_params).map { |attr, value|
             render_bind(attr, value)
           }
-        else
+        elsif Rails.version.to_i >= 4
           payload[:binds].each do |col, v|
             attr_name, value = render_bind(col, v)
             binds[attr_name] = value
+          end
+        else # Rails 3
+          payload[:binds].each do |col,v|
+            if col
+              binds[col.name] = v
+            else
+              binds[nil] = v
+            end
           end
         end
       end

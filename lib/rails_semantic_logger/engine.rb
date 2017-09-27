@@ -218,9 +218,6 @@ module RailsSemanticLogger
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
-      # Set the logger for concurrent-ruby
-      Concurrent.global_logger = SemanticLogger[Concurrent] if defined?(Concurrent)
-
       # Rails Patches
       require('rails_semantic_logger/extensions/action_cable/tagged_logger_proxy') if defined?(ActionCable)
       require('rails_semantic_logger/extensions/action_controller/live') if defined?(ActionController::Live)

@@ -3,5 +3,7 @@ Dummy::Application.routes.draw do
 
   resources :articles
 
+  resource :dashboard, controller: :dashboard
+
   root 'welcome#index'
 end

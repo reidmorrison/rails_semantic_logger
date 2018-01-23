@@ -89,7 +89,7 @@ module ActionController
     def controller_logger(event)
       if controller = event.payload[:controller]
         begin
-          controller.constantize.logger
+          controller.constantize.logger || ActionController::Base.logger
         rescue NameError
           ActionController::Base.logger
         end

@@ -66,7 +66,7 @@ class ArticlesControllerTest < ActionController::TestCase
           assert_equal 200, payload[:status], payload
           assert_equal 'OK', payload[:status_message], payload
           assert (payload[:view_runtime] >= 0.0), payload
-          assert (payload[:db_runtime] >= 0.0), payload
+          assert((payload[:db_runtime] >= 0.0), payload) unless defined?(JRuby)
         end
 
       end

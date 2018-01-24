@@ -8,6 +8,7 @@ module Dummy
   class Application < Rails::Application
     # Configure sensitive parameters which will be filtered from the log file.
     config.filter_parameters += [:password]
+    config.active_record.sqlite3.represent_boolean_as_integer = true if config.active_record.sqlite3
 
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers

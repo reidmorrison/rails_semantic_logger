@@ -1,8 +1,10 @@
 appraise 'rails_4.2' do
   gem 'rails', '~> 4.2.0'
+  gem 'activerecord-jdbcsqlite3-adapter', '~> 1.0', platform: :jruby
 end
 
 appraise 'rails_5.0.2' do
+  gem 'minitest', '5.10.1'
   gem 'rails', '5.0.2'
 end
 

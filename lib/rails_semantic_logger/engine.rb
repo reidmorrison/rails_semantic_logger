@@ -215,6 +215,9 @@ module RailsSemanticLogger
       # Replace the Sidetiq logger
       Sidetiq.logger          = SemanticLogger[Sidetiq] if defined?(Sidetiq)
 
+      # Replace the DelayedJob logger
+      Delayed::Worker.logger = SemanticLogger[Delayed::Worker] if defined?(Delayed::Worker)
+
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 

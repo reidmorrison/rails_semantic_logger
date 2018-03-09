@@ -29,12 +29,12 @@ module ActiveRecord
             attr_name, value = render_bind(attr)
             binds[attr_name] = value
           end
-        elsif Rails::VERSION::MAJOR >= 5 && Rails::VERSION::MINOR <= 1 # 5.0.3 - 5.1.x
+        elsif Rails::VERSION::MAJOR >= 5 && Rails::VERSION::MINOR <= 1 && (Rails::VERSION::MINOR == 0 || Rails::VERSION::TINY <= 4) # 5.0.3 - 5.1.4
           casted_params = type_casted_binds(payload[:binds], payload[:type_casted_binds])
           payload[:binds].zip(casted_params).map { |attr, value|
             render_bind(attr, value)
           }
-        elsif Rails::VERSION::MAJOR >= 5 # >= 5.2
+        elsif Rails::VERSION::MAJOR >= 5 # >= 5.1.5
           casted_params = type_casted_binds(payload[:type_casted_binds])
           payload[:binds].zip(casted_params).map do |attr, value|
             render_bind(attr, value)

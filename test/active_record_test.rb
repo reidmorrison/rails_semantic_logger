@@ -29,6 +29,38 @@ class ActiveRecordTest < Minitest::Test
         assert actual[:payload], actual
         assert actual[:payload][:sql], actual[:payload]
       end
+
+      it 'single bind value' do
+        Sample.where(name: 'Jack').first
+
+        SemanticLogger.flush
+        actual = @mock_logger.message
+        assert payload = actual[:payload], -> { actual.ai }
+
+        assert payload[:sql], -> { actual.ai }
+
+        assert binds = payload[:binds], -> { actual.ai }
+        assert_equal 'Jack', binds[:name], -> { actual.ai }
+        if Rails.version.to_f >= 5.0
+          assert_equal 1, binds[:limit], -> { actual.ai }
+        end
+      end
+
+      it 'multiple bind values' do
+        Sample.where(age: 2..21).first
+
+        SemanticLogger.flush
+        actual = @mock_logger.message
+        assert payload = actual[:payload], -> { actual.ai }
+
+        assert payload[:sql], -> { actual.ai }
+
+        if Rails.version.to_f >= 5.0
+          assert binds = payload[:binds], -> { actual.ai }
+          assert_equal [2, 21], binds[:age], -> { actual.ai }
+          assert_equal 1, binds[:limit], -> { actual.ai }
+        end
+      end
     end
 
   end

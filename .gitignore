@@ -11,3 +11,5 @@ Gemfile.lock
 /gemfiles/*.lock
 
 *.sqlite3
+.rakeTasks
+*.sqlite3

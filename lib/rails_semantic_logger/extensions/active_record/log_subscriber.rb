@@ -33,7 +33,7 @@ module ActiveRecord
           casted_params = type_casted_binds(payload[:binds], payload[:type_casted_binds])
           payload[:binds].zip(casted_params).map { |attr, value|
             attr_name, value = render_bind(attr, value)
-            binds[attr_name] = value
+            (binds[attr_name] ||= []) << value
           }
         elsif Rails::VERSION::MAJOR >= 5 # >= 5.1.5
           casted_params = type_casted_binds(payload[:type_casted_binds])

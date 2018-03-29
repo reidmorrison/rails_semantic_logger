@@ -10,7 +10,11 @@ module ActionController
 
     def process_action(event)
       controller_logger(event).info do
-        payload          = event.payload.dup
+        payload = event.payload.dup
+
+        # Unused, but needed for Devise 401 status code patch to still work.
+        ActionController::Base.log_process_action(payload)
+
         # According to PR https://github.com/rocketjob/rails_semantic_logger/pull/37/files
         # payload[:params] is not always a Hash.
         payload[:params] = payload[:params].to_unsafe_h unless payload[:params].is_a?(Hash)
@@ -46,19 +50,19 @@ module ActionController
     end
 
     def halted_callback(event)
-      controller_logger(event).info {"Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected"}
+      controller_logger(event).info { "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected" }
     end
 
     def send_file(event)
-      controller_logger(event).info('Sent file') {{path: event.payload[:path], duration: event.duration}}
+      controller_logger(event).info('Sent file') { {path: event.payload[:path], duration: event.duration} }
     end
 
     def redirect_to(event)
-      controller_logger(event).info('Redirected to') {{location: event.payload[:location]}}
+      controller_logger(event).info('Redirected to') { {location: event.payload[:location]} }
     end
 
     def send_data(event)
-      controller_logger(event).info('Sent data') {{file_name: event.payload[:filename], duration: event.duration}}
+      controller_logger(event).info('Sent data') { {file_name: event.payload[:filename], duration: event.duration} }
     end
 
     def unpermitted_parameters(event)

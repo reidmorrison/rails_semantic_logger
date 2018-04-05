@@ -261,3 +261,14 @@ module RailsSemanticLogger
     end
   end
 end
+
+if defined?(Delayed::Worker)
+  class SemanticLoggerPlugin < Delayed::Plugin
+    callbacks do |lifecycle|
+      lifecycle.before(:execute) do |job, &block|
+        ::SemanticLogger.reopen
+       end
+     end
+   end
+  Delayed::Worker.plugins << SemanticLoggerPlugin
+end

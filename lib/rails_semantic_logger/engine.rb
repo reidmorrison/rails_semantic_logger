@@ -221,17 +221,6 @@ module RailsSemanticLogger
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
-      # Backward compatibility
-      if config.rails_semantic_logger.named_tags
-        config.log_tags = config.rails_semantic_logger.named_tags
-      end
-    end
-
-    # After any initializers run, but after the gems have been loaded
-    config.after_initialize do
-      # Replace the Bugsnag logger
-      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
-
       # Rails Patches
       require('rails_semantic_logger/extensions/action_cable/tagged_logger_proxy') if defined?(ActionCable)
       require('rails_semantic_logger/extensions/action_controller/live') if defined?(ActionController::Live)
@@ -257,6 +246,17 @@ module RailsSemanticLogger
       if config.rails_semantic_logger.processing
         require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
       end
+
+      # Backward compatibility
+      if config.rails_semantic_logger.named_tags
+        config.log_tags = config.rails_semantic_logger.named_tags
+      end
+    end
+
+    # After any initializers run, but after the gems have been loaded
+    config.after_initialize do
+      # Replace the Bugsnag logger
+      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
     end
 
   end

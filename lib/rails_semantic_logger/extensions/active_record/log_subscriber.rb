@@ -26,9 +26,9 @@ module ActiveRecord
         log_payload[:binds] =
           if Rails::VERSION::MAJOR == 5 && Rails::VERSION::MINOR == 0 && Rails::VERSION::TINY <= 2 # 5.0.0 - 5.0.2
             bind_values_v5_0_0(payload)
-          elsif Rails::VERSION::MAJOR >= 5 && Rails::VERSION::MINOR <= 1 && (Rails::VERSION::MINOR == 0 || Rails::VERSION::TINY <= 4) # 5.0.3 - 5.1.4
+          elsif Rails::VERSION::MAJOR >= 5 && ((Rails::VERSION::MINOR == 0 && Rails::VERSION::TINY <= 6) || (Rails::VERSION::MINOR == 1 && Rails::VERSION::TINY <= 4)) # 5.0.3 - 5.0.6 && 5.1.0 - 5.1.4
             bind_values_v5_0_3(payload)
-          elsif Rails::VERSION::MAJOR >= 5 # >= 5.1.5
+          elsif Rails::VERSION::MAJOR >= 5 # >= 5.1.5 && 5.0.7
             bind_values_v5_1_5(payload)
           elsif Rails.version.to_i >= 4 # 4.x
             bind_values_v4(payload)

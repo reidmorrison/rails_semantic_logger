@@ -167,38 +167,6 @@ module RailsSemanticLogger
       ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger['ActionCable'] }
     end
 
-    # Support fork frameworks
-    config.after_initialize do
-      # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
-      if config.rails_semantic_logger.quiet_assets && config.assets.prefix #&& defined?(Rails::Rack::Logger)
-        assets_regex = %r(\A/{0,2}#{config.assets.prefix})
-        if Rails.version.to_i >= 5
-          Rails::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
-        else
-          # Also strips the empty log lines
-          Rails::Rack::Logger.logger.filter = -> log { log.payload.nil? ? (log.message != '') : (log.payload[:path] !~ assets_regex) }
-        end
-      end
-
-      # Passenger provides the :starting_worker_process event for executing
-      # code after it has forked, so we use that and reconnect immediately.
-      if defined?(PhusionPassenger)
-        PhusionPassenger.on_event(:starting_worker_process) do |forked|
-          ::SemanticLogger.reopen if forked
-        end
-      end
-
-      # Re-open appenders after Resque has forked a worker
-      if defined?(Resque)
-        Resque.after_fork { |job| ::SemanticLogger.reopen }
-      end
-
-      # Re-open appenders after Spring has forked a process
-      if defined?(Spring)
-        Spring.after_fork { |job| ::SemanticLogger.reopen }
-      end
-    end
-
     # Before any initializers run, but after the gems have been loaded
     config.before_initialize do
       # Replace the Mongo Loggers
@@ -257,6 +225,33 @@ module RailsSemanticLogger
       if config.rails_semantic_logger.processing
         require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
       end
+
+      # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
+      if config.rails_semantic_logger.quiet_assets && config.assets.prefix #&& defined?(Rails::Rack::Logger)
+        assets_regex = %r(\A/{0,2}#{config.assets.prefix})
+        if Rails.version.to_i >= 5
+          Rails::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
+        else
+          # Also strips the empty log lines
+          Rails::Rack::Logger.logger.filter = -> log { log.payload.nil? ? (log.message != '') : (log.payload[:path] !~ assets_regex) }
+        end
+      end
+
+      #
+      # Forking Frameworks
+      #
+
+      # Passenger provides the :starting_worker_process event for executing
+      # code after it has forked, so we use that and reconnect immediately.
+      if defined?(PhusionPassenger)
+        PhusionPassenger.on_event(:starting_worker_process) { |forked| ::SemanticLogger.reopen if forked }
+      end
+
+      # Re-open appenders after Resque has forked a worker
+      Resque.after_fork { |job| ::SemanticLogger.reopen } if defined?(Resque)
+
+      # Re-open appenders after Spring has forked a process
+      Spring.after_fork { |job| ::SemanticLogger.reopen } if defined?(Spring)
     end
 
   end

@@ -23,7 +23,8 @@ Note:
 * Describe or show the actual behavior.
 * Provide text or screen capture showing the behavior.
 
-### Even Better
+### Pull Request
 
 * Consider submitting a Pull Request with a fix for the issue.
-    * This is particularly helpful when running newer Rails versions, since we may not have had a chance to upgrade.
+    * This is particularly helpful when running newer Rails versions, since we are not running it yet.
+* Or, even a Pull request that only includes a test that reproduces the problem. 

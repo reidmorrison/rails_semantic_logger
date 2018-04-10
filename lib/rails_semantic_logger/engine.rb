@@ -116,6 +116,10 @@ module RailsSemanticLogger
       # Set the default log level based on the Rails config
       SemanticLogger.default_level = config.log_level
 
+      if defined?(Rails::Rack::Logger) && config.rails_semantic_logger.semantic
+        config.middleware.swap(Rails::Rack::Logger, RailsSemanticLogger::Rack::Logger, config.log_tags)
+      end
+
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger                 = config.logger = begin
@@ -135,11 +139,7 @@ module RailsSemanticLogger
           SemanticLogger::Processor.logger = appender
 
           # Check for previous file or stdout loggers
-          if SemanticLogger::VERSION.to_f >= 4.2
-            SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
-          elsif config.colorize_logging == false
-            SemanticLogger.appenders.each { |appender| appender.formatter = SemanticLogger::Formatters::Default.new if appender.is_a?(SemanticLogger::Appender::File) }
-          end
+          SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
           SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
         end
 
@@ -188,11 +188,6 @@ module RailsSemanticLogger
 
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
-
-      # Backward compatibility
-      if config.rails_semantic_logger.named_tags
-        config.log_tags = config.rails_semantic_logger.named_tags
-      end
     end
 
     # After any initializers run, but after the gems have been loaded
@@ -209,14 +204,11 @@ module RailsSemanticLogger
       require('rails_semantic_logger/extensions/active_model_serializers/logging') if defined?(ActiveModelSerializers)
 
       if config.rails_semantic_logger.semantic
-        require('rails_semantic_logger/extensions/rails/rack/logger') if defined?(Rails::Rack::Logger)
         require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController)
         require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
       end
 
-      unless config.rails_semantic_logger.started
-        require('rails_semantic_logger/extensions/rails/rack/logger_info_as_debug') if defined?(Rails::Rack::Logger)
-      end
+      RailsSemanticLogger::Rack::Logger.started_request_log_level = :info if config.rails_semantic_logger.started
 
       unless config.rails_semantic_logger.rendered
         require('rails_semantic_logger/extensions/action_view/log_subscriber') if defined?(ActionView::LogSubscriber)
@@ -229,12 +221,7 @@ module RailsSemanticLogger
       # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
       if config.rails_semantic_logger.quiet_assets && config.assets.prefix #&& defined?(Rails::Rack::Logger)
         assets_regex = %r(\A/{0,2}#{config.assets.prefix})
-        if Rails.version.to_i >= 5
-          Rails::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
-        else
-          # Also strips the empty log lines
-          Rails::Rack::Logger.logger.filter = -> log { log.payload.nil? ? (log.message != '') : (log.payload[:path] !~ assets_regex) }
-        end
+        RailsSemanticLogger::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
       end
 
       #

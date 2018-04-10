@@ -91,15 +91,12 @@ module ActionController
     # Returns the logger for the supplied event.
     # Returns ActionController::Base.logger if no controller is present
     def controller_logger(event)
-      if controller = event.payload[:controller]
-        begin
-          controller.constantize.logger || ActionController::Base.logger
-        rescue NameError
-          ActionController::Base.logger
-        end
-      else
-        ActionController::Base.logger
-      end
+      controller = event.payload[:controller]
+      return ActionController::Base.logger unless controller
+
+      controller.constantize.logger || ActionController::Base.logger
+    rescue NameError
+      ActionController::Base.logger
     end
 
     def extract_path(path)

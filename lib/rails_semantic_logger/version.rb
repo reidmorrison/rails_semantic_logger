@@ -1,3 +1,3 @@
-module RailsSemanticLogger #:nodoc
-  VERSION = '4.2.1'
+module RailsSemanticLogger
+  VERSION = '4.3.0'.freeze
 end

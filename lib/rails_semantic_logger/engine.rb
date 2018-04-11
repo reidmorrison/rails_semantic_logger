@@ -1,3 +1,6 @@
+require 'active_record/log_subscriber'
+require 'action_controller/log_subscriber'
+
 module RailsSemanticLogger
   class Engine < ::Rails::Engine
     # Make the SemanticLogger config available in the Rails application config
@@ -16,22 +19,22 @@ module RailsSemanticLogger
     #   end
     config.semantic_logger = ::SemanticLogger
 
-    config.rails_semantic_logger                   = ActiveSupport::OrderedOptions.new
+    config.rails_semantic_logger = ActiveSupport::OrderedOptions.new
 
     # Convert Action Controller and Active Record text messages to semantic data
     #   Rails -- Started -- { :ip => "127.0.0.1", :method => "GET", :path => "/dashboards/inquiry_recent_activity" }
     #   UserController -- Completed #index -- { :action => "index", :db_runtime => 54.64, :format => "HTML", :method => "GET", :mongo_runtime => 0.0, :path => "/users", :status => 200, :status_message => "OK", :view_runtime => 709.88 }
-    config.rails_semantic_logger.semantic          = true
+    config.rails_semantic_logger.semantic = true
 
     # Change Rack started message to debug so that it does not appear in production
-    config.rails_semantic_logger.started           = false
+    config.rails_semantic_logger.started = false
 
     # Change Processing message to debug so that it does not appear in production
-    config.rails_semantic_logger.processing        = false
+    config.rails_semantic_logger.processing = false
 
     # Change Action View render log messages to debug so that they do not appear in production
     #   ActionView::Base --   Rendered data/search/_user.html.haml (46.7ms)
-    config.rails_semantic_logger.rendered          = false
+    config.rails_semantic_logger.rendered = false
 
     # Override the Awesome Print options for logging Hash data as text:
     #
@@ -41,7 +44,7 @@ module RailsSemanticLogger
     #
     #  Note: The option :multiline is set to false if not supplied.
     #  Note: Has no effect if Awesome Print is not installed.
-    config.rails_semantic_logger.ap_options        = {multiline: false}
+    config.rails_semantic_logger.ap_options = {multiline: false}
 
     # Whether to automatically add an environment specific log file appender.
     # For Example: 'log/development.log'
@@ -54,7 +57,7 @@ module RailsSemanticLogger
     config.rails_semantic_logger.add_file_appender = true
 
     # Silence asset logging
-    config.rails_semantic_logger.quiet_assets      = false
+    config.rails_semantic_logger.quiet_assets = false
 
     # Override the output format for the primary Rails log file.
     #
@@ -90,18 +93,18 @@ module RailsSemanticLogger
     #
     #   # In application.rb:
     #   config.rails_semantic_logger.format = MyFormatter.new
-    config.rails_semantic_logger.format            = :default
+    config.rails_semantic_logger.format = :default
 
     # DEPRECATED
     # Instead, supply a Hash to config.log_tags
-    config.rails_semantic_logger.named_tags        = nil
+    config.rails_semantic_logger.named_tags = nil
 
     # Add a filter to the file logger [Regexp|Proc]
     #   RegExp: Only include log messages where the class name matches the supplied
     #           regular expression. All other messages will be ignored.
     #   Proc: Only include log messages where the supplied Proc returns true.
     #         The Proc must return true or false.
-    config.rails_semantic_logger.filter            = nil
+    config.rails_semantic_logger.filter = nil
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
@@ -111,7 +114,7 @@ module RailsSemanticLogger
     Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 
     initializer :initialize_logger, group: :all do
-      config                       = Rails.application.config
+      config = Rails.application.config
 
       # Set the default log level based on the Rails config
       SemanticLogger.default_level = config.log_level
@@ -122,7 +125,7 @@ module RailsSemanticLogger
 
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
-      Rails.logger                 = config.logger = begin
+      Rails.logger = config.logger = begin
         if config.rails_semantic_logger.add_file_appender
           path = config.paths['log'].first
           FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
@@ -184,7 +187,7 @@ module RailsSemanticLogger
       Sidetiq.logger          = SemanticLogger[Sidetiq] if defined?(Sidetiq)
 
       # Replace the DelayedJob logger
-      Delayed::Worker.logger = SemanticLogger[Delayed::Worker] if defined?(Delayed::Worker)
+      Delayed::Worker.logger  = SemanticLogger[Delayed::Worker] if defined?(Delayed::Worker)
 
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
@@ -204,24 +207,36 @@ module RailsSemanticLogger
       require('rails_semantic_logger/extensions/active_model_serializers/logging') if defined?(ActiveModelSerializers)
 
       if config.rails_semantic_logger.semantic
-        require('rails_semantic_logger/extensions/action_controller/log_subscriber') if defined?(ActionController)
-        require('rails_semantic_logger/extensions/active_record/log_subscriber') if defined?(ActiveRecord::LogSubscriber)
-      end
+        # Active Record
+        RailsSemanticLogger.swap_subscriber(
+          ::ActiveRecord::LogSubscriber,
+          RailsSemanticLogger::ActiveRecord::LogSubscriber,
+          :active_record
+        )
 
-      RailsSemanticLogger::Rack::Logger.started_request_log_level = :info if config.rails_semantic_logger.started
+        # Rack
+        RailsSemanticLogger::Rack::Logger.started_request_log_level = :info if config.rails_semantic_logger.started
 
-      unless config.rails_semantic_logger.rendered
-        require('rails_semantic_logger/extensions/action_view/log_subscriber') if defined?(ActionView::LogSubscriber)
-      end
+        # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
+        if config.rails_semantic_logger.quiet_assets && config.assets.prefix
+          assets_regex                                    = %r(\A/{0,2}#{config.assets.prefix})
+          RailsSemanticLogger::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
+        end
 
-      if config.rails_semantic_logger.processing
-        require('rails_semantic_logger/extensions/action_controller/log_subscriber_processing') if defined?(ActionView::LogSubscriber)
-      end
+        # Action View
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info if config.rails_semantic_logger.rendered
+        RailsSemanticLogger.swap_subscriber(
+          ::ActionView::LogSubscriber,
+          RailsSemanticLogger::ActionView::LogSubscriber,
+          :action_view
+        )
 
-      # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
-      if config.rails_semantic_logger.quiet_assets && config.assets.prefix #&& defined?(Rails::Rack::Logger)
-        assets_regex = %r(\A/{0,2}#{config.assets.prefix})
-        RailsSemanticLogger::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
+        # Action Controller
+        RailsSemanticLogger.swap_subscriber(
+          ::ActionController::LogSubscriber,
+          RailsSemanticLogger::ActionController::LogSubscriber,
+          :action_controller
+        )
       end
 
       #

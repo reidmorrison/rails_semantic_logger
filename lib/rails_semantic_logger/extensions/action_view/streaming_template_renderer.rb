@@ -4,7 +4,7 @@ ActionView::StreamingTemplateRenderer
 class ActionView::StreamingTemplateRenderer
   class Body
     private
-    def log_error(exception) #:nodoc:
+    def log_error(exception)
       ActionView::Base.logger.fatal(exception)
     end
   end

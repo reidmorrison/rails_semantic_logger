@@ -1,7 +1,7 @@
 # Patch the Rails::Server log_to_stdout so that it logs via SemanticLogger
 Rails::Server
-module Rails #:nodoc:
-  class Server #:nodoc:
+module Rails
+  class Server
     private
 
     def log_to_stdout

@@ -8,15 +8,22 @@ appraise 'rails_5.0.2' do
   gem 'rails', '5.0.2'
 end
 
-# Breaking changes in Rails 5.0.3
-appraise 'rails_5.0' do
-  gem 'rails', '~> 5.0.0', '>= 5.0.3'
+appraise 'rails_5.0.6' do
+  gem 'rails', '5.0.6'
 end
 
-appraise 'rails_5.1' do
-  gem 'rails', '~> 5.1.0'
+appraise 'rails_5.0.7' do
+  gem 'rails', '~> 5.0.7'
+end
+
+appraise 'rails_5.1.4' do
+  gem 'rails', '5.1.4'
+end
+
+appraise 'rails_5.1.5' do
+  gem 'rails', '~> 5.1.5'
 end
 
 appraise 'rails_5.2' do
-  gem 'rails', '5.2.0.rc2'
+  gem 'rails', '~> 5.2.0'
 end

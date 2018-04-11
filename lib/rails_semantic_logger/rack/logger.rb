@@ -38,7 +38,7 @@ module RailsSemanticLogger
         instrumenter = ActiveSupport::Notifications.instrumenter
         instrumenter.start "request.action_dispatch", request: request
 
-        logger.send(self.class.started_request_log_level, started_request_message(request))
+        logger.send(self.class.started_request_log_level) { started_request_message(request) }
 
         status, headers, body = @app.call(env)
         body                  = ::Rack::BodyProxy.new(body) { finish(request) }

@@ -14,6 +14,6 @@ gem "jdbc-sqlite3", platform: :jruby
 gem "activerecord-jdbcsqlite3-adapter", platform: :jruby
 gem "appraisal"
 gem "puma"
-gem "rails", "~> 5.1.0"
+gem "rails", "5.0.6"
 
 gemspec path: "../"

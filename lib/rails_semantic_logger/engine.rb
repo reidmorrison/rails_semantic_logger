@@ -137,12 +137,16 @@ module RailsSemanticLogger
           formatter  = {color: {ap: ap_options}} if (formatter == :default) && (config.colorize_logging != false)
 
           # Set internal logger to log to file only, in case another appender experiences errors during writes
-          appender                         = SemanticLogger::Appender::File.new(file_name: path, level: config.log_level, formatter: formatter)
+          appender = SemanticLogger::Appender::File.new(
+            file_name: path,
+            level:     config.log_level,
+            formatter: formatter
+          )
           appender.name                    = 'SemanticLogger'
           SemanticLogger::Processor.logger = appender
 
           # Check for previous file or stdout loggers
-          SemanticLogger.appenders.each { |appender| appender.formatter = formatter if appender.is_a?(SemanticLogger::Appender::File) }
+          SemanticLogger.appenders.each { |app| app.formatter = formatter if app.is_a?(SemanticLogger::Appender::File) }
           SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
         end
 
@@ -156,15 +160,15 @@ module RailsSemanticLogger
 
         logger = SemanticLogger[Rails]
         logger.warn(
-          "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " +
-            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
+          "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " \
+            'The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.',
           exc
         )
         logger
       end
 
       # Replace Rails loggers
-      [:active_record, :action_controller, :action_mailer, :action_view].each do |name|
+      %i[active_record action_controller action_mailer action_view].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
       ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger['ActionCable'] }
@@ -220,7 +224,7 @@ module RailsSemanticLogger
         # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
         if config.rails_semantic_logger.quiet_assets && config.assets.prefix
           assets_regex                                    = %r(\A/{0,2}#{config.assets.prefix})
-          RailsSemanticLogger::Rack::Logger.logger.filter = -> log { log.payload[:path] !~ assets_regex if log.payload }
+          RailsSemanticLogger::Rack::Logger.logger.filter = ->(log) { log.payload[:path] !~ assets_regex if log.payload }
         end
 
         # Action View
@@ -250,11 +254,10 @@ module RailsSemanticLogger
       end
 
       # Re-open appenders after Resque has forked a worker
-      Resque.after_fork { |job| ::SemanticLogger.reopen } if defined?(Resque)
+      Resque.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Resque)
 
       # Re-open appenders after Spring has forked a process
-      Spring.after_fork { |job| ::SemanticLogger.reopen } if defined?(Spring)
+      Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring)
     end
-
   end
 end

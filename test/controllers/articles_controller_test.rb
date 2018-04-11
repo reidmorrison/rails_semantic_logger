@@ -1,4 +1,4 @@
-require_relative "../test_helper"
+require_relative '../test_helper'
 
 class ArticlesControllerTest < ActionController::TestCase
   describe ArticlesController do
@@ -9,10 +9,10 @@ class ArticlesControllerTest < ActionController::TestCase
       @mock_logger                   = MockLogger.new
       @appender                      = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
       @logger                        = SemanticLogger['Test']
-      @hash                          = {session_id: 'HSSKLEU@JDK767', tracking_number: 12345}
+      @hash                          = {session_id: 'HSSKLEU@JDK767', tracking_number: 12_345}
 
       assert_equal [], SemanticLogger.tags
-      assert_equal 65535, SemanticLogger.backtrace_level_index
+      assert_equal 65_535, SemanticLogger.backtrace_level_index
     end
 
     after do
@@ -60,7 +60,7 @@ class ArticlesControllerTest < ActionController::TestCase
           assert_equal 'POST', payload[:method], payload
           # Only Rails 5 passes the arguments through
           if Rails.version.to_i >= 5
-            assert_equal({"article" => {"text" => "Text1", "title" => "Title1"}}, payload[:params], payload)
+            assert_equal({'article' => {'text' => 'Text1', 'title' => 'Title1'}}, payload[:params], payload)
           end
           assert_equal '/articles', payload[:path], payload
           assert_equal 200, payload[:status], payload
@@ -68,7 +68,6 @@ class ArticlesControllerTest < ActionController::TestCase
           assert (payload[:view_runtime] >= 0.0), payload
           assert((payload[:db_runtime] >= 0.0), payload) unless defined?(JRuby)
         end
-
       end
     end
   end

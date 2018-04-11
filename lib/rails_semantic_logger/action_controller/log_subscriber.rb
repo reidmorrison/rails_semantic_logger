@@ -1,10 +1,7 @@
-require 'action_controller/log_subscriber'
-ActionController::LogSubscriber
-
 module RailsSemanticLogger
   module ActionController
     class LogSubscriber < ActiveSupport::LogSubscriber
-      INTERNAL_PARAMS = %w(controller action format _method only_path)
+      INTERNAL_PARAMS = %w[controller action format _method only_path].freeze
 
       # Log as debug to hide Processing messages in production
       def start_processing(event)
@@ -27,7 +24,7 @@ module RailsSemanticLogger
           format           = payload[:format]
           payload[:format] = format.to_s.upcase if format.is_a?(Symbol)
 
-          payload[:path]   = extract_path(payload[:path]) if payload.has_key?(:path)
+          payload[:path]   = extract_path(payload[:path]) if payload.key?(:path)
 
           exception = payload.delete(:exception)
           if payload[:status].nil? && exception.present?
@@ -37,7 +34,7 @@ module RailsSemanticLogger
 
           # Rounds off the runtimes. For example, :view_runtime, :mongo_runtime, etc.
           payload.keys.each do |key|
-            payload[key] = payload[key].to_f.round(2) if key.to_s.match(/(.*)_runtime/)
+            payload[key] = payload[key].to_f.round(2) if key.to_s =~ /(.*)_runtime/
           end
 
           payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
@@ -71,12 +68,12 @@ module RailsSemanticLogger
       def unpermitted_parameters(event)
         controller_logger(event).debug do
           unpermitted_keys = event.payload[:keys]
-          "Unpermitted parameter#{'s' if unpermitted_keys.size > 1}: #{unpermitted_keys.join(", ")}"
+          "Unpermitted parameter#{'s' if unpermitted_keys.size > 1}: #{unpermitted_keys.join(', ')}"
         end
       end
 
-      %w(write_fragment read_fragment exist_fragment?
-         expire_fragment expire_page write_page).each do |method|
+      %w[write_fragment read_fragment exist_fragment?
+         expire_fragment expire_page write_page].each do |method|
         class_eval <<-METHOD, __FILE__, __LINE__ + 1
           def #{method}(event)
             # enable_fragment_cache_logging as of Rails 5
@@ -106,7 +103,6 @@ module RailsSemanticLogger
         index = path.index('?')
         index ? path[0, index] : path
       end
-
     end
   end
 end

@@ -1,7 +1,7 @@
 module RailsSemanticLogger
   module ActiveRecord
     class LogSubscriber < ActiveSupport::LogSubscriber
-      IGNORE_PAYLOAD_NAMES = ['SCHEMA', 'EXPLAIN']
+      IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
 
       class << self
         attr_reader :logger
@@ -16,7 +16,8 @@ module RailsSemanticLogger
       end
 
       def self.reset_runtime
-        rt, self.runtime = runtime, 0
+        rt = runtime
+        self.runtime = 0
         rt
       end
 
@@ -110,7 +111,7 @@ module RailsSemanticLogger
           if column.binary?
             # This specifically deals with the PG adapter that casts bytea columns into a Hash.
             value = value[:value] if value.is_a?(Hash)
-            value = value ? "<#{value.bytesize} bytes of binary data>" : "<NULL binary data>"
+            value = value ? "<#{value.bytesize} bytes of binary data>" : '<NULL binary data>'
           end
 
           [column.name, value]
@@ -120,15 +121,16 @@ module RailsSemanticLogger
       end
 
       def render_bind_v5_0_0(attribute)
-        value = if attribute.type.binary? && attribute.value
-          if attribute.value.is_a?(Hash)
-            "<#{attribute.value_for_database.to_s.bytesize} bytes of binary data>"
+        value =
+          if attribute.type.binary? && attribute.value
+            if attribute.value.is_a?(Hash)
+              "<#{attribute.value_for_database.to_s.bytesize} bytes of binary data>"
+            else
+              "<#{attribute.value.bytesize} bytes of binary data>"
+            end
           else
-            "<#{attribute.value.bytesize} bytes of binary data>"
+            attribute.value_for_database
           end
-        else
-          attribute.value_for_database
-        end
 
         [attribute.name, value]
       end
@@ -140,7 +142,7 @@ module RailsSemanticLogger
           value = "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>"
         end
 
-        [attr && attr.name, value]
+        [attr&.name, value]
       end
 
       def type_casted_binds_v5_0_3(binds, casted_binds)
@@ -151,12 +153,12 @@ module RailsSemanticLogger
         casted_binds.respond_to?(:call) ? casted_binds.call : casted_binds
       end
 
-      if Rails::VERSION::MAJOR == 5 && Rails::VERSION::MINOR == 0 && Rails::VERSION::TINY <= 2 # 5.0.0 - 5.0.2
+      if Rails::VERSION::MAJOR == 5 && Rails::VERSION::MINOR.zero? && Rails::VERSION::TINY <= 2 # 5.0.0 - 5.0.2
         alias bind_values bind_values_v5_0_0
         alias render_bind render_bind_v5_0_0
       elsif Rails::VERSION::MAJOR >= 5 &&
-        ((Rails::VERSION::MINOR == 0 && Rails::VERSION::TINY <= 6) ||
-          (Rails::VERSION::MINOR == 1 && Rails::VERSION::TINY <= 4)) # 5.0.3 - 5.0.6 && 5.1.0 - 5.1.4
+            ((Rails::VERSION::MINOR.zero? && Rails::VERSION::TINY <= 6) ||
+              (Rails::VERSION::MINOR == 1 && Rails::VERSION::TINY <= 4)) # 5.0.3 - 5.0.6 && 5.1.0 - 5.1.4
         alias bind_values bind_values_v5_0_3
         alias render_bind render_bind_v5_0_3
         alias type_casted_binds type_casted_binds_v5_0_3

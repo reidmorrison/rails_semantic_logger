@@ -2,18 +2,16 @@
 
 source "https://rubygems.org"
 
-gem "rake"
+gem "active_model_serializers"
+gem "awesome_print"
 gem "minitest", "5.10.1"
 gem "minitest-rails"
-gem "minitest-reporters"
-gem "minitest-stub_any_instance"
-gem "awesome_print"
-gem "active_model_serializers"
-gem "sqlite3", platform: :ruby
-gem "jdbc-sqlite3", platform: :jruby
+gem "rake"
 gem "activerecord-jdbcsqlite3-adapter", platform: :jruby
 gem "appraisal"
+gem "jdbc-sqlite3", platform: :jruby
 gem "puma"
+gem "sqlite3", platform: :ruby
 gem "rails", "5.0.2"
 
 gemspec path: "../"

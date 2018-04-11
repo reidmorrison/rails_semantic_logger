@@ -18,13 +18,11 @@ module RailsSemanticLogger
 
   # Swap an existing subscriber with a new one
   def self.swap_subscriber(old_class, new_class, notifier)
-    subscribers = ActiveSupport::LogSubscriber.subscribers.select { |s| s.kind_of?(old_class) }
+    subscribers = ActiveSupport::LogSubscriber.subscribers.select { |s| s.is_a?(old_class) }
     subscribers.each { |subscriber| unattach(subscriber) }
 
     new_class.attach_to(notifier)
   end
-
-  private
 
   def self.unattach(subscriber)
     subscriber.patterns.each do |event|
@@ -36,5 +34,5 @@ module RailsSemanticLogger
 
     ActiveSupport::LogSubscriber.subscribers.delete(subscriber)
   end
-
+  private_class_method :unattach
 end

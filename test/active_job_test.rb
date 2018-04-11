@@ -13,7 +13,7 @@ class ActiveJobTest < Minitest::Test
 
   describe 'ActiveJob' do
     before do
-     skip 'Older rails does not support ActiveJob' unless defined?(ActiveJob)
+      skip 'Older rails does not support ActiveJob' unless defined?(ActiveJob)
     end
 
     describe '.perform_now' do
@@ -25,6 +25,5 @@ class ActiveJobTest < Minitest::Test
         MyJob.perform_now('hello')
       end
     end
-
   end
 end

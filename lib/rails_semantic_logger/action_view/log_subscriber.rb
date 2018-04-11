@@ -12,12 +12,12 @@ module RailsSemanticLogger
       end
 
       def initialize
-        @root = nil
+        @rails_root = nil
         super
       end
 
       def render_template(event)
-        return unless self.class.should_log?
+        return unless should_log?
 
         payload          = {
           template: from_rails_root(event.payload[:identifier])
@@ -33,7 +33,7 @@ module RailsSemanticLogger
       end
 
       def render_partial(event)
-        return unless self.class.should_log?
+        return unless should_log?
 
         payload          = {
           partial: from_rails_root(event.payload[:identifier])
@@ -50,7 +50,7 @@ module RailsSemanticLogger
       end
 
       def render_collection(event)
-        return unless self.class.should_log?
+        return unless should_log?
 
         identifier = event.payload[:identifier] || 'templates'
 
@@ -69,7 +69,7 @@ module RailsSemanticLogger
       end
 
       def start(name, id, payload)
-        if (name == 'render_template.action_view') && self.class.should_log?
+        if (name == 'render_template.action_view') && should_log?
           payload          = {template: from_rails_root(payload[:identifier])}
           payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
@@ -84,10 +84,10 @@ module RailsSemanticLogger
       @logger             = SemanticLogger['ActionView']
       @rendered_log_level = :debug
 
-      EMPTY = ''
+      EMPTY = ''.freeze
 
-      def self.should_log?
-        logger.send("#{rendered_log_level}?")
+      def should_log?
+        logger.send("#{self.class.rendered_log_level}?")
       end
 
       def from_rails_root(string)
@@ -97,7 +97,7 @@ module RailsSemanticLogger
       end
 
       def rails_root
-        @root ||= "#{Rails.root}/"
+        @rails_root ||= "#{Rails.root}/"
       end
 
       def logger

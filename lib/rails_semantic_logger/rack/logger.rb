@@ -36,7 +36,7 @@ module RailsSemanticLogger
 
       def call_app(request, env)
         instrumenter = ActiveSupport::Notifications.instrumenter
-        instrumenter.start "request.action_dispatch", request: request
+        instrumenter.start 'request.action_dispatch', request: request
 
         logger.send(self.class.started_request_log_level) { started_request_message(request) }
 
@@ -92,7 +92,7 @@ module RailsSemanticLogger
 
       def finish(request)
         instrumenter = ActiveSupport::Notifications.instrumenter
-        instrumenter.finish "request.action_dispatch", request: request
+        instrumenter.finish 'request.action_dispatch', request: request
       end
 
       def logger

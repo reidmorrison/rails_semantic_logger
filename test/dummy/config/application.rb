@@ -1,4 +1,4 @@
-require File.expand_path('../boot', __FILE__)
+require File.expand_path('boot', __dir__)
 
 require 'rails/all'
 
@@ -26,4 +26,3 @@ module Dummy
     # config.active_record.raise_in_transactional_callbacks = true
   end
 end
-

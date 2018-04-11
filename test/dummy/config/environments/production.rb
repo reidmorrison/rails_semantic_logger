@@ -25,5 +25,5 @@ Dummy::Application.configure do
   config.active_support.deprecation  = :notify
 
   # Disable colorized logging
-  #config.colorize_logging = false
+  # config.colorize_logging = false
 end

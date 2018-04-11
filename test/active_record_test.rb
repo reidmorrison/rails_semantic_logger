@@ -9,10 +9,10 @@ class ActiveRecordTest < Minitest::Test
       @mock_logger                   = MockLogger.new
       @appender                      = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
       @logger                        = SemanticLogger['Test']
-      @hash                          = {session_id: 'HSSKLEU@JDK767', tracking_number: 12345}
+      @hash                          = {session_id: 'HSSKLEU@JDK767', tracking_number: 12_345}
 
       assert_equal [], SemanticLogger.tags
-      assert_equal 65535, SemanticLogger.backtrace_level_index
+      assert_equal 65_535, SemanticLogger.backtrace_level_index
     end
 
     after do
@@ -41,9 +41,7 @@ class ActiveRecordTest < Minitest::Test
 
         assert binds = payload[:binds], -> { actual.ai }
         assert_equal 'Jack', binds[:name], -> { actual.ai }
-        if Rails.version.to_f >= 5.0
-          assert_equal 1, binds[:limit], -> { actual.ai }
-        end
+        assert_equal 1, binds[:limit], -> { actual.ai } if Rails.version.to_f >= 5.0
       end
 
       it 'multiple bind values' do
@@ -62,6 +60,5 @@ class ActiveRecordTest < Minitest::Test
         end
       end
     end
-
   end
 end

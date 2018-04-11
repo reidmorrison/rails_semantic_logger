@@ -13,3 +13,5 @@ Gemfile.lock
 *.sqlite3
 .rakeTasks
 *.sqlite3
+TODO.md
+

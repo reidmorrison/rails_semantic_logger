@@ -11,8 +11,7 @@ For complete documentation see: http://rocketjob.github.io/semantic_logger/rails
 
 ## Supports
 
-- Ruby 2.1, 2.2 (or above) Or, JRuby 9.0 (or above)
-- Rails 4, 5 (or above)
+- Rails 3.2, 4, 5
 
 ## Author
 

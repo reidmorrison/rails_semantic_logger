@@ -9,7 +9,7 @@ task :gem do
   system 'gem build rails_semantic_logger.gemspec'
 end
 
-task :publish => :gem do
+task publish: :gem do
   system "git tag -a v#{RailsSemanticLogger::VERSION} -m 'Tagging #{RailsSemanticLogger::VERSION}'"
   system 'git push --tags'
   system "gem push rails_semantic_logger-#{RailsSemanticLogger::VERSION}.gem"
@@ -23,7 +23,7 @@ Rake::TestTask.new(:test) do |t|
 end
 
 # By default run tests against all appraisals
-if !ENV["APPRAISAL_INITIALIZED"] && !ENV["TRAVIS"]
+if !ENV['APPRAISAL_INITIALIZED'] && !ENV['TRAVIS']
   require 'appraisal'
   task default: :appraisal
 else

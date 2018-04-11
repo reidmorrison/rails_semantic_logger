@@ -1,16 +1,18 @@
 # Patch ActiveModelSerializers logger
 require 'active_model_serializers/logging'
 
-module ActiveModelSerializers::Logging
-  include SemanticLogger::Loggable
+module ActiveModelSerializers
+  module Logging
+    include SemanticLogger::Loggable
 
-  private
+    private
 
-  def tag_logger(*tags, &block)
-    logger.tagged(*tags, &block)
+    def tag_logger(*tags, &block)
+      logger.tagged(*tags, &block)
+    end
   end
-end
 
-class ActiveModelSerializers::SerializableResource
-  include SemanticLogger::Loggable
+  class SerializableResource
+    include SemanticLogger::Loggable
+  end
 end

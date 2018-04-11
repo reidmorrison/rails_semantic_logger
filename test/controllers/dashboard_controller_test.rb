@@ -1,4 +1,4 @@
-require_relative "../test_helper"
+require_relative '../test_helper'
 
 class DashboardControllerTest < ActionController::TestCase
   describe DashboardController do
@@ -11,7 +11,7 @@ class DashboardControllerTest < ActionController::TestCase
       @logger                        = SemanticLogger['Test']
 
       assert_equal [], SemanticLogger.tags
-      assert_equal 65535, SemanticLogger.backtrace_level_index
+      assert_equal 65_535, SemanticLogger.backtrace_level_index
     end
 
     after do
@@ -43,7 +43,6 @@ class DashboardControllerTest < ActionController::TestCase
         assert_equal 200, payload[:status], payload
         assert_equal 'OK', payload[:status_message], payload
       end
-
     end
   end
 end

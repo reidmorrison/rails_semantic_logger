@@ -1,12 +1,14 @@
 # Patch ActiveJob logger
 require 'active_job/logging'
 
-module ActiveJob::Logging
-  include SemanticLogger::Loggable
+module ActiveJob
+  module Logging
+    include SemanticLogger::Loggable
 
-  private
+    private
 
-  def tag_logger(*tags, &block)
-    logger.tagged(*tags, &block)
+    def tag_logger(*tags, &block)
+      logger.tagged(*tags, &block)
+    end
   end
 end

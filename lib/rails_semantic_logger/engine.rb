@@ -191,7 +191,10 @@ module RailsSemanticLogger
       Sidetiq.logger          = SemanticLogger[Sidetiq] if defined?(Sidetiq)
 
       # Replace the DelayedJob logger
-      Delayed::Worker.logger  = SemanticLogger[Delayed::Worker] if defined?(Delayed::Worker)
+      if defined?(Delayed::Worker)
+        Delayed::Worker.logger = SemanticLogger[Delayed::Worker]
+        Delayed::Worker.plugins << RailsSemanticLogger::DelayedJob::Plugin
+      end
 
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
@@ -260,15 +263,4 @@ module RailsSemanticLogger
       Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring)
     end
   end
-end
-
-if defined?(Delayed::Worker)
-  class SemanticLoggerPlugin < Delayed::Plugin
-    callbacks do |lifecycle|
-      lifecycle.before(:execute) do |job, &block|
-        ::SemanticLogger.reopen
-       end
-     end
-   end
-  Delayed::Worker.plugins << SemanticLoggerPlugin
 end

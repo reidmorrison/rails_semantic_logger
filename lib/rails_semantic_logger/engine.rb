@@ -176,6 +176,12 @@ module RailsSemanticLogger
 
     # Before any initializers run, but after the gems have been loaded
     config.before_initialize do
+      if config.assets.quiet
+        config.rails_semantic_logger.quiet_assets = true
+        # Otherwise Sprockets can't find the Rails::Rack::Logger middleware
+        config.assets.quiet = false
+      end
+
       # Replace the Mongo Loggers
       Mongoid.logger          = SemanticLogger[Mongoid] if defined?(Mongoid)
       Moped.logger            = SemanticLogger[Moped] if defined?(Moped)

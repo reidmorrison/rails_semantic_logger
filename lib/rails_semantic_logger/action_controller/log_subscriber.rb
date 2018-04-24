@@ -54,15 +54,15 @@ module RailsSemanticLogger
       end
 
       def send_file(event)
-        controller_logger(event).info('Sent file') { {path: event.payload[:path], duration: event.duration} }
+        controller_logger(event).info(message: 'Sent file', payload: {path: event.payload[:path]}, duration: event.duration)
       end
 
       def redirect_to(event)
-        controller_logger(event).info('Redirected to') { {location: event.payload[:location]} }
+        controller_logger(event).info(message: 'Redirected to', payload: {location: event.payload[:location]})
       end
 
       def send_data(event)
-        controller_logger(event).info('Sent data') { {file_name: event.payload[:filename], duration: event.duration} }
+        controller_logger(event).info(message: 'Sent data', payload: {file_name: event.payload[:filename]}, duration: event.duration)
       end
 
       def unpermitted_parameters(event)

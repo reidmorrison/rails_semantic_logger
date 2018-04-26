@@ -176,7 +176,7 @@ module RailsSemanticLogger
 
     # Before any initializers run, but after the gems have been loaded
     config.before_initialize do
-      if defined?(Rails::Rack::Logger) && config.rails_semantic_logger.semantic
+      if config.assets && defined?(Rails::Rack::Logger) && config.rails_semantic_logger.semantic
         config.rails_semantic_logger.quiet_assets = true if config.assets.quiet
 
         # Otherwise Sprockets can't find the Rails::Rack::Logger middleware

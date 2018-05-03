@@ -56,7 +56,7 @@ module RailsSemanticLogger
 
         payload              = {
           template: from_rails_root(identifier),
-          count:    payload[:count]
+          count:    event.payload[:count]
         }
         payload[:cache_hits] = payload[:cache_hits] if payload[:cache_hits]
 

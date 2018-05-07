@@ -16,7 +16,7 @@ module RailsSemanticLogger
       end
 
       def self.reset_runtime
-        rt = runtime
+        rt           = runtime
         self.runtime = 0
         rt
       end
@@ -38,7 +38,12 @@ module RailsSemanticLogger
           duration: event.duration
         }
 
-        logger.measure_debug(log)
+        # Log the location of the query itself.
+        if logger.send(:level_index) >= SemanticLogger.backtrace_level_index
+          log[:backtrace] = SemanticLogger::Utils.strip_backtrace
+        end
+
+        logger.debug(log)
       end
 
       private
@@ -55,6 +60,10 @@ module RailsSemanticLogger
       def logger
         self.class.logger
       end
+
+      #
+      # Rails 3,4,5 hell trying to get the bind values
+      #
 
       def bind_values_v3(payload)
         binds = {}

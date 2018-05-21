@@ -1,4 +1,3 @@
-require 'active_record/log_subscriber'
 require 'action_controller/log_subscriber'
 
 module RailsSemanticLogger
@@ -222,11 +221,15 @@ module RailsSemanticLogger
 
       if config.rails_semantic_logger.semantic
         # Active Record
-        RailsSemanticLogger.swap_subscriber(
-          ::ActiveRecord::LogSubscriber,
-          RailsSemanticLogger::ActiveRecord::LogSubscriber,
-          :active_record
-        )
+        if defined?(::ActiveRecord)
+          require 'active_record/log_subscriber'
+
+          RailsSemanticLogger.swap_subscriber(
+            ::ActiveRecord::LogSubscriber,
+            RailsSemanticLogger::ActiveRecord::LogSubscriber,
+            :active_record
+          )
+        end
 
         # Rack
         RailsSemanticLogger::Rack::Logger.started_request_log_level = :info if config.rails_semantic_logger.started

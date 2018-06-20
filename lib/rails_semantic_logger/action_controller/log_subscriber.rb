@@ -41,8 +41,11 @@ module RailsSemanticLogger
           # Causes excessive log output with Rails 5 RC1
           payload.delete(:headers)
 
-          # Rails now puts the file in payload, which can include the entire file contents via tempfile.
-          payload.delete(:file)
+          params = payload[:params]
+          if params
+            # When logging to JSON the entire tempfile is logged, so convert it to a string.
+            params['file'] = params['file'].inspect if params['file']
+          end
 
           {
             message:  "Completed ##{payload[:action]}",

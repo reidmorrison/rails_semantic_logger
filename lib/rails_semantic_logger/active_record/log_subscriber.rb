@@ -31,7 +31,7 @@ module RailsSemanticLogger
 
         log_payload         = {sql: payload[:sql]}
         log_payload[:binds] = bind_values(payload) unless (payload[:binds] || []).empty?
-        log_payload[:query_source] = query_source if ::ActiveRecord::Base.verbose_query_logs
+        log_payload[:query_source] = query_source if log_query_source?
 
         log = {
           message:  name,
@@ -60,6 +60,10 @@ module RailsSemanticLogger
 
       def logger
         self.class.logger
+      end
+
+      def log_query_source?
+        Rails.version.to_f >= 5.2 && ::ActiveRecord::Base.verbose_query_logs
       end
 
       def query_source

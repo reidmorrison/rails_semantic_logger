@@ -31,6 +31,7 @@ module RailsSemanticLogger
 
         log_payload         = {sql: payload[:sql]}
         log_payload[:binds] = bind_values(payload) unless (payload[:binds] || []).empty?
+        log_payload[:query_source] = query_source if ::ActiveRecord::Base.verbose_query_logs
 
         log = {
           message:  name,
@@ -59,6 +60,14 @@ module RailsSemanticLogger
 
       def logger
         self.class.logger
+      end
+
+      def query_source
+        backtrace_cleaner.clean(caller).first
+      end
+
+      def backtrace_cleaner
+        @backtrace_cleaner ||= Rails::BacktraceCleaner.new
       end
 
       #

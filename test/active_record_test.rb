@@ -10,6 +10,7 @@ class ActiveRecordTest < Minitest::Test
       @appender                      = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
       @logger                        = SemanticLogger['Test']
       @hash                          = {session_id: 'HSSKLEU@JDK767', tracking_number: 12_345}
+      ::ActiveRecord::Base.verbose_query_logs = true
 
       assert_equal [], SemanticLogger.tags
       assert_equal 65_535, SemanticLogger.backtrace_level_index
@@ -28,6 +29,7 @@ class ActiveRecordTest < Minitest::Test
         assert actual[:message].include?('Sample'), actual[:message]
         assert actual[:payload], actual
         assert actual[:payload][:sql], actual[:payload]
+        assert_match /active_record_test.rb:25/, actual[:payload][:query_source]
       end
 
       it 'single bind value' do

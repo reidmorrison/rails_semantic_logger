@@ -67,11 +67,7 @@ module RailsSemanticLogger
       end
 
       def query_source
-        backtrace_cleaner.clean(caller).first
-      end
-
-      def backtrace_cleaner
-        @backtrace_cleaner ||= Rails::BacktraceCleaner.new
+        Rails.backtrace_cleaner.clean(caller).first
       end
 
       #

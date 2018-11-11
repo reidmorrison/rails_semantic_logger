@@ -263,7 +263,13 @@ module RailsSemanticLogger
       # Passenger provides the :starting_worker_process event for executing
       # code after it has forked, so we use that and reconnect immediately.
       if defined?(PhusionPassenger)
-        PhusionPassenger.on_event(:starting_worker_process) { |forked| ::SemanticLogger.reopen if forked }
+        PhusionPassenger.on_event(:starting_worker_process) do |forked|
+          if forked
+            # Workaround CRuby crash on fork https://github.com/rocketjob/semantic_logger/issues/103
+            SemanticLogger::Processor.instance.instance_variable_set(:@queue, Queue.new)
+            SemanticLogger.reopen
+          end
+        end
       end
 
       # Re-open appenders after Resque has forked a worker

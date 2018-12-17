@@ -155,7 +155,7 @@ module RailsSemanticLogger
       end
 
       def type_casted_binds_v5_0_3(binds, casted_binds)
-        casted_binds || ActiveRecord::Base.connection.type_casted_binds(binds)
+        casted_binds || ::ActiveRecord::Base.connection.type_casted_binds(binds)
       end
 
       def type_casted_binds_v5_1_5(casted_binds)

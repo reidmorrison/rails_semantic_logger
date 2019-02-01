@@ -16,8 +16,10 @@ module RailsSemanticLogger
     autoload :Logger, 'rails_semantic_logger/rack/logger'
   end
   module DelayedJob
-    autoload :Plugin, 'rails_semantic_logger/delayed_job/plugin.rb'
+    autoload :Plugin, 'rails_semantic_logger/delayed_job/plugin'
   end
+
+  autoload :Options, 'rails_semantic_logger/options'
 
   # Swap an existing subscriber with a new one
   def self.swap_subscriber(old_class, new_class, notifier)

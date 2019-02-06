@@ -16,5 +16,5 @@ Gem::Specification.new do |spec|
   spec.license               = 'Apache-2.0'
   spec.required_ruby_version = '>= 2.3'
   spec.add_dependency 'rails', '>= 3.2'
-  spec.add_dependency 'semantic_logger', '~> 4.3'
+  spec.add_dependency 'semantic_logger', '~> 4.3.0'
 end

@@ -9,6 +9,16 @@ Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](h
 
 For complete documentation see: http://rocketjob.github.io/semantic_logger/rails
 
+## Upgrading to Semantic Logger v4.4
+
+With some forking frameworks it is necessary to call `reopen` after the fork. With v4.4 the
+workaround for Ruby 2.5 crashes is no longer needed. 
+I.e. Please remove the following line if being called anywhere:
+
+~~~ruby
+SemanticLogger::Processor.instance.instance_variable_set(:@queue, Queue.new)
+~~~
+
 ## Supports
 
 - Rails 3.2, 4, 5

@@ -1,3 +1,3 @@
 module RailsSemanticLogger
-  VERSION = '4.3.4'.freeze
+  VERSION = '4.4.0'.freeze
 end

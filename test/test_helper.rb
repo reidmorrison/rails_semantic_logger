@@ -6,7 +6,6 @@ require 'minitest/autorun'
 require 'awesome_print'
 
 require 'rails/test_help'
-require 'minitest/rails'
 require_relative 'mock_logger'
 
 # Include the complete backtrace?

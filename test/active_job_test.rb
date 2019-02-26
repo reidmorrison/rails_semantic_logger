@@ -35,6 +35,10 @@ class ActiveJobTest < Minitest::Test
     end
 
     describe 'Logging::LogSubscriber' do
+      before do
+        skip 'Older rails does not support ActiveSupport::Notification' unless defined?(ActiveSupport::Notifications)
+      end
+
       let(:subscriber) { ActiveJob::Logging::LogSubscriber.new }
 
       let(:event) do

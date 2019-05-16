@@ -15,6 +15,7 @@ Gem::Specification.new do |spec|
   spec.files                 = Dir['lib/**/*', 'LICENSE.txt', 'Rakefile', 'README.md']
   spec.license               = 'Apache-2.0'
   spec.required_ruby_version = '>= 2.3'
-  spec.add_dependency 'rails', '>= 3.2'
+  spec.add_dependency 'railties', '>= 3.2'
+  spec.add_dependency 'rack'
   spec.add_dependency 'semantic_logger', '~> 4.4'
 end

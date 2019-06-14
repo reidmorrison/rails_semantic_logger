@@ -15,3 +15,4 @@ gem 'sqlite3', '~> 1.3.0', platform: :ruby
 
 # gem 'rails', '~> 5.2.0'
 gem 'rails', '6.0.0.beta1'
+gem 'tzinfo-data'

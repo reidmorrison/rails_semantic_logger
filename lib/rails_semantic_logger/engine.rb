@@ -1,3 +1,4 @@
+require 'rails'
 require 'action_controller/log_subscriber'
 require 'rails_semantic_logger/options'
 

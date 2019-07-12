@@ -165,13 +165,13 @@ module RailsSemanticLogger
       if Rails::VERSION::MAJOR == 5 && Rails::VERSION::MINOR.zero? && Rails::VERSION::TINY <= 2 # 5.0.0 - 5.0.2
         alias bind_values bind_values_v5_0_0
         alias render_bind render_bind_v5_0_0
-      elsif Rails::VERSION::MAJOR >= 5 &&
+      elsif Rails::VERSION::MAJOR == 5 &&
             ((Rails::VERSION::MINOR.zero? && Rails::VERSION::TINY <= 6) ||
               (Rails::VERSION::MINOR == 1 && Rails::VERSION::TINY <= 4)) # 5.0.3 - 5.0.6 && 5.1.0 - 5.1.4
         alias bind_values bind_values_v5_0_3
         alias render_bind render_bind_v5_0_3
         alias type_casted_binds type_casted_binds_v5_0_3
-      elsif Rails::VERSION::MAJOR >= 5 # ~> 5.1.5 && ~> 5.0.7
+      elsif Rails::VERSION::MAJOR >= 5 # ~> 5.1.5 && ~> 5.0.7 && 6.x.x
         alias bind_values bind_values_v5_1_5
         alias render_bind render_bind_v5_0_3
         alias type_casted_binds type_casted_binds_v5_1_5

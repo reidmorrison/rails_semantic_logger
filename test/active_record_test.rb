@@ -30,6 +30,22 @@ class ActiveRecordTest < Minitest::Test
         assert actual[:payload][:sql], actual[:payload]
       end
 
+      it 'sql with query cache' do
+        Sample.cache { 2.times { Sample.where(name: 'foo').first } }
+
+        SemanticLogger.flush
+        actual = @mock_logger.message
+
+        if Rails.version.to_f >= 5.1
+          assert actual[:message].include?('Sample'), actual[:message]
+        else
+          assert actual[:message].include?('CACHE'), actual[:message]
+        end
+
+        assert actual[:payload], actual
+        assert actual[:payload][:sql], actual[:payload]
+      end
+
       it 'single bind value' do
         Sample.where(name: 'Jack').first
 

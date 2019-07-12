@@ -11,8 +11,6 @@ gem 'activerecord-jdbcsqlite3-adapter', platform: :jruby
 gem 'appraisal'
 gem 'jdbc-sqlite3', platform: :jruby
 gem 'puma'
-gem 'sqlite3', '~> 1.3.0', platform: :ruby
+gem 'sqlite3', platform: :ruby
 
-# gem 'rails', '~> 5.2.0'
-gem 'rails', '6.0.0.beta1'
-gem 'tzinfo-data'
+gem 'rails', '6.0.0.rc1'

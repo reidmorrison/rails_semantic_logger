@@ -70,8 +70,6 @@ jdk:
 
 bundler_args: --without development
 
-sudo: false
-
 # Gitter integration
 notifications:
   webhooks:

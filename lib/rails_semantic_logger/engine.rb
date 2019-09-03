@@ -108,7 +108,13 @@ module RailsSemanticLogger
       Resque.logger           = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
 
       # Replace the Sidekiq logger
-      Sidekiq::Logging.logger = SemanticLogger[Sidekiq] if defined?(Sidekiq)
+      if defined?(Sidekiq)
+        if defined?(Sidekiq::Logging)
+          Sidekiq::Logging.logger = SemanticLogger[Sidekiq]
+        else
+          Sidekiq.logger = SemanticLogger[Sidekiq]
+        end
+      end
 
       # Replace the Sidetiq logger
       Sidetiq.logger          = SemanticLogger[Sidetiq] if defined?(Sidetiq)

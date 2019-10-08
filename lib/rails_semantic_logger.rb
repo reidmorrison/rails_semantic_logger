@@ -30,8 +30,8 @@ module RailsSemanticLogger
   end
 
   def self.unattach(subscriber)
-    subscriber.patterns.each do |event|
-      ActiveSupport::Notifications.notifier.listeners_for(event).each do |sub|
+    subscriber_patterns(subscriber).each do |pattern|
+      ActiveSupport::Notifications.notifier.listeners_for(pattern).each do |sub|
         next unless sub.instance_variable_get(:@delegate) == subscriber
         ActiveSupport::Notifications.unsubscribe(sub)
       end
@@ -39,5 +39,12 @@ module RailsSemanticLogger
 
     ActiveSupport::LogSubscriber.subscribers.delete(subscriber)
   end
-  private_class_method :unattach
+
+  def self.subscriber_patterns(subscriber)
+    subscriber.patterns.respond_to?(:keys) ?
+      subscriber.patterns.keys :
+      subscriber.patterns
+  end
+
+  private_class_method :subscriber_patterns, :unattach
 end

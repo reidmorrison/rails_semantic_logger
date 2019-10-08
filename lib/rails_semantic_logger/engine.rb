@@ -189,7 +189,7 @@ module RailsSemanticLogger
       Resque.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Resque)
 
       # Re-open appenders after Spring has forked a process
-      Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring)
+      Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)
     end
   end
 end

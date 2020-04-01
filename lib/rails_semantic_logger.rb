@@ -9,6 +9,9 @@ module RailsSemanticLogger
   module ActionView
     autoload :LogSubscriber, 'rails_semantic_logger/action_view/log_subscriber'
   end
+  module ActiveJob
+    autoload :LogSubscriber, 'rails_semantic_logger/active_job/log_subscriber'
+  end
   module ActiveRecord
     autoload :LogSubscriber, 'rails_semantic_logger/active_record/log_subscriber'
   end

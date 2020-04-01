@@ -137,6 +137,15 @@ module RailsSemanticLogger
       require('rails_semantic_logger/extensions/active_model_serializers/logging') if defined?(ActiveModelSerializers)
 
       if config.rails_semantic_logger.semantic
+        # Active Job
+        if defined?(::ActiveJob)
+          RailsSemanticLogger.swap_subscriber(
+            ::ActiveJob::Logging::LogSubscriber,
+            RailsSemanticLogger::ActiveJob::LogSubscriber,
+            :active_job
+          )
+        end
+
         # Active Record
         if defined?(::ActiveRecord)
           require 'active_record/log_subscriber'

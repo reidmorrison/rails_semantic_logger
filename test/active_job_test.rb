@@ -39,7 +39,7 @@ class ActiveJobTest < Minitest::Test
         skip 'Older rails does not support ActiveSupport::Notification' unless defined?(ActiveSupport::Notifications)
       end
 
-      let(:subscriber) { ActiveJob::Logging::LogSubscriber.new }
+      let(:subscriber) { RailsSemanticLogger::ActiveJob::LogSubscriber.new }
 
       let(:event) do
         ActiveSupport::Notifications::Event.new 'enqueue.active_job',
@@ -67,7 +67,7 @@ class ActiveJobTest < Minitest::Test
 
       describe 'ActiveJob::Logging::LogSubscriber::EventFormatter' do
         let(:formatter) do
-          ActiveJob::Logging::LogSubscriber::EventFormatter.new(event: event, log_duration: true)
+          RailsSemanticLogger::ActiveJob::LogSubscriber::EventFormatter.new(event: event, log_duration: true)
         end
 
         let(:event) do

@@ -1,10 +1,10 @@
-require 'active_support/log_subscriber'
+require "active_support/log_subscriber"
 
 module RailsSemanticLogger
   module ActionView
     # Output Semantic logs from Action View.
     class LogSubscriber < ActiveSupport::LogSubscriber
-      VIEWS_PATTERN = /^app\/views\//
+      VIEWS_PATTERN = %r{^app/views/}.freeze
 
       class << self
         attr_reader :logger
@@ -19,14 +19,14 @@ module RailsSemanticLogger
       def render_template(event)
         return unless should_log?
 
-        payload          = {
+        payload = {
           template: from_rails_root(event.payload[:identifier])
         }
         payload[:within] = from_rails_root(event.payload[:layout]) if event.payload[:layout]
 
         logger.measure(
           self.class.rendered_log_level,
-          'Rendered',
+          "Rendered",
           payload:  payload,
           duration: event.duration
         )
@@ -35,7 +35,7 @@ module RailsSemanticLogger
       def render_partial(event)
         return unless should_log?
 
-        payload          = {
+        payload = {
           partial: from_rails_root(event.payload[:identifier])
         }
         payload[:within] = from_rails_root(event.payload[:layout]) if event.payload[:layout]
@@ -43,7 +43,7 @@ module RailsSemanticLogger
 
         logger.measure(
           self.class.rendered_log_level,
-          'Rendered',
+          "Rendered",
           payload:  payload,
           duration: event.duration
         )
@@ -52,9 +52,9 @@ module RailsSemanticLogger
       def render_collection(event)
         return unless should_log?
 
-        identifier = event.payload[:identifier] || 'templates'
+        identifier = event.payload[:identifier] || "templates"
 
-        payload              = {
+        payload = {
           template: from_rails_root(identifier),
           count:    event.payload[:count]
         }
@@ -62,18 +62,18 @@ module RailsSemanticLogger
 
         logger.measure(
           self.class.rendered_log_level,
-          'Rendered',
+          "Rendered",
           payload:  payload,
           duration: event.duration
         )
       end
 
       def start(name, id, payload)
-        if (name == 'render_template.action_view') && should_log?
+        if (name == "render_template.action_view") && should_log?
           payload          = {template: from_rails_root(payload[:identifier])}
           payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
-          logger.send(self.class.rendered_log_level, message: 'Rendering', payload:  payload)
+          logger.send(self.class.rendered_log_level, message: "Rendering", payload: payload)
         end
 
         super
@@ -81,10 +81,10 @@ module RailsSemanticLogger
 
       private
 
-      @logger             = SemanticLogger['ActionView']
+      @logger             = SemanticLogger["ActionView"]
       @rendered_log_level = :debug
 
-      EMPTY = ''.freeze
+      EMPTY = "".freeze
 
       def should_log?
         logger.send("#{self.class.rendered_log_level}?")

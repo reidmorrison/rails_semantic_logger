@@ -48,7 +48,7 @@ module RailsSemanticLogger
 
       private
 
-      @logger = SemanticLogger['ActiveRecord']
+      @logger = SemanticLogger["ActiveRecord"]
 
       # When multiple values are received for a single bound field, it is converted into an array
       def add_bind_value(binds, key, value)
@@ -120,7 +120,7 @@ module RailsSemanticLogger
           if column.binary?
             # This specifically deals with the PG adapter that casts bytea columns into a Hash.
             value = value[:value] if value.is_a?(Hash)
-            value = value ? "<#{value.bytesize} bytes of binary data>" : '<NULL binary data>'
+            value = value ? "<#{value.bytesize} bytes of binary data>" : "<NULL binary data>"
           end
 
           [column.name, value]

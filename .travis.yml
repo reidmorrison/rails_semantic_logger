@@ -2,19 +2,6 @@ language: ruby
 
 matrix:
   include:
-    - name: "Rails 4.2 on Ruby 2.3.8"
-      rvm: 2.3.8
-      gemfile: gemfiles/rails_4.2.gemfile
-
-    - name: "Rails 5.0.2 on Ruby 2.4.6"
-      rvm: 2.4.6
-      gemfile: gemfiles/rails_5.0.2.gemfile
-    - name: "Rails 5.0.6 on Ruby 2.4.6"
-      rvm: 2.4.6
-      gemfile: gemfiles/rails_5.0.6.gemfile
-    - name: "Rails 5.0.7 on Ruby 2.4.6"
-      rvm: 2.4.6
-      gemfile: gemfiles/rails_5.0.7.gemfile
     - name: "Rails 5.1.4 on Ruby 2.4.6"
       rvm: 2.4.6
       gemfile: gemfiles/rails_5.1.4.gemfile

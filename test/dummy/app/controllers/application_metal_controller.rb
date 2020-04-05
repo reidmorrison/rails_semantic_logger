@@ -3,7 +3,7 @@ class ApplicationMetalController < ActionController::Metal
     ActionController::Instrumentation,
     AbstractController::Rendering,
     ActionController::Rendering,
-    ActionController::Renderers::All,
+    ActionController::Renderers::All
     # Helpers::Controller
   ].freeze
 

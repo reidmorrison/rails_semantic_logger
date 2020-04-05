@@ -1,8 +1,8 @@
-require 'active_support/core_ext/time/conversions'
-require 'active_support/core_ext/object/blank'
-require 'active_support/log_subscriber'
-require 'action_dispatch/http/request'
-require 'rack/body_proxy'
+require "active_support/core_ext/time/conversions"
+require "active_support/core_ext/object/blank"
+require "active_support/log_subscriber"
+require "action_dispatch/http/request"
+require "rack/body_proxy"
 
 module RailsSemanticLogger
   module Rack
@@ -31,12 +31,12 @@ module RailsSemanticLogger
 
       private
 
-      @logger                    = SemanticLogger['Rack']
+      @logger                    = SemanticLogger["Rack"]
       @started_request_log_level = :debug
 
       def call_app(request, env)
         instrumenter = ActiveSupport::Notifications.instrumenter
-        instrumenter.start 'request.action_dispatch', request: request
+        instrumenter.start "request.action_dispatch", request: request
 
         logger.send(self.class.started_request_log_level) { started_request_message(request) }
 
@@ -50,7 +50,7 @@ module RailsSemanticLogger
 
       def started_request_message(request)
         {
-          message: 'Started',
+          message: "Started",
           payload: {
             method: request.request_method,
             path:   request.filtered_path,
@@ -92,7 +92,7 @@ module RailsSemanticLogger
 
       def finish(request)
         instrumenter = ActiveSupport::Notifications.instrumenter
-        instrumenter.finish 'request.action_dispatch', request: request
+        instrumenter.finish "request.action_dispatch", request: request
       end
 
       def logger

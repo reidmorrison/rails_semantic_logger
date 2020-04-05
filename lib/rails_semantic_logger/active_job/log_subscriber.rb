@@ -1,4 +1,4 @@
-require 'active_job'
+require "active_job"
 
 module RailsSemanticLogger
   module ActiveJob
@@ -74,7 +74,7 @@ module RailsSemanticLogger
         end
 
         def adapter_name
-          event.payload[:adapter].class.name.demodulize.remove('Adapter')
+          event.payload[:adapter].class.name.demodulize.remove("Adapter")
         end
 
         def formatted_args

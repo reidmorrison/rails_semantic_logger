@@ -1,6 +1,6 @@
-require File.expand_path('boot', __dir__)
+require File.expand_path("boot", __dir__)
 
-require 'rails/all'
+require "rails/all"
 
 Bundler.require
 

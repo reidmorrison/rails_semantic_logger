@@ -1,5 +1,5 @@
 # Patch ActiveModelSerializers logger
-require 'active_model_serializers/logging'
+require "active_model_serializers/logging"
 
 module ActiveModelSerializers
   module Logging

@@ -44,7 +44,7 @@ module RailsSemanticLogger
           params = payload[:params]
           if params
             # When logging to JSON the entire tempfile is logged, so convert it to a string.
-            params['file'] = params['file'].inspect if params['file']
+            params["file"] = params["file"].inspect if params["file"]
           end
 
           {
@@ -60,15 +60,15 @@ module RailsSemanticLogger
       end
 
       def send_file(event)
-        controller_logger(event).info(message: 'Sent file', payload: {path: event.payload[:path]}, duration: event.duration)
+        controller_logger(event).info(message: "Sent file", payload: {path: event.payload[:path]}, duration: event.duration)
       end
 
       def redirect_to(event)
-        controller_logger(event).info(message: 'Redirected to', payload: {location: event.payload[:location]})
+        controller_logger(event).info(message: "Redirected to", payload: {location: event.payload[:location]})
       end
 
       def send_data(event)
-        controller_logger(event).info(message: 'Sent data', payload: {file_name: event.payload[:filename]}, duration: event.duration)
+        controller_logger(event).info(message: "Sent data", payload: {file_name: event.payload[:filename]}, duration: event.duration)
       end
 
       def unpermitted_parameters(event)
@@ -106,7 +106,7 @@ module RailsSemanticLogger
       end
 
       def extract_path(path)
-        index = path.index('?')
+        index = path.index("?")
         index ? path[0, index] : path
       end
     end

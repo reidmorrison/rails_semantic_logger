@@ -1,5 +1,5 @@
 # Patch ActiveJob logger
-require 'active_job/logging'
+require "active_job/logging"
 
 module ActiveJob
   module Logging
@@ -12,4 +12,3 @@ module ActiveJob
     end
   end
 end
-

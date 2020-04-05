@@ -2,7 +2,7 @@ module RailsSemanticLogger
   module DelayedJob
     class Plugin < Delayed::Plugin
       callbacks do |lifecycle|
-        lifecycle.before(:execute) do |job, &block|
+        lifecycle.before(:execute) do |_job|
           ::SemanticLogger.reopen
         end
       end

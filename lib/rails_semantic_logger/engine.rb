@@ -1,6 +1,6 @@
-require 'rails'
-require 'action_controller/log_subscriber'
-require 'rails_semantic_logger/options'
+require "rails"
+require "action_controller/log_subscriber"
+require "rails_semantic_logger/options"
 
 module RailsSemanticLogger
   class Engine < ::Rails::Engine
@@ -41,53 +41,54 @@ module RailsSemanticLogger
 
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
-      Rails.logger = config.logger = begin
-        if config.rails_semantic_logger.add_file_appender
-          path = config.paths['log'].first
-          FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
+      Rails.logger = config.logger =
+        begin
+          if config.rails_semantic_logger.add_file_appender
+            path = config.paths["log"].first
+            FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
 
-          # Add the log file to the list of appenders
-          # Use the colorized formatter if Rails colorized logs are enabled
-          ap_options = config.rails_semantic_logger.ap_options
-          formatter  = config.rails_semantic_logger.format
-          formatter  = {color: {ap: ap_options}} if (formatter == :default) && (config.colorize_logging != false)
+            # Add the log file to the list of appenders
+            # Use the colorized formatter if Rails colorized logs are enabled
+            ap_options = config.rails_semantic_logger.ap_options
+            formatter  = config.rails_semantic_logger.format
+            formatter  = {color: {ap: ap_options}} if (formatter == :default) && (config.colorize_logging != false)
 
-          # Set internal logger to log to file only, in case another appender experiences errors during writes
-          appender = SemanticLogger::Appender::File.new(
-            file_name: path,
-            level:     config.log_level,
-            formatter: formatter
+            # Set internal logger to log to file only, in case another appender experiences errors during writes
+            appender = SemanticLogger::Appender::File.new(
+              file_name: path,
+              level:     config.log_level,
+              formatter: formatter
+            )
+            appender.name                    = "SemanticLogger"
+            SemanticLogger::Processor.logger = appender
+
+            # Check for previous file or stdout loggers
+            SemanticLogger.appenders.each { |app| app.formatter = formatter if app.is_a?(SemanticLogger::Appender::File) }
+            SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
+          end
+
+          SemanticLogger[Rails]
+        rescue StandardError => e
+          # If not able to log to file, log to standard error with warning level only
+          SemanticLogger.default_level = :warn
+
+          SemanticLogger::Processor.logger = SemanticLogger::Appender::File.new(io: STDERR)
+          SemanticLogger.add_appender(io: STDERR)
+
+          logger = SemanticLogger[Rails]
+          logger.warn(
+            "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " \
+            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
+            e
           )
-          appender.name                    = 'SemanticLogger'
-          SemanticLogger::Processor.logger = appender
-
-          # Check for previous file or stdout loggers
-          SemanticLogger.appenders.each { |app| app.formatter = formatter if app.is_a?(SemanticLogger::Appender::File) }
-          SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
+          logger
         end
-
-        SemanticLogger[Rails]
-      rescue StandardError => exc
-        # If not able to log to file, log to standard error with warning level only
-        SemanticLogger.default_level = :warn
-
-        SemanticLogger::Processor.logger = SemanticLogger::Appender::File.new(io: STDERR)
-        SemanticLogger.add_appender(io: STDERR)
-
-        logger = SemanticLogger[Rails]
-        logger.warn(
-          "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " \
-            'The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.',
-          exc
-        )
-        logger
-      end
 
       # Replace Rails loggers
       %i[active_record action_controller action_mailer action_view].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
-      ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger['ActionCable'] }
+      ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger["ActionCable"] }
     end
 
     # Before any initializers run, but after the gems have been loaded
@@ -100,18 +101,18 @@ module RailsSemanticLogger
       end
 
       # Replace the Mongo Loggers
-      Mongoid.logger          = SemanticLogger[Mongoid] if defined?(Mongoid)
-      Moped.logger            = SemanticLogger[Moped] if defined?(Moped)
-      Mongo::Logger.logger    = SemanticLogger[Mongo] if defined?(Mongo::Logger)
+      Mongoid.logger       = SemanticLogger[Mongoid] if defined?(Mongoid)
+      Moped.logger         = SemanticLogger[Moped] if defined?(Moped)
+      Mongo::Logger.logger = SemanticLogger[Mongo] if defined?(Mongo::Logger)
 
       # Replace the Resque Logger
-      Resque.logger           = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
+      Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
 
       # Replace the Sidekiq logger
-      Sidekiq.logger = SemanticLogger[Sidekiq] if defined?(Sidekiq)
+      Sidekiq.logger       = SemanticLogger[Sidekiq] if defined?(Sidekiq)
 
       # Replace the Sidetiq logger
-      Sidetiq.logger          = SemanticLogger[Sidetiq] if defined?(Sidetiq)
+      Sidetiq.logger       = SemanticLogger[Sidetiq] if defined?(Sidetiq)
 
       # Replace the DelayedJob logger
       if defined?(Delayed::Worker)
@@ -129,12 +130,14 @@ module RailsSemanticLogger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Rails Patches
-      require('rails_semantic_logger/extensions/action_cable/tagged_logger_proxy') if defined?(ActionCable)
-      require('rails_semantic_logger/extensions/action_controller/live') if defined?(ActionController::Live)
-      require('rails_semantic_logger/extensions/action_dispatch/debug_exceptions') if defined?(ActionDispatch::DebugExceptions)
-      require('rails_semantic_logger/extensions/action_view/streaming_template_renderer') if defined?(ActionView::StreamingTemplateRenderer::Body)
-      require('rails_semantic_logger/extensions/active_job/logging') if defined?(ActiveJob)
-      require('rails_semantic_logger/extensions/active_model_serializers/logging') if defined?(ActiveModelSerializers)
+      require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(ActionCable)
+      require("rails_semantic_logger/extensions/action_controller/live") if defined?(ActionController::Live)
+      require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions") if defined?(ActionDispatch::DebugExceptions)
+      if defined?(ActionView::StreamingTemplateRenderer::Body)
+        require("rails_semantic_logger/extensions/action_view/streaming_template_renderer")
+      end
+      require("rails_semantic_logger/extensions/active_job/logging") if defined?(ActiveJob)
+      require("rails_semantic_logger/extensions/active_model_serializers/logging") if defined?(ActiveModelSerializers)
 
       if config.rails_semantic_logger.semantic
         # Active Job
@@ -148,7 +151,7 @@ module RailsSemanticLogger
 
         # Active Record
         if defined?(::ActiveRecord)
-          require 'active_record/log_subscriber'
+          require "active_record/log_subscriber"
 
           RailsSemanticLogger.swap_subscriber(
             ::ActiveRecord::LogSubscriber,

@@ -1,9 +1,9 @@
 Dummy::Application.routes.draw do
-  get 'welcome/index'
+  get "welcome/index"
 
   resources :articles
 
   resource :dashboard, controller: :dashboard
 
-  root 'welcome#index'
+  root "welcome#index"
 end

@@ -1,10 +1,4 @@
-appraise "rails_5.1.4" do
-  gem "rails", "5.1.4"
-  gem "sqlite3", "~> 1.3.0", platform: :ruby
-  gem "activerecord-jdbcsqlite3-adapter", "~> 51.0", platform: :jruby
-end
-
-appraise "rails_5.1.5" do
+appraise "rails_5.1" do
   gem "rails", "~> 5.1.5"
   gem "sqlite3", "~> 1.3.0", platform: :ruby
   gem "activerecord-jdbcsqlite3-adapter", "~> 51.0", platform: :jruby

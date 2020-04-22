@@ -21,7 +21,7 @@ SemanticLogger::Processor.instance.instance_variable_set(:@queue, Queue.new)
 
 ## Supports
 
-- Rails 3.2, 4, 5
+For the complete list of supported Ruby and Rails versions, see the [Testing file](https://github.com/rocketjob/rails_semantic_logger/blob/master/.travis.yml).
 
 ## Author
 

@@ -6,7 +6,7 @@ gem "appraisal"
 gem "puma"
 
 gem "active_model_serializers"
-gem "awesome_print"
+gem "amazing_print"
 gem "minitest"
 gem "rake"
 gem "sprockets", "< 4.0"

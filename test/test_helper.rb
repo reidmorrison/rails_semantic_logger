@@ -3,7 +3,7 @@ require_relative "dummy/config/environment"
 
 # Needed for Dummy test app
 require "minitest/autorun"
-require "awesome_print"
+require "amazing_print"
 
 require "rails/test_help"
 require_relative "mock_logger"

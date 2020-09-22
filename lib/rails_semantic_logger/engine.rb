@@ -27,7 +27,7 @@ module RailsSemanticLogger
     # additional features
 
     # Replace Rails logger initializer
-    #Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
+    Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 
     initializer :initialize_logger, group: :all do
       config = Rails.application.config

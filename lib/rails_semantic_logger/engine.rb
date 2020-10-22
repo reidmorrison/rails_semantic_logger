@@ -32,8 +32,7 @@ module RailsSemanticLogger
     initializer :initialize_logger, group: :all do
       config = Rails.application.config
 
-      if ! config.rails_semantic_logger.disabled
-
+      unless config.rails_semantic_logger.disabled
         # Set the default log level based on the Rails config
         SemanticLogger.default_level = config.log_level
 
@@ -96,7 +95,7 @@ module RailsSemanticLogger
 
     # Before any initializers run, but after the gems have been loaded
     config.before_initialize do
-      if ! config.rails_semantic_logger.disabled
+      unless config.rails_semantic_logger.disabled
         if config.respond_to?(:assets) && defined?(Rails::Rack::Logger) && config.rails_semantic_logger.semantic
           config.rails_semantic_logger.quiet_assets = true if config.assets.quiet
 
@@ -131,7 +130,7 @@ module RailsSemanticLogger
 
     # After any initializers run, but after the gems have been loaded
     config.after_initialize do
-      if ! config.rails_semantic_logger.disabled
+      unless config.rails_semantic_logger.disabled
         # Replace the Bugsnag logger
         Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
@@ -142,7 +141,7 @@ module RailsSemanticLogger
         if defined?(ActionView::StreamingTemplateRenderer::Body)
           require("rails_semantic_logger/extensions/action_view/streaming_template_renderer")
         end
-        require("rails_semantic_logger/extensions/active_job/logging") if defined?(ActiveJob)
+        require("rails_semantic_logger/extensions/active_job/logging") if defined?(::ActiveJob)
         require("rails_semantic_logger/extensions/active_model_serializers/logging") if defined?(ActiveModelSerializers)
         require("rails_semantic_logger/extensions/rails/server") if defined?(Rails::Server)
 

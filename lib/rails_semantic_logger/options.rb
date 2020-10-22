@@ -98,7 +98,7 @@ module RailsSemanticLogger
   #   config.rails_semantic_logger.named_tags = nil
   class Options
     attr_accessor :semantic, :started, :processing, :rendered, :ap_options, :add_file_appender,
-                  :quiet_assets, :format, :named_tags, :filter
+                  :quiet_assets, :format, :named_tags, :filter, :disabled
 
     # Setup default values
     def initialize
@@ -112,6 +112,7 @@ module RailsSemanticLogger
       @format            = :default
       @named_tags        = nil
       @filter            = nil
+      @disabled          = false
     end
   end
 end

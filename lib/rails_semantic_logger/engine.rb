@@ -148,8 +148,10 @@ module RailsSemanticLogger
         if config.rails_semantic_logger.semantic
           # Active Job
           if defined?(::ActiveJob)
+            # Rails >= 6.1 uses ::ActiveJob::LogSubscriber
+            log_klass = defined?(::ActiveJob::Logging::LogSubscriber) ? ::ActiveJob::Logging::LogSubscriber : ::ActiveJob::LogSubscriber
             RailsSemanticLogger.swap_subscriber(
-              ::ActiveJob::Logging::LogSubscriber,
+              log_klass,
               RailsSemanticLogger::ActiveJob::LogSubscriber,
               :active_job
             )

@@ -1,5 +1,6 @@
 require "rails"
 require "action_controller/log_subscriber"
+require "action_view/log_subscriber"
 require "rails_semantic_logger/options"
 
 module RailsSemanticLogger
@@ -147,9 +148,17 @@ module RailsSemanticLogger
 
         if config.rails_semantic_logger.semantic
           # Active Job
-          if defined?(::ActiveJob)
+          if defined?(::ActiveJob) && defined?(::ActiveJob::Logging::LogSubscriber)
             RailsSemanticLogger.swap_subscriber(
               ::ActiveJob::Logging::LogSubscriber,
+              RailsSemanticLogger::ActiveJob::LogSubscriber,
+              :active_job
+            )
+          end
+
+          if defined?(::ActiveJob) && defined?(::ActiveJob::LogSubscriber)
+            RailsSemanticLogger.swap_subscriber(
+              ::ActiveJob::LogSubscriber,
               RailsSemanticLogger::ActiveJob::LogSubscriber,
               :active_job
             )

@@ -58,7 +58,7 @@ class ActiveJobTest < Minitest::Test
         describe "##{method}" do
           specify do
             job.stub(:scheduled_at, Time.zone.now.to_i) do
-              assert_send([ActiveJob::Base.logger, :info])
+              assert ActiveJob::Base.logger.info
               subscriber.public_send(method, event)
             end
           end

@@ -38,8 +38,12 @@ module RailsSemanticLogger
           end
 
           payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
+
           # Causes excessive log output with Rails 5 RC1
           payload.delete(:headers)
+          # Causes recursion in Rails 6.1.rc1
+          payload.delete(:request)
+          payload.delete(:response)
 
           params = payload[:params]
           if params

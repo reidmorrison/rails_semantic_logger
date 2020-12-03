@@ -144,7 +144,6 @@ module RailsSemanticLogger
         end
         require("rails_semantic_logger/extensions/active_job/logging") if defined?(::ActiveJob)
         require("rails_semantic_logger/extensions/active_model_serializers/logging") if defined?(ActiveModelSerializers)
-        require("rails_semantic_logger/extensions/rails/server") if defined?(Rails::Server)
 
         if config.rails_semantic_logger.semantic
           # Active Job

@@ -61,5 +61,6 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "OK", payload[:status_message], payload
     assert (payload[:view_runtime] >= 0.0), payload
     assert((payload[:db_runtime] >= 0.0), payload) unless defined?(JRuby)
+    assert_instance_of Integer, payload[:allocations] if Rails.version.to_i >= 6
   end
 end

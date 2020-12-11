@@ -28,6 +28,7 @@ class ActiveRecordTest < Minitest::Test
         assert actual[:message].include?("Sample"), actual[:message]
         assert actual[:payload], actual
         assert actual[:payload][:sql], actual[:payload]
+        assert_instance_of Integer, actual[:payload][:allocations] if Rails.version.to_i >= 6
       end
 
       it "sql with query cache" do

@@ -37,6 +37,9 @@ module RailsSemanticLogger
             payload[key] = payload[key].to_f.round(2) if key.to_s =~ /(.*)_runtime/
           end
 
+          # Rails 6+ includes allocation count
+          payload[:allocations] = event.allocations if event.respond_to?(:allocations)
+
           payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
 
           # Causes excessive log output with Rails 5 RC1

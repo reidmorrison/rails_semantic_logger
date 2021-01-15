@@ -78,7 +78,11 @@ module RailsSemanticLogger
         end
 
         def formatted_args
-          JSON.pretty_generate(job.arguments.map { |arg| format(arg) })
+          if defined?(job.class.log_arguments?) && !job.class.log_arguments?
+            ""
+          else
+            JSON.pretty_generate(job.arguments.map { |arg| format(arg) })
+          end
         end
 
         def format(arg)

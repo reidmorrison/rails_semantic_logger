@@ -15,3 +15,9 @@ appraise "rails_6.0" do
   gem "activerecord-jdbcsqlite3-adapter", "~> 60.0", platform: :jruby
   gem "sqlite3", "~> 1.4.0", platform: :ruby
 end
+
+appraise "rails_6.1" do
+  gem "rails", "~> 6.1.0"
+  gem "activerecord-jdbcsqlite3-adapter", "~> 61.0", platform: :jruby
+  gem "sqlite3", "~> 1.4.0", platform: :ruby
+end

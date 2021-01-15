@@ -22,10 +22,16 @@ matrix:
     - name: "Rails 6.0 on Ruby 2.6.6"
       rvm: 2.6.6
       gemfile: gemfiles/rails_6.0.gemfile
+    - name: "Rails 6.1 on Ruby 2.6.6"
+      rvm: 2.6.6
+      gemfile: gemfiles/rails_6.1.gemfile
 
     - name: "Rails 6.0 on Ruby 2.7.1"
       rvm: 2.7.1
       gemfile: gemfiles/rails_6.0.gemfile
+    - name: "Rails 6.1 on Ruby 2.7.1"
+      rvm: 2.7.1
+      gemfile: gemfiles/rails_6.1.gemfile
 
     - name: "Rails 5.2 on JRuby 9.2.11.1"
       rvm: jruby-9.2.11.1
@@ -33,6 +39,9 @@ matrix:
     - name: "Rails 6.0 on JRuby 9.2.11.1"
       rvm: jruby-9.2.11.1
       gemfile: gemfiles/rails_6.0.gemfile
+    - name: "Rails 6.1 on JRuby 9.2.11.1"
+      rvm: jruby-9.2.11.1
+      gemfile: gemfiles/rails_6.1.gemfile
 
   allow_failures:
     - rvm: jruby-9.2.11.1

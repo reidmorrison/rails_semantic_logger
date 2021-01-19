@@ -76,6 +76,21 @@ class ActiveRecordTest < Minitest::Test
           assert_equal 1, binds[:limit], -> { actual.ai }
         end
       end
+
+      it 'works with an IN clause' do
+        Sample.where(age: [2,3]).first
+
+        SemanticLogger.flush
+        actual = @mock_logger.message
+        assert payload = actual[:payload], -> { actual.ai }
+        assert payload[:sql], -> { actual.ai }
+
+        if Rails.version.to_f >= 5.0
+          assert binds = payload[:binds], -> { actual.ai }
+          assert_equal [2, 3], binds[:age], -> { actual.ai }
+          assert_equal 1, binds[:limit], -> { actual.ai }
+        end
+      end
     end
   end
 end

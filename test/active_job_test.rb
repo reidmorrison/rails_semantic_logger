@@ -10,6 +10,22 @@ class ActiveJobTest < Minitest::Test
       end
     end
 
+    class SensitiveJob < ActiveJob::Base
+      queue_as :my_jobs
+
+      if Rails.version.to_f >= 6.1
+        self.log_arguments = false
+      else
+        def self.log_arguments?
+          false
+        end
+      end
+
+      def perform(record)
+        "Received: #{record}"
+      end
+    end
+
     class TestModel
       include GlobalID::Identification
 
@@ -76,7 +92,7 @@ class ActiveJobTest < Minitest::Test
                                                   Time.zone.now,
                                                   "transaction_id",
                                                   adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
-                                                  job:     MyJob.new(TestModel.new, 1, "string", foo: "bar")
+                                                  job: job
         end
 
         describe "#payload" do
@@ -84,20 +100,40 @@ class ActiveJobTest < Minitest::Test
             assert_equal(formatter.payload[:event_name], "perform.active_job")
             assert_equal(formatter.payload[:adapter], "Inline")
             assert_equal(formatter.payload[:queue], "my_jobs")
-            assert_equal(formatter.payload[:job_class], "ActiveJobTest::MyJob")
             assert_kind_of(String, formatter.payload[:job_id])
             assert_kind_of(Float, formatter.payload[:duration])
-            arguments = <<~ARGS.chomp
-              [
-                "gid://dummy/ActiveJobTest::TestModel/15",
-                1,
-                "string",
-                {
-                  "foo": "bar"
-                }
-              ]
-            ARGS
-            assert_equal(formatter.payload[:arguments], arguments)
+          end
+
+          describe "Show arguments in log" do
+            let(:job) do
+              MyJob.new(TestModel.new, 1, "string", foo: "bar")
+            end
+
+            specify do
+              assert_equal(formatter.payload[:job_class], "ActiveJobTest::MyJob")
+              arguments = <<~ARGS.chomp
+                [
+                  "gid://dummy/ActiveJobTest::TestModel/15",
+                  1,
+                  "string",
+                  {
+                    "foo": "bar"
+                  }
+                ]
+              ARGS
+              assert_equal(formatter.payload[:arguments], arguments)
+            end
+          end
+
+          describe "Hide arguments from log" do
+            let(:job) do
+              SensitiveJob.new(TestModel.new, 1, "string", foo: "bar")
+            end
+
+            specify do
+              assert_equal(formatter.payload[:job_class], "ActiveJobTest::SensitiveJob")
+              assert_equal(formatter.payload[:arguments], "")
+            end
           end
         end
 

@@ -76,6 +76,28 @@ class ActiveRecordTest < Minitest::Test
           assert_equal 1, binds[:limit], -> { actual.ai }
         end
       end
+
+      it "works with an IN clause" do
+        Sample.where(age: [2,3]).first
+
+        SemanticLogger.flush
+        actual = @mock_logger.message
+        assert payload = actual[:payload], -> { actual.ai }
+        assert payload[:sql], -> { actual.ai }
+
+        if Rails.version.to_f >= 5.0
+          assert binds = payload[:binds], -> { actual.ai }
+          if Rails.version.to_f >= 6.1
+            # Rails 6.1 dropped the bound column name
+            # Can be removed once this PR is fixed: https://github.com/rails/rails/pull/41068
+            assert_equal [2, 3], binds[nil], -> { actual.ai }
+          else
+            assert_equal [2, 3], binds[:age], -> { actual.ai }
+          end
+
+          assert_equal 1, binds[:limit], -> { actual.ai }
+        end
+      end
     end
   end
 end

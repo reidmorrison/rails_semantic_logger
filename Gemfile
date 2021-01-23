@@ -11,10 +11,8 @@ gem "minitest"
 gem "rake"
 gem "sprockets", "< 4.0"
 
-gem "rails", "~> 5.0.0"
-gem "activerecord-jdbcsqlite3-adapter", "~> 50.0", platform: :jruby
-gem "sqlite3", "~> 1.3.0", platform: :ruby
-gem "jdbc-sqlite3", platform: :jruby
+gem "rails", "~> 6.1.0"
+gem "sqlite3", "~> 1.4.0", platform: :ruby
 
 group :development do
   gem "rubocop"

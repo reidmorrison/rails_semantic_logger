@@ -85,7 +85,7 @@ class ActiveRecordTest < Minitest::Test
         assert payload = actual[:payload], -> { actual.ai }
         assert payload[:sql], -> { actual.ai }
 
-        if Rails.version.to_f >= 5.0
+        if Rails.version.to_f > 5.1
           assert binds = payload[:binds], -> { actual.ai }
           if Rails.version.to_f >= 6.1
             # Rails 6.1 dropped the bound column name

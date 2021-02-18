@@ -131,14 +131,14 @@ module RailsSemanticLogger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Rails Patches
-      require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(ActionCable)
-      require("rails_semantic_logger/extensions/action_controller/live") if defined?(ActionController::Live)
-      require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions") if defined?(ActionDispatch::DebugExceptions)
-      if defined?(ActionView::StreamingTemplateRenderer::Body)
+      require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(::ActionCable)
+      require("rails_semantic_logger/extensions/action_controller/live") if defined?(::ActionController::Live)
+      require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions") if defined?(::ActionDispatch::DebugExceptions)
+      if defined?(::ActionView::StreamingTemplateRenderer::Body)
         require("rails_semantic_logger/extensions/action_view/streaming_template_renderer")
       end
       require("rails_semantic_logger/extensions/active_job/logging") if defined?(::ActiveJob)
-      require("rails_semantic_logger/extensions/active_model_serializers/logging") if defined?(ActiveModelSerializers)
+      require("rails_semantic_logger/extensions/active_model_serializers/logging") if defined?(::ActiveModelSerializers)
 
       if config.rails_semantic_logger.semantic
         # Active Job

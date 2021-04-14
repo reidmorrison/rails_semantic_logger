@@ -23,7 +23,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "get show successfully logs message" do
-    get dashboard_url
+    PayloadCollector.wrap do
+      get dashboard_url
+    end
 
     SemanticLogger.flush
     actual = @mock_logger.message
@@ -39,5 +41,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "/dashboard", payload[:path], payload
     assert_equal 200, payload[:status], payload
     assert_equal "OK", payload[:status_message], payload
+
+    payload = PayloadCollector.last
+    assert_equal payload[:params], {"controller"=>"dashboard", "action"=>"show"}
   end
 end

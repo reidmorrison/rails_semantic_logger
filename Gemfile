@@ -17,3 +17,4 @@ gem "sqlite3", "~> 1.4.0", platform: :ruby
 group :development do
   gem "rubocop"
 end
+  gem 'byebug'

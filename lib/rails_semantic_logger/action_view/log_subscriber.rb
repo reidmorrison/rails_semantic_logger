@@ -40,7 +40,7 @@ module RailsSemanticLogger
           partial: from_rails_root(event.payload[:identifier])
         }
         payload[:within] = from_rails_root(event.payload[:layout]) if event.payload[:layout]
-        payload[:cache]  = payload[:cache_hit] unless event.payload[:cache_hit].nil?
+        payload[:cache]  = event.payload[:cache_hit] unless event.payload[:cache_hit].nil?
         payload[:allocations] = event.allocations if event.respond_to?(:allocations)
 
         logger.measure(
@@ -60,7 +60,7 @@ module RailsSemanticLogger
           template: from_rails_root(identifier),
           count:    event.payload[:count]
         }
-        payload[:cache_hits] = payload[:cache_hits] if payload[:cache_hits]
+        payload[:cache_hits] = event.payload[:cache_hits] if event.payload[:cache_hits]
         payload[:allocations] = event.allocations if event.respond_to?(:allocations)
 
         logger.measure(

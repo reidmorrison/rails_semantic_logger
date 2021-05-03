@@ -11,7 +11,7 @@ Provide at least:
 
 Note:
 * Issues reported here should be related to monkey patches applied to Rails to make it use Semantic Logger. 
-* For other logging and appender related issues, please report the issue at [Semantic Logger](https://github.com/rocketjob/semantic_logger/issues.
+* For other logging and appender related issues, please report the issue at [Semantic Logger](https://github.com/reidmorrison/semantic_logger/issues.
 
 ### Expected Behavior
 

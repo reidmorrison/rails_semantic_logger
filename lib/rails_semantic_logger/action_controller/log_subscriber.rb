@@ -15,7 +15,7 @@ module RailsSemanticLogger
           # Unused, but needed for Devise 401 status code monkey patch to still work.
           ::ActionController::Base.log_process_action(payload)
 
-          # According to PR https://github.com/rocketjob/rails_semantic_logger/pull/37/files
+          # According to PR https://github.com/reidmorrison/rails_semantic_logger/pull/37/files
           # payload[:params] is not always a Hash.
           payload[:params] = payload[:params].to_unsafe_h unless payload[:params].is_a?(Hash)
           payload[:params] = payload[:params].except(*INTERNAL_PARAMS)

@@ -127,8 +127,10 @@ module RailsSemanticLogger
 
     # After any initializers run, but after the gems have been loaded
     config.after_initialize do
+      config = Rails.application.config
+
       # Replace the Bugsnag logger
-      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+      Bugsnag.configure { |bugsnag_config| bugsnag_config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Rails Patches
       require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(::ActionCable)
@@ -174,7 +176,8 @@ module RailsSemanticLogger
 
         # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
         if config.rails_semantic_logger.quiet_assets && config.assets.prefix
-          assets_regex                                    = %r(\A/{0,2}#{config.assets.prefix})
+          assets_root                                     = config.relative_url_root.to_s + config.assets.prefix
+          assets_regex                                    = %r(\A/{0,2}#{assets_root})
           RailsSemanticLogger::Rack::Logger.logger.filter = ->(log) { log.payload[:path] !~ assets_regex if log.payload }
         end
 

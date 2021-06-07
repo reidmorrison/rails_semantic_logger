@@ -38,6 +38,12 @@ class ActiveJobTest < Minitest::Test
   describe "ActiveJob" do
     before do
       skip "Older rails does not support ActiveJob" unless defined?(ActiveJob)
+      @mock_logger = MockLogger.new
+      @appender    = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
+    end
+
+    after do
+      SemanticLogger.remove_appender(@appender)
     end
 
     describe ".perform_now" do
@@ -58,12 +64,20 @@ class ActiveJobTest < Minitest::Test
       let(:subscriber) { RailsSemanticLogger::ActiveJob::LogSubscriber.new }
 
       let(:event) do
-        ActiveSupport::Notifications::Event.new "enqueue.active_job",
+        ActiveSupport::Notifications::Event.new event_name,
                                                 5.seconds.ago,
                                                 Time.zone.now,
                                                 SecureRandom.uuid,
-                                                adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
-                                                job:     job
+                                                payload
+      end
+
+      let(:event_name) { "enqueue.active_job" }
+
+      let(:payload) do
+        {
+          adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+          job:     job
+        }
       end
 
       let(:job) do
@@ -81,19 +95,34 @@ class ActiveJobTest < Minitest::Test
         end
       end
 
+      describe "#perform with exception object" do
+        let(:event_name) { "perform.active_job" }
+
+        let(:payload) do
+          {
+            adapter:          ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:              job,
+            exception_object: ArgumentError.new("error")
+          }
+        end
+
+        specify do
+          subscriber.perform(event)
+
+          SemanticLogger.flush
+          actual = @mock_logger.message
+
+          assert_equal({name: "ArgumentError", message: "error", stack_trace: nil}, actual[:exception])
+          assert_equal("ActiveJobTest::MyJob", actual[:payload][:job_class])
+        end
+      end
+
       describe "ActiveJob::Logging::LogSubscriber::EventFormatter" do
         let(:formatter) do
           RailsSemanticLogger::ActiveJob::LogSubscriber::EventFormatter.new(event: event, log_duration: true)
         end
 
-        let(:event) do
-          ActiveSupport::Notifications::Event.new "perform.active_job",
-                                                  5.seconds.ago,
-                                                  Time.zone.now,
-                                                  "transaction_id",
-                                                  adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
-                                                  job: job
-        end
+        let(:event_name) { "perform.active_job" }
 
         describe "#payload" do
           specify do

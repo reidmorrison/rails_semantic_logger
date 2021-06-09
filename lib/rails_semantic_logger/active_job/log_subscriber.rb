@@ -5,29 +5,34 @@ module RailsSemanticLogger
     class LogSubscriber < ::ActiveSupport::LogSubscriber
       def enqueue(event)
         log_with_formatter event: event do |fmt|
-          "Enqueued #{fmt.job_info}"
+          {message: "Enqueued #{fmt.job_info}"}
         end
       end
 
       def enqueue_at(event)
         log_with_formatter event: event do |fmt|
-          "Enqueued #{fmt.job_info} at #{fmt.scheduled_at}"
+          {message: "Enqueued #{fmt.job_info} at #{fmt.scheduled_at}"}
         end
       end
 
       def perform_start(event)
         log_with_formatter event: event do |fmt|
-          "Performing #{fmt.job_info}"
+          {message: "Performing #{fmt.job_info}"}
         end
       end
 
       def perform(event)
         ex = event.payload[:exception_object]
         if ex
-          logger.error ex
+          log_with_formatter event: event, log_duration: true, level: :error do |fmt|
+            {
+              message: "Error performing #{fmt.job_info} in #{event.duration.round(2)}ms",
+              exception: ex
+            }
+          end
         else
           log_with_formatter event: event, log_duration: true do |fmt|
-            "Performed #{fmt.job_info} in #{event.duration.round(2)}ms"
+            {message: "Performed #{fmt.job_info} in #{event.duration.round(2)}ms"}
           end
         end
       end
@@ -107,10 +112,10 @@ module RailsSemanticLogger
         end
       end
 
-      def log_with_formatter(**kw_args)
+      def log_with_formatter(level: :info, **kw_args)
         fmt = EventFormatter.new(**kw_args)
         msg = yield fmt
-        logger.info msg, fmt.payload
+        logger.public_send(level, **msg, payload: fmt.payload)
       end
 
       def logger

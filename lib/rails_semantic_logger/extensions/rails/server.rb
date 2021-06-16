@@ -5,6 +5,8 @@ module Rails
     private
 
     def log_to_stdout
+      wrapped_app # touch the app so the logger is set up
+
       SemanticLogger.add_appender(io: $stdout, formatter: :color)
     end
   end

@@ -52,3 +52,11 @@ module RailsSemanticLogger
 
   private_class_method :subscriber_patterns, :unattach
 end
+
+if defined?(Mongoid)
+  require("rails_semantic_logger/extensions/mongoid/config")
+end
+
+if defined?(ActiveSupport::Logger)
+  require("rails_semantic_logger/extensions/active_support/logger")
+end

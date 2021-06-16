@@ -178,7 +178,7 @@ module RailsSemanticLogger
           attr = nil
         end
 
-        [attr&.name, value]
+        [attr&.name || :nil, value]
       end
 
       def type_casted_binds_v5_0_3(binds, casted_binds)

@@ -42,7 +42,7 @@ module RailsSemanticLogger
 
         # Log the location of the query itself.
         if logger.send(:level_index) >= SemanticLogger.backtrace_level_index
-          log[:backtrace] = SemanticLogger::Utils.strip_backtrace
+          log[:backtrace] = SemanticLogger::Utils.strip_backtrace(caller)
         end
 
         logger.debug(log)

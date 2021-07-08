@@ -6,6 +6,7 @@ module ActionView
     class Body
       private
 
+      undef_method :log_error
       def log_error(exception)
         ActionView::Base.logger.fatal(exception)
       end

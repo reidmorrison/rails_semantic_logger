@@ -214,15 +214,6 @@ module RailsSemanticLogger
 
       # Re-open appenders after Spring has forked a process
       Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)
-
-      console do |_app|
-        # Don't use a background thread for logging
-        SemanticLogger.sync!
-        SemanticLogger.add_appender(io: STDERR, formatter: :color)
-
-        # Include method names on log entries in the console
-        SemanticLogger.backtrace_level = SemanticLogger.default_level
-      end
     end
   end
 end

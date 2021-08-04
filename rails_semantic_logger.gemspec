@@ -16,5 +16,5 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 2.5"
   spec.add_dependency "rack"
   spec.add_dependency "railties", ">= 3.2"
-  spec.add_dependency "semantic_logger", "~> 4.8"
+  spec.add_dependency "semantic_logger", "~> 4.4"
 end

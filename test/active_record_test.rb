@@ -87,14 +87,7 @@ class ActiveRecordTest < Minitest::Test
 
         if Rails.version.to_f > 5.1
           assert binds = payload[:binds], -> { actual.ai }
-          if Rails.version.to_f >= 6.1
-            # Rails 6.1 dropped the bound column name
-            # Can be removed once this PR is fixed: https://github.com/rails/rails/pull/41068
-            assert_equal [2, 3], binds[:nil], -> { actual.ai }
-          else
-            assert_equal [2, 3], binds[:age], -> { actual.ai }
-          end
-
+          assert_equal [2, 3], binds[:age], -> { actual.ai }
           assert_equal 1, binds[:limit], -> { actual.ai }
         end
       end

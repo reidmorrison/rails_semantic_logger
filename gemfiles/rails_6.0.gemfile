@@ -10,9 +10,9 @@ gem "minitest"
 gem "rake"
 gem "sprockets", "< 4.0"
 gem "rails", "~> 6.0.0"
-gem "activerecord-jdbcsqlite3-adapter", "~> 60.0", platform: :jruby
 gem "sqlite3", "~> 1.4.0", platform: :ruby
-gem "jdbc-sqlite3", platform: :jruby
+gem "semantic_logger", github: "reidmorrison/semantic_logger"
+gem "activerecord-jdbcsqlite3-adapter", "~> 60.0", platform: :jruby
 
 group :development do
   gem "rubocop"

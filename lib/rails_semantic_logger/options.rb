@@ -40,7 +40,7 @@ module RailsSemanticLogger
   #       When Semantic Logger fails to log to an appender it logs the error to an
   #       internal logger, which by default writes to STDERR.
   #       Example, change the default internal logger to log to stdout:
-  #         SemanticLogger::Processor.logger = SemanticLogger::Appender::File.new(io: STDOUT, level: :warn)
+  #         SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
   #
   #       config.rails_semantic_logger.add_file_appender = true
   #

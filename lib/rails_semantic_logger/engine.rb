@@ -55,16 +55,16 @@ module RailsSemanticLogger
             formatter  = {color: {ap: ap_options}} if (formatter == :default) && (config.colorize_logging != false)
 
             # Set internal logger to log to file only, in case another appender experiences errors during writes
-            appender                         = SemanticLogger::Appender::File.new(
-              file_name: path,
-              level:     config.log_level,
-              formatter: formatter
-            )
+            appender                         = SemanticLogger::Appender::File.new(path, formatter: formatter)
             appender.name                    = "SemanticLogger"
             SemanticLogger::Processor.logger = appender
 
             # Check for previous file or stdout loggers
-            SemanticLogger.appenders.each { |app| app.formatter = formatter if app.is_a?(SemanticLogger::Appender::File) }
+            SemanticLogger.appenders.each do |app|
+              next unless app.is_a?(SemanticLogger::Appender::File) || app.is_a?(SemanticLogger::Appender::IO)
+
+              app.formatter = formatter
+            end
             SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
           end
 
@@ -73,8 +73,8 @@ module RailsSemanticLogger
           # If not able to log to file, log to standard error with warning level only
           SemanticLogger.default_level = :warn
 
-          SemanticLogger::Processor.logger = SemanticLogger::Appender::File.new(io: STDERR)
-          SemanticLogger.add_appender(io: STDERR)
+          SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stderr)
+          SemanticLogger.add_appender(io: $stderr)
 
           logger = SemanticLogger[Rails]
           logger.warn(

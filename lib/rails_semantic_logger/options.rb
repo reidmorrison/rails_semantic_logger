@@ -48,6 +48,10 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.quiet_assets = false
   #
+  # * Disable automatic logging to stderr when running a Rails console.
+  #
+  #     config.rails_semantic_logger.console_logger = false
+  #
   # * Override the output format for the primary Rails log file.
   #
   #     Valid options:
@@ -98,7 +102,7 @@ module RailsSemanticLogger
   #   config.rails_semantic_logger.named_tags = nil
   class Options
     attr_accessor :semantic, :started, :processing, :rendered, :ap_options, :add_file_appender,
-                  :quiet_assets, :format, :named_tags, :filter
+                  :quiet_assets, :format, :named_tags, :filter, :console_logger
 
     # Setup default values
     def initialize
@@ -112,6 +116,7 @@ module RailsSemanticLogger
       @format            = :default
       @named_tags        = nil
       @filter            = nil
+      @console_logger    = true
     end
   end
 end

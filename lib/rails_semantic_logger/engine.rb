@@ -123,6 +123,9 @@ module RailsSemanticLogger
 
       # Replace the Bugsnag logger
       Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+
+      # Set the IOStreams PGP logger
+      IOStreams::Pgp.logger = SemanticLogger["IOStreams::Pgp"] if defined?(IOStreams)
     end
 
     # After any initializers run, but after the gems have been loaded
@@ -218,7 +221,9 @@ module RailsSemanticLogger
       console do |_app|
         # Don't use a background thread for logging
         SemanticLogger.sync!
-        SemanticLogger.add_appender(io: STDERR, formatter: :color)
+        if config.rails_semantic_logger.console_logger
+          SemanticLogger.add_appender(io: STDERR, formatter: :color)
+        end
 
         # Include method names on log entries in the console
         SemanticLogger.backtrace_level = SemanticLogger.default_level

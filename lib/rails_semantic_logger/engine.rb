@@ -222,7 +222,7 @@ module RailsSemanticLogger
         # Don't use a background thread for logging
         SemanticLogger.sync!
         # Add a stderr logger when running inside a Rails console unless one has already been added.
-        if config.rails_semantic_logger.console_logger && !SemanticLogger::Logger.processor.appenders.console_output?
+        if config.rails_semantic_logger.console_logger && !SemanticLogger.appenders.console_output?
           SemanticLogger.add_appender(io: STDERR, formatter: :color)
         end
 

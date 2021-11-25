@@ -1,4 +1,4 @@
-ActionCable::Connection::TaggedLoggerProxy
+require "action_cable/connection/tagged_logger_proxy"
 
 module ActionCable
   module Connection

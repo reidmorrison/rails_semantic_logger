@@ -1,5 +1,6 @@
 # Log actual exceptions, not a string representation
-ActionDispatch::DebugExceptions
+require "action_dispatch"
+
 module ActionDispatch
   class DebugExceptions
     private

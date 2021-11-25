@@ -1,5 +1,6 @@
 # Log actual exceptions, not a string representation
-ActionController::Live
+require "action_controller"
+
 module ActionController
   module Live
     undef_method :log_error

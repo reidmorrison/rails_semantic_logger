@@ -4,7 +4,8 @@ require "rails"
 module Rails
   class Server
     private
-
+    
+    undef_method :log_to_stdout
     def log_to_stdout
       wrapped_app # touch the app so the logger is set up
 

@@ -1,5 +1,6 @@
 # Patch the Rails::Server log_to_stdout so that it logs via SemanticLogger
-Rails::Server
+require "rails"
+
 module Rails
   class Server
     private

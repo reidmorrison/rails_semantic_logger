@@ -33,11 +33,11 @@ jobs:
 
           - rails: "6.1"
             ruby: "3.0"
+          - rails: "6.1"
+            ruby: jruby
 
           - rails: "7.0"
             ruby: 3.0
-          - rails: "7.0"
-            ruby: jruby
 
     env:
       BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile

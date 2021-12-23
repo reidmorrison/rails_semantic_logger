@@ -34,9 +34,9 @@ jobs:
           - rails: "6.1"
             ruby: "3.0"
 
-          - rails: 7.0
+          - rails: "7.0"
             ruby: 3.0
-          - rails: 7.0
+          - rails: "7.0"
             ruby: jruby
 
     env:

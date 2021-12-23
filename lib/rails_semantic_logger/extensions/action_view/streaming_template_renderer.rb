@@ -1,5 +1,5 @@
 # Log actual exceptions, not a string representation
-ActionView::StreamingTemplateRenderer
+require "action_view/renderer/streaming_template_renderer"
 
 module ActionView
   class StreamingTemplateRenderer

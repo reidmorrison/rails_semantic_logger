@@ -7,6 +7,7 @@ module ActiveJob
 
     private
 
+    undef_method :tag_logger
     def tag_logger(*tags, &block)
       logger.tagged(*tags, &block)
     end

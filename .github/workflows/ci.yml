@@ -32,6 +32,8 @@ jobs:
             ruby: jruby
 
           - rails: "6.1"
+            ruby: "2.7"
+          - rails: "6.1"
             ruby: "3.0"
           - rails: "6.1"
             ruby: jruby

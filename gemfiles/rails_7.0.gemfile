@@ -11,7 +11,6 @@ gem "rake"
 gem "sprockets", "< 4.0"
 gem "rails", "~> 7.0.0"
 gem "sqlite3", "~> 1.4.0", platform: :ruby
-gem "semantic_logger", github: "reidmorrison/semantic_logger"
 gem "thread_safe", "~> 0.3.6"
 gem "activerecord-jdbcsqlite3-adapter", "~> 61.0", platform: :jruby
 

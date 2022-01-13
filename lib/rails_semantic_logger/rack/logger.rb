@@ -54,6 +54,7 @@ module RailsSemanticLogger
           payload: {
             method: request.request_method,
             path:   request.filtered_path,
+            params: request.filtered_parameters,
             ip:     request.remote_ip
           }
         }

@@ -21,7 +21,7 @@ SemanticLogger::Processor.instance.instance_variable_set(:@queue, Queue.new)
 
 ## Supports
 
-For the complete list of supported Ruby and Rails versions, see the [Testing file](https://github.com/reidmorrison/rails_semantic_logger/blob/master/.travis.yml).
+For the complete list of supported Ruby and Rails versions, see the [Testing file](https://github.com/reidmorrison/rails_semantic_logger/blob/master/.github/workflows/ci.yml).
 
 ## Author
 

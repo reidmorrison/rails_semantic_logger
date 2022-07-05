@@ -198,7 +198,8 @@ module RailsSemanticLogger
         alias bind_values bind_values_v5_0_3
         alias render_bind render_bind_v5_0_3
         alias type_casted_binds type_casted_binds_v5_0_3
-      elsif Rails::VERSION::MAJOR == 6 && Rails::VERSION::MINOR > 0 # ~> 6.1.0
+      elsif (Rails::VERSION::MAJOR == 6 && Rails::VERSION::MINOR > 0) || # ~> 6.1.0
+            Rails::VERSION::MAJOR == 7
         alias bind_values bind_values_v6_1
         alias render_bind render_bind_v6_1
         alias type_casted_binds type_casted_binds_v5_1_5

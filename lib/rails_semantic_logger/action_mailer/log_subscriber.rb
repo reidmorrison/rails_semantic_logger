@@ -59,7 +59,9 @@ module RailsSemanticLogger
         end
 
         def date
-          if date = event.payload[:date]
+          if event.payload[:date].respond_to?(:strftime)
+            event.payload[:date]
+          elsif event.payload[:date].is_a?(String)
             Time.parse(date).utc
           else
             nil

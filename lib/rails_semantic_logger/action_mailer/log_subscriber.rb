@@ -55,12 +55,13 @@ module RailsSemanticLogger
             h[:cc]                 = event.payload[:cc]
             h[:date]               = date
             h[:duration]           = event.duration.round(2) if log_duration?
+            h[:args]               = formatted_args
           end
         end
 
         def date
-          if event.payload[:date].respond_to?(:strftime)
-            event.payload[:date]
+          if event.payload[:date].respond_to?(:to_time)
+            event.payload[:date].to_time.utc
           elsif event.payload[:date].is_a?(String)
             Time.parse(date).utc
           else
@@ -78,6 +79,31 @@ module RailsSemanticLogger
 
         def action
           event.payload[:action]
+        end
+
+        def formatted_args
+          if defined?(mailer.contantize.log_arguments?) && !mailer.contantize.log_arguments?
+            ""
+          else
+            JSON.pretty_generate(event.payload[:args].map { |arg| format(arg) }) if event.payload[:args].present?
+          end
+        end
+
+        def format(arg)
+          case arg
+          when Hash
+            arg.transform_values { |value| format(value) }
+          when Array
+            arg.map { |value| format(value) }
+          when GlobalID::Identification
+            begin
+              arg.to_global_id
+            rescue StandardError
+              arg
+            end
+          else
+            arg
+          end
         end
 
         def log_duration?

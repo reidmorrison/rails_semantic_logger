@@ -6,6 +6,9 @@ module RailsSemanticLogger
   module ActionController
     autoload :LogSubscriber, "rails_semantic_logger/action_controller/log_subscriber"
   end
+  module ActionMailer
+    autoload :LogSubscriber, "rails_semantic_logger/action_mailer/log_subscriber"
+  end
   module ActionView
     autoload :LogSubscriber, "rails_semantic_logger/action_view/log_subscriber"
   end

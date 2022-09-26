@@ -1,6 +1,7 @@
 require "rails"
 require "action_controller/log_subscriber"
 require "action_view/log_subscriber"
+require "action_mailer/log_subscriber"
 require "rails_semantic_logger/options"
 
 module RailsSemanticLogger
@@ -197,6 +198,13 @@ module RailsSemanticLogger
           ::ActionController::LogSubscriber,
           RailsSemanticLogger::ActionController::LogSubscriber,
           :action_controller
+        )
+
+        # Action Mailer
+        RailsSemanticLogger.swap_subscriber(
+          ::ActionMailer::LogSubscriber,
+          RailsSemanticLogger::ActionMailer::LogSubscriber,
+          :action_mailer
         )
       end
 

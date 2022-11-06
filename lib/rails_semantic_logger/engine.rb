@@ -107,13 +107,13 @@ module RailsSemanticLogger
       Mongo::Logger.logger = SemanticLogger[Mongo] if defined?(Mongo::Logger)
 
       # Replace the Resque Logger
-      Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger)
+      Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 
       # Replace the Sidekiq logger
-      Sidekiq.logger       = SemanticLogger[Sidekiq] if defined?(Sidekiq)
+      Sidekiq.logger       = SemanticLogger[Sidekiq] if defined?(Sidekiq) && Sidekiq.respond_to?(:logger=)
 
       # Replace the Sidetiq logger
-      Sidetiq.logger       = SemanticLogger[Sidetiq] if defined?(Sidetiq)
+      Sidetiq.logger       = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
 
       # Replace the DelayedJob logger
       if defined?(Delayed::Worker)

@@ -1,8 +1,13 @@
 require_relative "../test_helper"
 
 class WelcomeControllerTest < ActionDispatch::IntegrationTest
-  test "Welcome Controller should get index" do
-    get "/welcome/index"
-    assert_response :success
+  describe WelcomeController do
+    describe "#index" do
+      it "succeeds" do
+        get "/welcome/index"
+
+        assert_response :success
+      end
+    end
   end
 end

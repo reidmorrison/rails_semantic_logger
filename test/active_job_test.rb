@@ -38,12 +38,6 @@ class ActiveJobTest < Minitest::Test
   describe "ActiveJob" do
     before do
       skip "Older rails does not support ActiveJob" unless defined?(ActiveJob)
-      @mock_logger = MockLogger.new
-      @appender    = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
-    end
-
-    after do
-      SemanticLogger.remove_appender(@appender)
     end
 
     describe ".perform_now" do
@@ -64,11 +58,7 @@ class ActiveJobTest < Minitest::Test
       let(:subscriber) { RailsSemanticLogger::ActiveJob::LogSubscriber.new }
 
       let(:event) do
-        ActiveSupport::Notifications::Event.new event_name,
-                                                5.seconds.ago,
-                                                Time.zone.now,
-                                                SecureRandom.uuid,
-                                                payload
+        ActiveSupport::Notifications::Event.new(event_name, 5.seconds.ago, Time.zone.now, SecureRandom.uuid, payload)
       end
 
       let(:event_name) { "enqueue.active_job" }
@@ -106,14 +96,28 @@ class ActiveJobTest < Minitest::Test
           }
         end
 
-        specify do
-          subscriber.perform(event)
+        it "logs messages" do
+          messages = semantic_logger_events do
+            subscriber.perform(event)
+          end
+          assert_equal 1, messages.count, messages
 
-          SemanticLogger.flush
-          actual = @mock_logger.message
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :error,
+            name:             "Rails",
+            message_includes: "Error performing ActiveJobTest::MyJob",
+            payload_includes: {
+              job_class:  "ActiveJobTest::MyJob",
+              queue:      "my_jobs",
+              event_name: "perform.active_job"
+            }
+          )
+          assert_includes messages[0].payload, :job_id
 
-          assert_equal({name: "ArgumentError", message: "error", stack_trace: nil}, actual[:exception])
-          assert_equal("ActiveJobTest::MyJob", actual[:payload][:job_class])
+          exception = messages[0].exception
+          assert exception.is_a?(ArgumentError)
+          assert_equal "error", exception.message
         end
       end
 

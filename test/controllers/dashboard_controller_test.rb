@@ -1,48 +1,65 @@
 require_relative "../test_helper"
 
 class DashboardControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    # Use a mock logger that just keeps the last logged entry in an instance variable
-    SemanticLogger.default_level   = :trace
-    SemanticLogger.backtrace_level = nil
-    @mock_logger                   = MockLogger.new
-    @appender                      = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
-    @logger                        = SemanticLogger["Test"]
+  describe DashboardController do
+    describe "#show" do
+      it "has no errors" do
+        get dashboard_url
 
-    assert_equal [], SemanticLogger.tags
-    assert_equal 65_535, SemanticLogger.backtrace_level_index
-  end
+        assert_response :success
+      end
 
-  teardown do
-    SemanticLogger.remove_appender(@appender)
-  end
+      it "logs message" do
+        messages = semantic_logger_events do
+          get dashboard_url
+        end
+        assert_equal 3, messages.count, messages
 
-  test "get show has no errors" do
-    get dashboard_url
-    assert_response :success
-  end
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :debug,
+          name:    "Rack",
+          message: "Started",
+          payload: {
+            method: "GET",
+            path:   "/dashboard",
+            ip:     "127.0.0.1"
+          }
+        )
 
-  test "get show successfully logs message" do
-    PayloadCollector.wrap do
-      get dashboard_url
+        assert_semantic_logger_event(
+          messages[1],
+          level:   :debug,
+          name:    "Rails",
+          message: "Processing #show",
+          payload: nil
+        )
+
+        assert_semantic_logger_event(
+          messages[2],
+          level:            :info,
+          name:             "Rails",
+          message:          "Completed #show",
+          payload_includes: {
+            controller:     "DashboardController",
+            action:         "show",
+            format:         "HTML",
+            method:         "GET",
+            path:           "/dashboard",
+            status:         200,
+            status_message: "OK"
+          }
+        )
+      end
+
+      it "does not break rails notifications" do
+        PayloadCollector.wrap do
+          get dashboard_url
+        end
+
+        payload = PayloadCollector.last
+        assert_equal payload[:params], { "controller" => "dashboard", "action" => "show" }
+      end
     end
-
-    SemanticLogger.flush
-    actual = @mock_logger.message
-
-    assert_equal "Completed #show", actual[:message]
-
-    assert payload = actual[:payload], actual
-    assert_equal "show", payload[:action], payload
-    assert_equal "DashboardController", payload[:controller], payload
-    assert_equal "HTML", payload[:format], payload
-    assert_equal "GET", payload[:method], payload
-
-    assert_equal "/dashboard", payload[:path], payload
-    assert_equal 200, payload[:status], payload
-    assert_equal "OK", payload[:status_message], payload
-
-    payload = PayloadCollector.last
-    assert_equal payload[:params], {"controller"=>"dashboard", "action"=>"show"}
   end
 end

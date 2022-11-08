@@ -7,7 +7,7 @@ Bundler.require
 module Dummy
   class Application < Rails::Application
     # Configure sensitive parameters which will be filtered from the log file.
-    config.filter_parameters += [:password]
+    config.filter_parameters                                  += [:password]
     config.active_record.sqlite3.represent_boolean_as_integer = true if config.active_record.sqlite3
 
     # Settings in config/environments/* take precedence over those specified here.
@@ -24,5 +24,12 @@ module Dummy
 
     # Do not swallow errors in after_commit/after_rollback callbacks.
     # config.active_record.raise_in_transactional_callbacks = true
+
+    config.semantic_logger.default_level = :trace
+    # Warning: Set to :error or higher in production to avoid performance issues.
+    config.semantic_logger.backtrace_level = :trace
+
+    # Test out Amazing Print
+    config.rails_semantic_logger.ap_options = { multiline: false, ruby19_syntax: true }
   end
 end

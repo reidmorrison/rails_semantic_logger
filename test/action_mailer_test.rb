@@ -8,16 +8,6 @@ class ActionMailerTest < Minitest::Test
   end
 
   describe "ActionMailer" do
-    before do
-      ::ActionMailer::Base.delivery_method = :test
-      @mock_logger = MockLogger.new
-      @appender    = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
-    end
-
-    after do
-      SemanticLogger.remove_appender(@appender)
-    end
-
     describe "#deliver" do
       it "sets the ActionMailer logger" do
         assert_kind_of SemanticLogger::Logger, MyMailer.logger
@@ -25,6 +15,40 @@ class ActionMailerTest < Minitest::Test
 
       it "sends the email" do
         MyMailer.some_email(to: 'test@test.com', from: 'test@test.com', subject: 'test').deliver_now
+      end
+
+      it "writes log messages" do
+        messages = semantic_logger_events do
+          MyMailer.some_email(to: 'test@test.com', from: 'test@test.com', subject: 'test').deliver_now
+        end
+        assert_equal 2, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level: :info,
+          name: "ActionMailer::Base",
+          message_includes: "ActionMailerTest::MyMailer#some_email: processed outbound mail",
+          payload_includes: {
+            event_name: "process.action_mailer",
+            mailer: "ActionMailerTest::MyMailer",
+            action: :some_email,
+          }
+        )
+
+        assert_semantic_logger_event(
+          messages[1],
+          level: :info,
+          name: "ActionMailer::Base",
+          message_includes: Rails::VERSION::MAJOR >= 6 ? "Delivered mail" : "Skipped delivery",
+          payload_includes: {
+            event_name: "deliver.action_mailer",
+            mailer: "ActionMailerTest::MyMailer",
+            perform_deliveries: Rails::VERSION::MAJOR >= 6 ? true : nil,
+            subject: "test",
+            to: ["test@test.com"],
+            from: ["test@test.com"],
+          }
+        )
       end
     end
 
@@ -36,11 +60,7 @@ class ActionMailerTest < Minitest::Test
       let(:subscriber) { RailsSemanticLogger::ActionMailer::LogSubscriber.new }
 
       let(:event) do
-        ActiveSupport::Notifications::Event.new event_name,
-                                                5.seconds.ago,
-                                                Time.zone.now,
-                                                SecureRandom.uuid,
-                                                payload
+        ActiveSupport::Notifications::Event.new(event_name, 5.seconds.ago, Time.zone.now, SecureRandom.uuid, payload)
       end
 
       let(:payload) do

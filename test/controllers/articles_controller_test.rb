@@ -1,66 +1,88 @@
 require_relative "../test_helper"
 
 class ArticlesControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    # Use a mock logger that just keeps the last logged entry in an instance variable
-    SemanticLogger.default_level   = :trace
-    SemanticLogger.backtrace_level = nil
-    @mock_logger                   = MockLogger.new
-    @appender                      = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
-    @logger                        = SemanticLogger["Test"]
-    @hash                          = {session_id: "HSSKLEU@JDK767", tracking_number: 12_345}
+  describe ArticlesController do
+    let(:params) { { article: { text: "Text1", title: "Title1" } } }
 
-    assert_equal [], SemanticLogger.tags
-    assert_equal 65_535, SemanticLogger.backtrace_level_index
-  end
+    describe "#new" do
+      it "shows new article" do
+        get article_url(:new)
 
-  teardown do
-    SemanticLogger.remove_appender(@appender)
-  end
+        assert_response :success
+      end
+    end
 
-  test "GET #new shows new article" do
-    get article_url(:new)
-    assert_response :success
-  end
+    describe "#create" do
+      it "has no errors" do
+        post articles_url(params: params)
 
-  def params
-    {
-      article: {
-        text:  "Text1",
-        title: "Title1"
-      }
-    }
-  end
+        assert_response :success
+      end
 
-  test "POST #create has no errors" do
-    params = {params: self.params} if Rails.version.to_i >= 5
-    post articles_url(params)
+      it "successfully logs message" do
+        messages = semantic_logger_events do
+          post articles_url(params: params)
+        end
+        assert_equal 5, messages.count, messages
 
-    assert_response :success
-  end
+        assert_semantic_logger_event(
+          messages[0],
+          message: "Started",
+          name:    "Rack",
+          level:   :debug,
+          payload: {
+            method: "POST",
+            path:   "/articles?article%5Btext%5D=Text1&article%5Btitle%5D=Title1",
+            ip:     "127.0.0.1"
+          }
+        )
 
-  test "POST #create successfully logs message" do
-    params = {params: self.params} if Rails.version.to_i >= 5
-    post articles_url(params)
+        assert_semantic_logger_event(
+          messages[1],
+          message: "Processing #create",
+          name:    "ArticlesController",
+          level:   :debug
+        )
 
-    SemanticLogger.flush
-    actual = @mock_logger.message
+        assert_semantic_logger_event(
+          messages[2],
+          message: "Rendering",
+          name:    "ActionView",
+          level:   :debug,
+          payload: {
+            template: "text template"
+          }
+        )
 
-    assert_equal "Completed #create", actual[:message]
-    assert_equal "ArticlesController", actual[:name]
+        assert_semantic_logger_event(
+          messages[3],
+          message: "Rendered",
+          name:    "ActionView",
+          level:   :debug
+        )
 
-    assert payload = actual[:payload], actual
-    assert_equal "create", payload[:action], payload
-    assert_equal "ArticlesController", payload[:controller], payload
-    assert_equal "HTML", payload[:format], payload
-    assert_equal "POST", payload[:method], payload
-    # Only Rails 5 passes the arguments through
-    assert_equal({"article" => {"text" => "Text1", "title" => "Title1"}}, payload[:params], payload) if Rails.version.to_i >= 5
-    assert_equal "/articles", payload[:path], payload
-    assert_equal 200, payload[:status], payload
-    assert_equal "OK", payload[:status_message], payload
-    assert (payload[:view_runtime] >= 0.0), payload
-    assert((payload[:db_runtime] >= 0.0), payload) unless defined?(JRuby)
-    assert_instance_of Integer, payload[:allocations] if Rails.version.to_i >= 6
+        assert_semantic_logger_event(
+          messages[4],
+          message:          "Completed #create",
+          name:             "ArticlesController",
+          level:            :info,
+          payload_includes: {
+            controller:     "ArticlesController",
+            action:         "create",
+            params:         {
+              "article" => {
+                "text"  => "Text1",
+                "title" => "Title1"
+              }
+            },
+            format:         "HTML",
+            method:         "POST",
+            path:           "/articles",
+            status:         200,
+            status_message: "OK"
+          }
+        )
+      end
+    end
   end
 end

@@ -2,94 +2,135 @@ require_relative "test_helper"
 
 class ActiveRecordTest < Minitest::Test
   describe "ActiveRecord" do
-    before do
-      # Use a mock logger that just keeps the last logged entry in an instance variable
-      SemanticLogger.default_level   = :trace
-      SemanticLogger.backtrace_level = nil
-      @mock_logger                   = MockLogger.new
-      @appender                      = SemanticLogger.add_appender(logger: @mock_logger, formatter: :raw)
-      @logger                        = SemanticLogger["Test"]
-      @hash                          = {session_id: "HSSKLEU@JDK767", tracking_number: 12_345}
-
-      assert_equal [], SemanticLogger.tags
-      assert_equal 65_535, SemanticLogger.backtrace_level_index
-    end
-
-    after do
-      SemanticLogger.remove_appender(@appender)
-    end
+    # Rails 5 has an extra space
+    let(:extra_space) { Rails::VERSION::MAJOR >= 6 ? "" : " "}
 
     describe "logs" do
       it "sql" do
-        Sample.first
+        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" ORDER BY \"samples\".\"id\" ASC LIMIT ?"
 
-        SemanticLogger.flush
-        actual = @mock_logger.message
-        assert actual[:message].include?("Sample"), actual[:message]
-        assert actual[:payload], actual
-        assert actual[:payload][:sql], actual[:payload]
-        assert_instance_of Integer, actual[:payload][:allocations] if Rails.version.to_i >= 6
+        messages = semantic_logger_events do
+          Sample.first
+        end
+        assert_equal 1, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord",
+          message:          "Sample Load",
+          payload_includes: {
+            sql:   expected_sql,
+            binds: { limit: 1 }
+          }
+        )
+        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
       end
 
       it "sql with query cache" do
-        Sample.cache { 2.times { Sample.where(name: "foo").first } }
+        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
 
-        SemanticLogger.flush
-        actual = @mock_logger.message
-
-        if Rails.version.to_f >= 5.1
-          assert actual[:message].include?("Sample"), actual[:message]
-        else
-          assert actual[:message].include?("CACHE"), actual[:message]
+        messages = semantic_logger_events do
+          Sample.cache { 2.times { Sample.where(name: "foo").first } }
         end
+        assert_equal 2, messages.count, messages
 
-        assert actual[:payload], actual
-        assert actual[:payload][:sql], actual[:payload]
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord",
+          message:          "Sample Load",
+          payload_includes: {
+            sql:   expected_sql,
+            binds: { name: "foo", limit: 1 }
+          }
+        )
+        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+
+        assert_semantic_logger_event(
+          messages[1],
+          level:            :debug,
+          name:             "ActiveRecord",
+          message:          "Sample Load",
+          payload_includes: {
+            sql:    expected_sql,
+            binds:  { name: "foo", limit: 1 },
+            cached: true
+          }
+        )
+        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
       end
 
       it "single bind value" do
-        Sample.where(name: "Jack").first
+        expected_sql =
+          if Rails.version.to_f >= 5.2
+            "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+          else
+            "SELECT  \"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+          end
 
-        SemanticLogger.flush
-        actual = @mock_logger.message
-        assert payload = actual[:payload], -> { actual.ai }
+        messages = semantic_logger_events do
+          Sample.where(name: "Jack").first
+        end
+        assert_equal 1, messages.count, messages
 
-        assert payload[:sql], -> { actual.ai }
-
-        assert binds = payload[:binds], -> { actual.ai }
-        assert_equal "Jack", binds[:name], -> { actual.ai }
-        assert_equal 1, binds[:limit], -> { actual.ai } if Rails.version.to_f >= 5.0
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord",
+          message:          "Sample Load",
+          payload_includes: {
+            sql:   expected_sql,
+            binds: { name: "Jack", limit: 1 }
+          }
+        )
+        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
       end
 
       it "multiple bind values" do
-        Sample.where(age: 2..21).first
+        skip "Not applicable to older rails" if Rails.version.to_f <= 5.1
 
-        SemanticLogger.flush
-        actual = @mock_logger.message
-        assert payload = actual[:payload], -> { actual.ai }
+        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"age\" BETWEEN ? AND ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
 
-        assert payload[:sql], -> { actual.ai }
-
-        if Rails.version.to_f >= 5.0
-          assert binds = payload[:binds], -> { actual.ai }
-          assert_equal [2, 21], binds[:age], -> { actual.ai }
-          assert_equal 1, binds[:limit], -> { actual.ai }
+        messages = semantic_logger_events do
+          Sample.where(age: 2..21).first
         end
+        assert_equal 1, messages.count, messages
+        ap messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord",
+          message:          "Sample Load",
+          payload_includes: {
+            sql:   expected_sql,
+            binds: { age: [2, 21], limit: 1 }
+          }
+        )
+        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
       end
 
       it "works with an IN clause" do
-        Sample.where(age: [2,3]).first
+        skip "Not applicable to older rails" if Rails.version.to_f <= 5.1
 
-        SemanticLogger.flush
-        actual = @mock_logger.message
-        assert payload = actual[:payload], -> { actual.ai }
-        assert payload[:sql], -> { actual.ai }
+        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"age\" IN (?, ?) ORDER BY \"samples\".\"id\" ASC LIMIT ?"
 
-        if Rails.version.to_f > 5.1
-          assert binds = payload[:binds], -> { actual.ai }
-          assert_equal [2, 3], binds[:age], -> { actual.ai }
-          assert_equal 1, binds[:limit], -> { actual.ai }
+        messages = semantic_logger_events do
+          Sample.where(age: [2, 3]).first
         end
+        assert_equal 1, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord",
+          message:          "Sample Load",
+          payload_includes: {
+            sql:   expected_sql,
+            binds: { age: [2, 3], limit: 1 }
+          }
+        )
       end
     end
   end

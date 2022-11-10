@@ -1,7 +1,4 @@
 require "rails"
-require "action_controller/log_subscriber"
-require "action_view/log_subscriber"
-require "action_mailer/log_subscriber"
 require "rails_semantic_logger/options"
 
 module RailsSemanticLogger
@@ -186,26 +183,38 @@ module RailsSemanticLogger
         end
 
         # Action View
-        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info if config.rails_semantic_logger.rendered
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionView::LogSubscriber,
-          RailsSemanticLogger::ActionView::LogSubscriber,
-          :action_view
-        )
+        if defined?(::ActionView)
+          require "action_view/log_subscriber"
+
+          RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info if config.rails_semantic_logger.rendered
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionView::LogSubscriber,
+            RailsSemanticLogger::ActionView::LogSubscriber,
+            :action_view
+          )
+        end
 
         # Action Controller
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionController::LogSubscriber,
-          RailsSemanticLogger::ActionController::LogSubscriber,
-          :action_controller
-        )
+        if defined?(::ActionController)
+          require "action_controller/log_subscriber"
+
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionController::LogSubscriber,
+            RailsSemanticLogger::ActionController::LogSubscriber,
+            :action_controller
+          )
+        end
 
         # Action Mailer
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionMailer::LogSubscriber,
-          RailsSemanticLogger::ActionMailer::LogSubscriber,
-          :action_mailer
-        )
+        if defined?(::ActionMailer)
+          require "action_mailer/log_subscriber"
+
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionMailer::LogSubscriber,
+            RailsSemanticLogger::ActionMailer::LogSubscriber,
+            :action_mailer
+          )
+        end
       end
 
       #

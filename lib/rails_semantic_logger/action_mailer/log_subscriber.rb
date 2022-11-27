@@ -1,5 +1,4 @@
 require "active_support/log_subscriber"
-require "action_mailer"
 
 module RailsSemanticLogger
   module ActionMailer

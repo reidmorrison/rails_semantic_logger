@@ -5,7 +5,7 @@ class ActionControllerTest < Minitest::Test
     let(:subscriber) { RailsSemanticLogger::ActionController::LogSubscriber.new }
 
     describe "#process_action" do
-      it "does not process if params is not a Hash nor an instance of ActionController::Parameters" do
+      it "does not fail if params is not a Hash nor an instance of ActionController::Parameters" do
         event = ActiveSupport::Notifications::Event.new(
           "start_processing.action_controller",
           5.seconds.ago,

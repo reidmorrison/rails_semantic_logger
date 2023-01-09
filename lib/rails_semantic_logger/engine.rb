@@ -1,7 +1,7 @@
 require "rails"
-require "action_controller/log_subscriber"
-require "action_view/log_subscriber"
-require "action_mailer/log_subscriber"
+require "action_controller/log_subscriber" if defined?(ActionController)
+require "action_view/log_subscriber" if defined?(ActionView)
+require "action_mailer/log_subscriber" if defined?(ActionMailer)
 require "rails_semantic_logger/options"
 
 module RailsSemanticLogger

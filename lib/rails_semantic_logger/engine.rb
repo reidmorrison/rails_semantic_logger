@@ -193,19 +193,23 @@ module RailsSemanticLogger
           :action_view
         )
 
-        # Action Controller
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionController::LogSubscriber,
-          RailsSemanticLogger::ActionController::LogSubscriber,
-          :action_controller
-        )
+        if defined?(::ActionController)
+          # Action Controller
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionController::LogSubscriber,
+            RailsSemanticLogger::ActionController::LogSubscriber,
+            :action_controller
+          )
+        end
 
-        # Action Mailer
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionMailer::LogSubscriber,
-          RailsSemanticLogger::ActionMailer::LogSubscriber,
-          :action_mailer
-        )
+        if defined?(::ActionMailer)
+          # Action Mailer
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionMailer::LogSubscriber,
+            RailsSemanticLogger::ActionMailer::LogSubscriber,
+            :action_mailer
+          )
+        end
       end
 
       #

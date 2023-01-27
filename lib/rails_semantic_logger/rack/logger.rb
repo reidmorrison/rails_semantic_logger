@@ -35,16 +35,18 @@ module RailsSemanticLogger
       @started_request_log_level = :debug
 
       def call_app(request, env)
-        instrumenter = ActiveSupport::Notifications.instrumenter
-        instrumenter.start "request.action_dispatch", request: request
+        instrumenter        = ActiveSupport::Notifications.instrumenter
+        instrumenter_state  = instrumenter.start "request.action_dispatch", request: request
+        instrumenter_finish = -> () {
+          instrumenter.finish_with_state(instrumenter_state, "request.action_dispatch", request: request)
+        }
 
         logger.send(self.class.started_request_log_level) { started_request_message(request) }
-
         status, headers, body = @app.call(env)
-        body                  = ::Rack::BodyProxy.new(body) { finish(request) }
+        body                  = ::Rack::BodyProxy.new(body, &instrumenter_finish)
         [status, headers, body]
       rescue Exception
-        finish(request)
+        instrumenter_finish.call
         raise
       end
 
@@ -88,11 +90,6 @@ module RailsSemanticLogger
           tagged[tag] = resolved unless resolved.nil?
         end
         tagged
-      end
-
-      def finish(request)
-        instrumenter = ActiveSupport::Notifications.instrumenter
-        instrumenter.finish "request.action_dispatch", request: request
       end
 
       def logger

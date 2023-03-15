@@ -9,7 +9,7 @@ module RailsSemanticLogger
         message_id = event.payload[:message_id]
         duration = event.duration.round(1)
         if ex
-         log_with_formatter event: event, log_duration: true, level: :error do |fmt|
+          log_with_formatter event: event, log_duration: true, level: :error do |fmt|
             {
               message: "Error delivering mail #{message_id} (#{duration}ms)",
               exception: ex
@@ -17,7 +17,7 @@ module RailsSemanticLogger
           end
         else
           message = begin
-          if event.payload[:perform_deliveries]
+            if event.payload[:perform_deliveries]
               "Delivered mail #{message_id} (#{duration}ms)"
             else
               "Skipped delivery of mail #{message_id} as `perform_deliveries` is false"

@@ -111,7 +111,7 @@ module RailsSemanticLogger
       if defined?(Sidekiq)
         if Sidekiq.respond_to?(:logger=)
           Sidekiq.logger = SemanticLogger[Sidekiq]
-        elsif Sidekiq::VERSION[..1] == '7.'
+        elsif Sidekiq::VERSION[0..1] == '7.'
           method = Sidekiq.server? ? :configure_server : :configure_client
           Sidekiq.public_send(method) { |cfg| cfg.logger = SemanticLogger[Sidekiq] }
         end

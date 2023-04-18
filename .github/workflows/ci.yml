@@ -20,7 +20,7 @@ jobs:
           - rails: 5.2
             ruby: 2.6
           - rails: 5.2
-            ruby: jruby
+            ruby: jruby-9.3
 
           - rails: "6.0"
             ruby: 2.6
@@ -35,19 +35,20 @@ jobs:
             ruby: jruby
 
           - rails: "7.0"
-            ruby: 3.1
-          - rails: "6.1"
-            ruby: jruby
-
+            ruby: "3.0"
           - rails: "7.0"
             ruby: 3.1
+          - rails: "7.0"
+            ruby: 3.2
+          - rails: "7.0"
+            ruby: jruby 
 
     env:
       BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile
       DISPLAY: ":99.0"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:

@@ -1,7 +1,4 @@
 require "rails"
-require "action_controller/log_subscriber"
-require "action_view/log_subscriber"
-require "action_mailer/log_subscriber"
 require "rails_semantic_logger/options"
 
 module RailsSemanticLogger
@@ -111,7 +108,14 @@ module RailsSemanticLogger
       Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 
       # Replace the Sidekiq logger
-      Sidekiq.logger       = SemanticLogger[Sidekiq] if defined?(Sidekiq) && Sidekiq.respond_to?(:logger=)
+      if defined?(Sidekiq)
+        if Sidekiq.respond_to?(:logger=)
+          Sidekiq.logger = SemanticLogger[Sidekiq]
+        elsif Sidekiq::VERSION[0..1] == '7.'
+          method = Sidekiq.server? ? :configure_server : :configure_client
+          Sidekiq.public_send(method) { |cfg| cfg.logger = SemanticLogger[Sidekiq] }
+        end
+      end
 
       # Replace the Sidetiq logger
       Sidetiq.logger       = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
@@ -186,26 +190,38 @@ module RailsSemanticLogger
         end
 
         # Action View
-        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info if config.rails_semantic_logger.rendered
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionView::LogSubscriber,
-          RailsSemanticLogger::ActionView::LogSubscriber,
-          :action_view
-        )
+        if defined?(::ActionView)
+          require "action_view/log_subscriber"
+
+          RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info if config.rails_semantic_logger.rendered
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionView::LogSubscriber,
+            RailsSemanticLogger::ActionView::LogSubscriber,
+            :action_view
+          )
+        end
 
         # Action Controller
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionController::LogSubscriber,
-          RailsSemanticLogger::ActionController::LogSubscriber,
-          :action_controller
-        )
+        if defined?(::ActionController)
+          require "action_controller/log_subscriber"
+
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionController::LogSubscriber,
+            RailsSemanticLogger::ActionController::LogSubscriber,
+            :action_controller
+          )
+        end
 
         # Action Mailer
-        RailsSemanticLogger.swap_subscriber(
-          ::ActionMailer::LogSubscriber,
-          RailsSemanticLogger::ActionMailer::LogSubscriber,
-          :action_mailer
-        )
+        if defined?(::ActionMailer)
+          require "action_mailer/log_subscriber"
+
+          RailsSemanticLogger.swap_subscriber(
+            ::ActionMailer::LogSubscriber,
+            RailsSemanticLogger::ActionMailer::LogSubscriber,
+            :action_mailer
+          )
+        end
       end
 
       #

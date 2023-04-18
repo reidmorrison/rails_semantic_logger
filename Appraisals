@@ -28,6 +28,6 @@ appraise "rails_7.0" do
   gem "thread_safe", "~> 0.3.6"
 
   gem "rails", "~> 7.0.0"
-  gem "activerecord-jdbcsqlite3-adapter", "~> 61.0", platform: :jruby
+  gem "activerecord-jdbcsqlite3-adapter", "~> 70.0", platform: :jruby
   gem "sqlite3", "~> 1.4.0", platform: :ruby
 end

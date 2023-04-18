@@ -14,12 +14,22 @@ module RailsSemanticLogger
 
           # Unused, but needed for Devise 401 status code monkey patch to still work.
           ::ActionController::Base.log_process_action(payload)
+          
+          params = payload[:params]
 
-          # According to PR https://github.com/reidmorrison/rails_semantic_logger/pull/37/files
-          # payload[:params] is not always a Hash.
-          payload[:params] = payload[:params].to_unsafe_h unless payload[:params].is_a?(Hash)
-          payload[:params] = payload[:params].except(*INTERNAL_PARAMS)
-          payload.delete(:params) if payload[:params].empty?
+          if params.kind_of?(Hash) || params.kind_of?(::ActionController::Parameters)
+            # According to PR https://github.com/reidmorrison/rails_semantic_logger/pull/37/files
+            # params is not always a Hash.
+            payload[:params] = params.to_unsafe_h unless params.is_a?(Hash)
+            payload[:params] = params.except(*INTERNAL_PARAMS)
+
+            if payload[:params].empty?
+              payload.delete(:params)
+            elsif params["file"]
+              # When logging to JSON the entire tempfile is logged, so convert it to a string.
+              payload[:params]["file"] = params["file"].inspect
+            end
+          end
 
           format           = payload[:format]
           payload[:format] = format.to_s.upcase if format.is_a?(Symbol)
@@ -47,12 +57,6 @@ module RailsSemanticLogger
           # Causes recursion in Rails 6.1.rc1
           payload.delete(:request)
           payload.delete(:response)
-
-          params = payload[:params]
-          if params
-            # When logging to JSON the entire tempfile is logged, so convert it to a string.
-            params["file"] = params["file"].inspect if params["file"]
-          end
 
           {
             message:  "Completed ##{payload[:action]}",

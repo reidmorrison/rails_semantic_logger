@@ -1,4 +1,5 @@
 require_relative "test_helper"
+require 'pry'
 
 class ActiveJobTest < Minitest::Test
   if defined?(ActiveJob)
@@ -142,7 +143,7 @@ class ActiveJobTest < Minitest::Test
             messages[0],
             level:            :error,
             name:             "Rails",
-            message_includes: "Error enqueuing ActiveJobTest::MyJob",
+            message_includes: "Failed enqueuing ActiveJobTest::MyJob",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
               queue:      "my_jobs",
@@ -176,15 +177,16 @@ class ActiveJobTest < Minitest::Test
 
           assert_semantic_logger_event(
             messages[0],
-            level:            :error,
+            level:            :info,
             name:             "Rails",
-            message_includes: "Failed enqueuing ActiveJobTest::MyJob, a before_enqueue callback halted the enqueuing execution.",
+            message_includes: "Failed enqueuing ActiveJobTest::MyJob",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
               queue:      "my_jobs",
               event_name: "enqueue.active_job"
             }
           )
+          assert_match /Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/, messages[0].message
           assert_includes messages[0].payload, :job_id
         end
       end

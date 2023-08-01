@@ -4,8 +4,23 @@ module RailsSemanticLogger
   module ActiveJob
     class LogSubscriber < ::ActiveSupport::LogSubscriber
       def enqueue(event)
-        log_with_formatter event: event do |fmt|
-          {message: "Enqueued #{fmt.job_info}"}
+        ex = event.payload[:exception_object]
+
+        if ex
+          log_with_formatter level: :error, event: event do |fmt|
+            {
+              message: "Failed enqueuing #{fmt.job_info} (#{ex.class} (#{ex.message})",
+              exception: ex
+            }
+          end
+        elsif event.payload[:aborted]
+          log_with_formatter level: :info, event: event do |fmt|
+            { message: "Failed enqueuing #{fmt.job_info}, a before_enqueue callback halted the enqueuing execution." }
+          end
+        else
+          log_with_formatter event: event do |fmt|
+            { message: "Enqueued #{fmt.job_info}" }
+          end
         end
       end
 

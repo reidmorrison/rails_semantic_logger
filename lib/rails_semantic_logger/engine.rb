@@ -127,7 +127,7 @@ module RailsSemanticLogger
       end
 
       # Replace the Bugsnag logger
-      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+      Bugsnag.configure(false) { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Set the IOStreams PGP logger
       IOStreams::Pgp.logger = SemanticLogger["IOStreams::Pgp"] if defined?(IOStreams)
@@ -138,7 +138,7 @@ module RailsSemanticLogger
       config = Rails.application.config
 
       # Replace the Bugsnag logger
-      Bugsnag.configure { |bugsnag_config| bugsnag_config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+      Bugsnag.configure(false) { |bugsnag_config| bugsnag_config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Rails Patches
       require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(::ActionCable)

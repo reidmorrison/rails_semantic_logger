@@ -1,5 +1,4 @@
 require_relative "test_helper"
-require 'pry'
 
 class ActiveJobTest < Minitest::Test
   if defined?(ActiveJob)

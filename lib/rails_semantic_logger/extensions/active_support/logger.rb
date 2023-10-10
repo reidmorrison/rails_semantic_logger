@@ -5,6 +5,14 @@ module ActiveSupport
   class Logger
     class << self
       undef :logger_outputs_to?
+
+      # Prevent broadcasting since SemanticLogger already supports multiple loggers
+      if defined(:broadcast)
+        undef :broadcast
+        def broadcast(logger)
+          Module.new
+        end
+      end
     end
 
     # Prevent Console from trying to merge loggers
@@ -12,7 +20,6 @@ module ActiveSupport
       true
     end
 
-    # Prevent broadcasting since SemanticLogger already supports multiple loggers
     def self.broadcast(logger)
       Module.new
     end

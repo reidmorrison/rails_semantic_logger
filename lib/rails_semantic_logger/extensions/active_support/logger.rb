@@ -7,7 +7,7 @@ module ActiveSupport
       undef :logger_outputs_to?
 
       # Prevent broadcasting since SemanticLogger already supports multiple loggers
-      if defined(:broadcast)
+      if method_defined?(:broadcast)
         undef :broadcast
         def broadcast(logger)
           Module.new

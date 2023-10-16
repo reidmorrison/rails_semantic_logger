@@ -20,10 +20,6 @@ module ActiveSupport
       true
     end
 
-    def self.broadcast(logger)
-      Module.new
-    end
-
     def self.new(*args, **kwargs)
       SemanticLogger[self]
     end

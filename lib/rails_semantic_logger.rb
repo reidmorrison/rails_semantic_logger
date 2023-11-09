@@ -58,4 +58,5 @@ end
 
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)
 require("rails_semantic_logger/extensions/active_support/logger") if defined?(ActiveSupport::Logger)
+require("rails_semantic_logger/extensions/active_support/log_subscriber") if defined?(ActiveSupport::LogSubscriber)
 require("rails_semantic_logger/extensions/rack/server") if defined?(Rack::Server)

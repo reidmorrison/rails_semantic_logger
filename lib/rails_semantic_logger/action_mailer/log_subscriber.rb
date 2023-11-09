@@ -92,7 +92,7 @@ module RailsSemanticLogger
         end
 
         def formatted_args
-          if defined?(mailer.contantize.log_arguments?) && !mailer.contantize.log_arguments?
+          if defined?(mailer.constantize.log_arguments?) && !mailer.constantize.log_arguments?
             ""
           else
             JSON.pretty_generate(event.payload[:args].map { |arg| format(arg) }) if event.payload[:args].present?

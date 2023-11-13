@@ -96,7 +96,6 @@ class ActiveRecordTest < Minitest::Test
           Sample.where(age: 2..21).first
         end
         assert_equal 1, messages.count, messages
-        ap messages
 
         assert_semantic_logger_event(
           messages[0],

@@ -2,6 +2,7 @@
 *.log
 pkg/
 test/dummy/tmp/
+test/dummy/db/test.sqlite3-*
 test/dummy/.sass-cache
 *.gem
 /.idea
@@ -12,6 +13,5 @@ Gemfile.lock
 
 *.sqlite3
 .rakeTasks
-*.sqlite3
 TODO.md
 

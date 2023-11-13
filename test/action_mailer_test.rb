@@ -2,8 +2,8 @@ require_relative "test_helper"
 
 class ActionMailerTest < Minitest::Test
   class MyMailer < ActionMailer::Base
-    def some_email(to:, from:, subject:)
-      mail(to: to, from: from, subject: subject, body: "Hello")
+    def some_email(opts)
+      mail(to: opts[:to], from: opts[:from], subject: opts[:subject], body: "Hello")
     end
   end
 

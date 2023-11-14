@@ -29,11 +29,9 @@ jobs:
           - rails: "7.0"
             ruby: "3.2"
 
-          - rails: "7.1.1"
-            ruby: "3.2"
           - rails: "7.1"
             ruby: "3.1"
-          - rails: "7.1"
+          - rails: "7.1.1"
             ruby: "3.2"
           - rails: "7.1"
             ruby: "3.2"

@@ -6,9 +6,10 @@ module ActionDispatch
     private
 
     undef_method :log_error
-    def log_error(_request, wrapper)
+    def log_error(request, wrapper)
       ActiveSupport::Deprecation.silence do
-        ActionController::Base.logger.fatal(wrapper.exception)
+        level = wrapper.rescue_response? ? :debug : :fatal
+        ActionController::Base.logger.log(level, wrapper.exception)
       end
     end
   end

@@ -13,6 +13,11 @@ appraise "rails_7.0" do
   gem "sqlite3", "~> 1.4.0", platform: :ruby
 end
 
+appraise "rails_7.1.1" do
+  gem "rails", "7.1.1"
+  gem "sqlite3", "~> 1.4.0", platform: :ruby
+end
+
 appraise "rails_7.1" do
   gem "rails", "~> 7.1.0"
   gem "sqlite3", "~> 1.4.0", platform: :ruby

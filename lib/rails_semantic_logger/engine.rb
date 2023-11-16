@@ -77,7 +77,7 @@ module RailsSemanticLogger
           logger = SemanticLogger[Rails]
           logger.warn(
             "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " \
-              "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
+            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
             e
           )
           logger
@@ -111,14 +111,14 @@ module RailsSemanticLogger
       if defined?(Sidekiq)
         if Sidekiq.respond_to?(:logger=)
           Sidekiq.logger = SemanticLogger[Sidekiq]
-        elsif Sidekiq::VERSION[0..1] == '7.'
+        elsif Sidekiq::VERSION[0..1] == "7."
           method = Sidekiq.server? ? :configure_server : :configure_client
           Sidekiq.public_send(method) { |cfg| cfg.logger = SemanticLogger[Sidekiq] }
         end
       end
 
       # Replace the Sidetiq logger
-      Sidetiq.logger       = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
+      Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
 
       # Replace the DelayedJob logger
       if defined?(Delayed::Worker)
@@ -143,7 +143,9 @@ module RailsSemanticLogger
       # Rails Patches
       require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(::ActionCable)
       require("rails_semantic_logger/extensions/action_controller/live") if defined?(::ActionController::Live)
-      require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions") if defined?(::ActionDispatch::DebugExceptions)
+      if defined?(::ActionDispatch::DebugExceptions)
+        require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions")
+      end
       if defined?(::ActionView::StreamingTemplateRenderer::Body)
         require("rails_semantic_logger/extensions/action_view/streaming_template_renderer")
       end

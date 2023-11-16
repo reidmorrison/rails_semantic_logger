@@ -58,7 +58,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
         end
 
         payload = PayloadCollector.last
-        assert_equal payload[:params], { "controller" => "dashboard", "action" => "show" }
+        assert_equal payload[:params], {"controller" => "dashboard", "action" => "show"}
       end
     end
   end

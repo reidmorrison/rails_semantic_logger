@@ -6,21 +6,27 @@ module RailsSemanticLogger
   module ActionController
     autoload :LogSubscriber, "rails_semantic_logger/action_controller/log_subscriber"
   end
+
   module ActionMailer
     autoload :LogSubscriber, "rails_semantic_logger/action_mailer/log_subscriber"
   end
+
   module ActionView
     autoload :LogSubscriber, "rails_semantic_logger/action_view/log_subscriber"
   end
+
   module ActiveJob
     autoload :LogSubscriber, "rails_semantic_logger/active_job/log_subscriber"
   end
+
   module ActiveRecord
     autoload :LogSubscriber, "rails_semantic_logger/active_record/log_subscriber"
   end
+
   module Rack
     autoload :Logger, "rails_semantic_logger/rack/logger"
   end
+
   module DelayedJob
     autoload :Plugin, "rails_semantic_logger/delayed_job/plugin"
   end
@@ -48,9 +54,11 @@ module RailsSemanticLogger
   end
 
   def self.subscriber_patterns(subscriber)
-    subscriber.patterns.respond_to?(:keys) ?
-      subscriber.patterns.keys :
+    if subscriber.patterns.respond_to?(:keys)
+      subscriber.patterns.keys
+    else
       subscriber.patterns
+    end
   end
 
   private_class_method :subscriber_patterns, :unattach

@@ -9,22 +9,22 @@ module RailsSemanticLogger
         message_id = event.payload[:message_id]
         duration = event.duration.round(1)
         if ex
-          log_with_formatter event: event, log_duration: true, level: :error do |fmt|
+          log_with_formatter event: event, log_duration: true, level: :error do |_fmt|
             {
-              message: "Error delivering mail #{message_id} (#{duration}ms)",
+              message:   "Error delivering mail #{message_id} (#{duration}ms)",
               exception: ex
             }
           end
         else
-          message = begin
+          message =
             if event.payload[:perform_deliveries]
               "Delivered mail #{message_id} (#{duration}ms)"
             else
               "Skipped delivery of mail #{message_id} as `perform_deliveries` is false"
             end
-          end
-          log_with_formatter event: event, log_duration: true do |fmt|
-            { message: message }
+
+          log_with_formatter event: event, log_duration: true do |_fmt|
+            {message: message}
           end
         end
       end
@@ -34,8 +34,8 @@ module RailsSemanticLogger
         mailer   = event.payload[:mailer]
         action   = event.payload[:action]
         duration = event.duration.round(1)
-        log_with_formatter event: event do |fmt|
-          { message: "#{mailer}##{action}: processed outbound mail in #{duration}ms" }
+        log_with_formatter event: event do |_fmt|
+          {message: "#{mailer}##{action}: processed outbound mail in #{duration}ms"}
         end
       end
 
@@ -74,8 +74,6 @@ module RailsSemanticLogger
             event.payload[:date].to_time.utc
           elsif event.payload[:date].is_a?(String)
             Time.parse(date).utc
-          else
-            nil
           end
         end
 
@@ -94,8 +92,8 @@ module RailsSemanticLogger
         def formatted_args
           if defined?(mailer.constantize.log_arguments?) && !mailer.constantize.log_arguments?
             ""
-          else
-            JSON.pretty_generate(event.payload[:args].map { |arg| format(arg) }) if event.payload[:args].present?
+          elsif event.payload[:args].present?
+            JSON.pretty_generate(event.payload[:args].map { |arg| format(arg) })
           end
         end
 

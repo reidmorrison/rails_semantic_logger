@@ -16,4 +16,4 @@ Rails.backtrace_cleaner.remove_silencers!
 # Add Semantic Logger helpers for Minitest
 Minitest::Test.include SemanticLogger::Test::Minitest
 
-::ActionMailer::Base.delivery_method = :test
+ActionMailer::Base.delivery_method = :test

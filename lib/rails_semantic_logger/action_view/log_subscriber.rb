@@ -19,7 +19,7 @@ module RailsSemanticLogger
       def render_template(event)
         return unless should_log?
 
-        payload               = {
+        payload = {
           template: from_rails_root(event.payload[:identifier])
         }
         payload[:within]      = from_rails_root(event.payload[:layout]) if event.payload[:layout]
@@ -36,7 +36,7 @@ module RailsSemanticLogger
       def render_partial(event)
         return unless should_log?
 
-        payload               = {
+        payload = {
           partial: from_rails_root(event.payload[:identifier])
         }
         payload[:within]      = from_rails_root(event.payload[:layout]) if event.payload[:layout]
@@ -56,7 +56,7 @@ module RailsSemanticLogger
 
         identifier = event.payload[:identifier] || "templates"
 
-        payload               = {
+        payload = {
           template: from_rails_root(identifier),
           count:    event.payload[:count]
         }
@@ -72,9 +72,9 @@ module RailsSemanticLogger
       end
 
       def start(name, id, payload)
-        if (name == "render_template.action_view" || name == "render_layout.action_view") && should_log?
+        if ["render_template.action_view", "render_layout.action_view"].include?(name) && should_log?
           qualifier        = " layout" if name == "render_layout.action_view"
-          payload          = { template: from_rails_root(payload[:identifier]) }
+          payload          = {template: from_rails_root(payload[:identifier])}
           payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
           logger.send(self.class.rendered_log_level, message: "Rendering#{qualifier}", payload: payload)
@@ -84,18 +84,19 @@ module RailsSemanticLogger
       end
 
       if (Rails::VERSION::MAJOR == 7 && Rails::VERSION::MINOR >= 1) || Rails::VERSION::MAJOR > 7
-        class Start # :nodoc:
-          def start(name, id, payload)
+        class Start
+          def start(name, _id, payload)
             return unless %w[render_template.action_view render_layout.action_view].include?(name)
 
             qualifier        = " layout" if name == "render_layout.action_view"
-            payload          = { template: from_rails_root(payload[:identifier]) }
+            payload          = {template: from_rails_root(payload[:identifier])}
             payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
             logger.debug(message: "Rendering#{qualifier}", payload: payload)
           end
 
-          def finish(name, id, payload) end
+          def finish(name, id, payload)
+          end
 
           private
 
@@ -105,7 +106,7 @@ module RailsSemanticLogger
             string
           end
 
-          def rails_root # :doc:
+          def rails_root
             @root ||= "#{Rails.root}/"
           end
 
@@ -117,8 +118,10 @@ module RailsSemanticLogger
         def self.attach_to(*)
           ActiveSupport::Notifications.unsubscribe("render_template.action_view")
           ActiveSupport::Notifications.unsubscribe("render_layout.action_view")
-          ActiveSupport::Notifications.subscribe("render_template.action_view", RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
-          ActiveSupport::Notifications.subscribe("render_layout.action_view", RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
+          ActiveSupport::Notifications.subscribe("render_template.action_view",
+                                                 RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
+          ActiveSupport::Notifications.subscribe("render_layout.action_view",
+                                                 RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
 
           super
         end

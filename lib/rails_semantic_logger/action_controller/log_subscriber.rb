@@ -14,10 +14,10 @@ module RailsSemanticLogger
 
           # Unused, but needed for Devise 401 status code monkey patch to still work.
           ::ActionController::Base.log_process_action(payload)
-          
+
           params = payload[:params]
 
-          if params.kind_of?(Hash) || params.kind_of?(::ActionController::Parameters)
+          if params.is_a?(Hash) || params.is_a?(::ActionController::Parameters)
             # According to PR https://github.com/reidmorrison/rails_semantic_logger/pull/37/files
             # params is not always a Hash.
             payload[:params] = params.to_unsafe_h unless params.is_a?(Hash)
@@ -79,7 +79,9 @@ module RailsSemanticLogger
       end
 
       def send_data(event)
-        controller_logger(event).info(message: "Sent data", payload: {file_name: event.payload[:filename]}, duration: event.duration)
+        controller_logger(event).info(message:  "Sent data",
+                                      payload:  {file_name: event.payload[:filename]},
+                                      duration: event.duration)
       end
 
       def unpermitted_parameters(event)

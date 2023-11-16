@@ -2,7 +2,7 @@ require_relative "../test_helper"
 
 class ArticlesControllerTest < ActionDispatch::IntegrationTest
   describe ArticlesController do
-    let(:params) { { article: { text: "Text1", title: "Title1" } } }
+    let(:params) { {article: {text: "Text1", title: "Title1"}} }
 
     describe "#new" do
       it "shows new article" do

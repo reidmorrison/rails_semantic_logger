@@ -1,4 +1,4 @@
-if ActiveSupport::VERSION::STRING == '7.1.1'
+if ActiveSupport::VERSION::STRING == "7.1.1"
   require "active_support/log_subscriber"
 
   module ActiveSupport

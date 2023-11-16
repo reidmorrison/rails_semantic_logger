@@ -169,9 +169,7 @@ module RailsSemanticLogger
       def render_bind_v6_1(attr, value)
         case attr
         when ActiveModel::Attribute
-          if attr.type.binary? && attr.value
-            value = "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>"
-          end
+          value = "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>" if attr.type.binary? && attr.value
         when Array
           attr = attr.first
         else

@@ -84,5 +84,24 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         )
       end
     end
+
+    describe "#show" do
+      it "raises and logs exception" do
+        # we're testing ActionDispatch::DebugExceptions in fact
+        messages = semantic_logger_events do
+          old_show = Rails.application.env_config["action_dispatch.show_exceptions"]
+          begin
+            Rails.application.env_config["action_dispatch.show_exceptions"] = :all
+            get article_url(:show)
+          rescue ActiveRecord::RecordNotFound => e
+            # expected
+          ensure
+            Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
+          end
+        end
+        assert_equal 4, messages.count, messages
+        assert_kind_of ActiveRecord::RecordNotFound, messages[3].exception
+      end
+    end
   end
 end

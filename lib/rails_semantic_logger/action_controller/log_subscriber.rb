@@ -5,63 +5,23 @@ module RailsSemanticLogger
 
       # Log as debug to hide Processing messages in production
       def start_processing(event)
-        controller_logger(event).debug { "Processing ##{event.payload[:action]}" }
+        controller_logger(event).debug do
+          {
+            message: "Processing ##{event.payload[:action]}",
+            payload: build_payload(event),
+          }
+        end
       end
 
       def process_action(event)
         controller_logger(event).info do
-          payload = event.payload.dup
-
           # Unused, but needed for Devise 401 status code monkey patch to still work.
-          ::ActionController::Base.log_process_action(payload)
-
-          params = payload[:params]
-
-          if params.is_a?(Hash) || params.is_a?(::ActionController::Parameters)
-            # According to PR https://github.com/reidmorrison/rails_semantic_logger/pull/37/files
-            # params is not always a Hash.
-            payload[:params] = params.to_unsafe_h unless params.is_a?(Hash)
-            payload[:params] = params.except(*INTERNAL_PARAMS)
-
-            if payload[:params].empty?
-              payload.delete(:params)
-            elsif params["file"]
-              # When logging to JSON the entire tempfile is logged, so convert it to a string.
-              payload[:params]["file"] = params["file"].inspect
-            end
-          end
-
-          format           = payload[:format]
-          payload[:format] = format.to_s.upcase if format.is_a?(Symbol)
-
-          payload[:path]   = extract_path(payload[:path]) if payload.key?(:path)
-
-          exception = payload.delete(:exception)
-          if payload[:status].nil? && exception.present?
-            exception_class_name = exception.first
-            payload[:status]     = ActionDispatch::ExceptionWrapper.status_code_for_exception(exception_class_name)
-          end
-
-          # Rounds off the runtimes. For example, :view_runtime, :mongo_runtime, etc.
-          payload.keys.each do |key|
-            payload[key] = payload[key].to_f.round(2) if key.to_s =~ /(.*)_runtime/
-          end
-
-          # Rails 6+ includes allocation count
-          payload[:allocations] = event.allocations if event.respond_to?(:allocations)
-
-          payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
-
-          # Causes excessive log output with Rails 5 RC1
-          payload.delete(:headers)
-          # Causes recursion in Rails 6.1.rc1
-          payload.delete(:request)
-          payload.delete(:response)
+          ::ActionController::Base.log_process_action(event.payload)
 
           {
-            message:  "Completed ##{payload[:action]}",
+            message:  "Completed ##{event.payload[:action]}",
             duration: event.duration,
-            payload:  payload
+            payload:  build_payload(event)
           }
         end
       end
@@ -106,6 +66,55 @@ module RailsSemanticLogger
       end
 
       private
+
+      def build_payload(event)
+        payload = event.payload.dup
+
+        params = payload[:params]
+
+        if params.is_a?(Hash) || params.is_a?(::ActionController::Parameters)
+          # According to PR https://github.com/reidmorrison/rails_semantic_logger/pull/37/files
+          # params is not always a Hash.
+          payload[:params] = params.to_unsafe_h unless params.is_a?(Hash)
+          payload[:params] = params.except(*INTERNAL_PARAMS)
+
+          if payload[:params].empty?
+            payload.delete(:params)
+          elsif params["file"]
+            # When logging to JSON the entire tempfile is logged, so convert it to a string.
+            payload[:params]["file"] = params["file"].inspect
+          end
+        end
+
+        format           = payload[:format]
+        payload[:format] = format.to_s.upcase if format.is_a?(Symbol)
+
+        payload[:path]   = extract_path(payload[:path]) if payload.key?(:path)
+
+        exception = payload.delete(:exception)
+        if payload[:status].nil? && exception.present?
+          exception_class_name = exception.first
+          payload[:status]     = ActionDispatch::ExceptionWrapper.status_code_for_exception(exception_class_name)
+        end
+
+        # Rounds off the runtimes. For example, :view_runtime, :mongo_runtime, etc.
+        payload.keys.each do |key|
+          payload[key] = payload[key].to_f.round(2) if key.to_s =~ /(.*)_runtime/
+        end
+
+        # Rails 6+ includes allocation count
+        payload[:allocations] = event.allocations if event.respond_to?(:allocations)
+
+        payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
+
+        # Causes excessive log output with Rails 5 RC1
+        payload.delete(:headers)
+        # Causes recursion in Rails 6.1.rc1
+        payload.delete(:request)
+        payload.delete(:response)
+
+        payload
+      end
 
       # Returns the logger for the supplied event.
       # Returns ActionController::Base.logger if no controller is present

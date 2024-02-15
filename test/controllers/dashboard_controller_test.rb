@@ -32,7 +32,14 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
           level:   :debug,
           name:    "Rails",
           message: "Processing #show",
-          payload: nil
+          payload: {
+            controller:     "DashboardController",
+            action:         "show",
+            format:         "HTML",
+            method:         "GET",
+            path:           "/dashboard",
+            allocations:    0,
+          }
         )
 
         assert_semantic_logger_event(

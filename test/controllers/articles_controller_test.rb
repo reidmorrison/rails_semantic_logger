@@ -41,7 +41,21 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           messages[1],
           message: "Processing #create",
           name:    "ArticlesController",
-          level:   :debug
+          level:   :debug,
+          payload: {
+            controller: "ArticlesController",
+            action: "create",
+            params: {
+              "article" => {
+                "text" => "Text1",
+                "title" => "Title1"
+              }
+            },
+            format: "HTML",
+            method: "POST",
+            path: "/articles",
+            allocations: 0,
+          }
         )
 
         assert_semantic_logger_event(

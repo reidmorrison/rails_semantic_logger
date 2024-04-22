@@ -13,6 +13,6 @@ gem "rake"
 gem "sprockets", "< 4.0"
 
 gem "rails", "~> 7.1.0"
-gem "sqlite3", "~> 1.4.0", platform: :ruby
+gem "sqlite3", "~> 1.5", platform: :ruby
 
 gem "rubocop"

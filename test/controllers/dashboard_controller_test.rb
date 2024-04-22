@@ -31,7 +31,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
           messages[1],
           level:   :debug,
           name:    "Rails",
-          message: "Processing #show",
+          message: "Processing DashboardController#show",
           payload: nil
         )
 
@@ -39,7 +39,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
           messages[2],
           level:            :info,
           name:             "Rails",
-          message:          "Completed #show",
+          message:          "Completed DashboardController#show",
           payload_includes: {
             controller:     "DashboardController",
             action:         "show",

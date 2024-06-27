@@ -26,7 +26,7 @@ jobs:
 
           - rails: "7.0"
             ruby: "3.1"
-          - rails: "7.0"
+          - rails: "7.0b"
             ruby: "3.2"
 
           - rails: "7.1"
@@ -35,6 +35,9 @@ jobs:
             ruby: "3.2"
           - rails: "7.1"
             ruby: "3.2"
+
+          - rails: "7.2"
+            ruby: "3.3"
 
     env:
       BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile

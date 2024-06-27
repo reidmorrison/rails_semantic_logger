@@ -11,7 +11,8 @@ gem "minitest-rails"
 gem "rake"
 gem "sprockets", "< 4.0"
 gem "rails", "~> 6.0.0"
-gem "sqlite3", "~> 1.4.0", platform: :ruby
+gem "sidekiq", "~> 4.2"
+gem "sqlite3", "~> 1.4"
 gem "rubocop"
 
 gemspec path: "../"

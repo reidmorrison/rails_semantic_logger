@@ -15,18 +15,22 @@ elsif Sidekiq::VERSION.to_i == 5
   require "sidekiq/job_logger"
   require "sidekiq/logging"
   require "sidekiq/worker"
-elsif Sidekiq::VERSION.to_i == 6
+elsif Sidekiq::VERSION.to_i == 6 && Sidekiq::VERSION.to_f < 6.5
   require "sidekiq/exception_handler"
+  require "sidekiq/job_logger"
+  require "sidekiq/worker"
+elsif Sidekiq::VERSION.to_i == 6
   require "sidekiq/job_logger"
   require "sidekiq/worker"
 else
   require "sidekiq/config"
   require "sidekiq/job_logger"
-  require "sidekiq/worker"
+  require "sidekiq/job"
 end
 
 module Sidekiq
-  if Sidekiq::VERSION.to_i > 4
+  # Sidekiq > v4
+  if defined?(::Sidekiq::JobLogger)
     # Let Semantic Logger handle duration logging
     class JobLogger
       def call(item, queue)
@@ -67,7 +71,8 @@ module Sidekiq
     end
   end
 
-  if Sidekiq::VERSION.to_i <= 6
+  # Sidekiq <= v6
+  if defined?(::Sidekiq::Logging)
     # Replace Sidekiq logging context
     module Logging
       def self.with_context(msg, &block)
@@ -81,25 +86,48 @@ module Sidekiq
         event
       end
     end
+  end
 
-    # Exception is already logged by Semantic Logger during the perform call
+  # Exception is already logged by Semantic Logger during the perform call
+  # Sidekiq <= v6.5
+  if defined?(::Sidekiq::ExceptionHandler)
     module ExceptionHandler
       class Logger
         def call(ex, ctx)
-          Sidekiq.logger.warn(ctx) if !ctx.empty?
+          unless ctx.empty?
+            job_hash = ctx[:job] || {}
+            klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+            logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+            ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+          end
         end
       end
     end
-  end
-
-  if Sidekiq::VERSION.to_i >= 7
-    module Config
+  # Sidekiq >= v7
+  elsif defined?(::Sidekiq::Config)
+    class Config
       remove_const :ERROR_HANDLER
 
-      # Exception is already logged by Semantic Logger during the perform call
       ERROR_HANDLER = ->(ex, ctx, cfg = Sidekiq.default_configuration) {
-        cfg.logger.warn(ctx) unless ctx.empty?
+        unless ctx.empty?
+          job_hash = ctx[:job] || {}
+          klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+          logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+          ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+        end
       }
+    end
+  else
+    # Sidekiq >= 6.5
+    # TODO: Not taking effect. See test/sidekiq_test.rb
+    def self.default_error_handler(ex, ctx)
+      binding.irb
+      unless ctx.empty?
+        job_hash = ctx[:job] || {}
+        klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+        logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+        ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+      end
     end
   end
 
@@ -153,9 +181,10 @@ module Sidekiq
   if Sidekiq::VERSION.to_i == 4
     # Convert string to machine readable format
     class Processor
-      def log_context(item)
-        event       = { jid: item["jid"] }
-        event[:bid] = item["bid"] if item["bid"]
+      def log_context(job_hash)
+        klass       = job_hash["wrapped"] || job_hash["class"]
+        event       = { class: klass, jid: job_hash["jid"] }
+        event[:bid] = job_hash["bid"] if job_hash["bid"]
         event
       end
     end

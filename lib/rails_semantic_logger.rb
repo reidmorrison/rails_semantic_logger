@@ -67,6 +67,12 @@ end
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)
 require("rails_semantic_logger/extensions/active_support/logger") if defined?(ActiveSupport::Logger)
 require("rails_semantic_logger/extensions/active_support/log_subscriber") if defined?(ActiveSupport::LogSubscriber)
+
+begin
+  require 'rackup'
+rescue LoadError
+  # No need to do anything, will fall back to Rack
+end
 if defined?(Rackup::Server)
   require("rails_semantic_logger/extensions/rackup/server")
 elsif defined?(Rack::Server)

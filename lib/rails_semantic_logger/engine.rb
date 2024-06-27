@@ -224,6 +224,8 @@ module RailsSemanticLogger
             :action_mailer
           )
         end
+
+        require("rails_semantic_logger/extensions/sidekiq/sidekiq") if defined?(::Sidekiq)
       end
 
       #

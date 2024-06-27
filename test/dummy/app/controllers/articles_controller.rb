@@ -5,4 +5,8 @@ class ArticlesController < ApplicationController
   def create
     render plain: params[:article].inspect
   end
+
+  def show
+    raise ActiveRecord::RecordNotFound
+  end
 end

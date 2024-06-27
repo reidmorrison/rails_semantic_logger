@@ -6,6 +6,10 @@ Bundler.require
 
 module Dummy
   class Application < Rails::Application
+    if config.respond_to?(:load_defaults)
+      config.load_defaults "#{Rails::VERSION::MAJOR}.#{Rails::VERSION::MINOR}"
+    end
+
     # Configure sensitive parameters which will be filtered from the log file.
     config.filter_parameters += [:password]
     config.active_record.sqlite3.represent_boolean_as_integer = true if config.active_record.sqlite3

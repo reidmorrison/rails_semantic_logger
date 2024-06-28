@@ -69,7 +69,7 @@ require("rails_semantic_logger/extensions/active_support/logger") if defined?(Ac
 require("rails_semantic_logger/extensions/active_support/log_subscriber") if defined?(ActiveSupport::LogSubscriber)
 
 begin
-  require 'rackup'
+  require "rackup"
 rescue LoadError
   # No need to do anything, will fall back to Rack
 end

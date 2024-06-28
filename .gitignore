@@ -16,3 +16,4 @@ Gemfile.lock
 TODO.md
 
 .tool-versions
+test/dummy/db/test.sqlite3

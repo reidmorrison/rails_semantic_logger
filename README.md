@@ -18,11 +18,12 @@ For example, adding these lines to `config/application.rb` and removing any othe
     # Setup structured logging
     config.semantic_logger.application = "my_application"
     config.semantic_logger.environment = ENV["STACK_NAME"] || Rails.env
+    config.log_level = ENV["LOG_LEVEL"] || :info
 
     # Switch to JSON Logging output to stdout when running on Kubernetes
     if ENV["LOG_TO_CONSOLE"] || ENV["KUBERNETES_SERVICE_HOST"]
       config.rails_semantic_logger.add_file_appender = false
-      config.semantic_logger.add_appender(io: $stdout, level: ENV["LOG_LEVEL"] || config.log_level, formatter: :json)
+      config.semantic_logger.add_appender(io: $stdout, formatter: :json)
     end
 ~~~
 

@@ -29,15 +29,24 @@ module RailsSemanticLogger
         name    = payload[:name]
         return if IGNORE_PAYLOAD_NAMES.include?(name)
 
-        log_payload         = {sql: payload[:sql]}
-        log_payload[:binds] = bind_values(payload) unless (payload[:binds] || []).empty?
+        # Create a logger instance that uses the class name that the original log message came from.
+        logger = self.logger
+        words  = name.split
+        if words.size == 2
+          logger = SemanticLogger[words[0]]
+          name   = words[1]
+        end
+
+        log_payload               = {sql: payload[:sql]}
+        log_payload[:binds]       = bind_values(payload) unless (payload[:binds] || []).empty?
         log_payload[:allocations] = event.allocations if event.respond_to?(:allocations)
-        log_payload[:cached] = event.payload[:cached]
+        log_payload[:cached]      = event.payload[:cached]
 
         log = {
           message:  name,
           payload:  log_payload,
-          duration: event.duration
+          duration: event.duration,
+          metric:   "rails.active_record.sql"
         }
 
         # Log the location of the query itself.
@@ -208,7 +217,8 @@ module RailsSemanticLogger
       elsif Rails.version.to_i >= 4 # 4.x
         alias bind_values bind_values_v4
         alias render_bind render_bind_v4_2
-      else # 3.x
+      else
+        # 3.x
         alias bind_values bind_values_v3
       end
     end

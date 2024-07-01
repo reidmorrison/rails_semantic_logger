@@ -147,9 +147,9 @@ module Sidekiq
   when 4
     module Worker
       def self.included(base)
-        raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}" if base.ancestors.any? do |c|
-                                                                                                     c.name == "ActiveJob::Base"
-                                                                                                   end
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}"
+        end
 
         base.extend(ClassMethods)
         base.include(SemanticLogger::Loggable)
@@ -161,9 +161,9 @@ module Sidekiq
   when 5
     module Worker
       def self.included(base)
-        raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}" if base.ancestors.any? do |c|
-                                                                                                     c.name == "ActiveJob::Base"
-                                                                                                   end
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}"
+        end
 
         base.extend(ClassMethods)
         base.include(SemanticLogger::Loggable)
@@ -175,9 +175,9 @@ module Sidekiq
   when 6
     module Worker
       def self.included(base)
-        raise ArgumentError, "Sidekiq::Worker cannot be included in an ActiveJob: #{base.name}" if base.ancestors.any? do |c|
-                                                                                                     c.name == "ActiveJob::Base"
-                                                                                                   end
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "Sidekiq::Worker cannot be included in an ActiveJob: #{base.name}"
+        end
 
         base.include(Options)
         base.extend(ClassMethods)
@@ -187,9 +187,9 @@ module Sidekiq
   else
     module Job
       def self.included(base)
-        raise ArgumentError, "Sidekiq::Job cannot be included in an ActiveJob: #{base.name}" if base.ancestors.any? do |c|
-                                                                                                  c.name == "ActiveJob::Base"
-                                                                                                end
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "Sidekiq::Job cannot be included in an ActiveJob: #{base.name}"
+        end
 
         base.include(Options)
         base.extend(ClassMethods)
@@ -213,8 +213,8 @@ module Sidekiq
     module Middleware
       module Server
         class Logging
-          def call(worker, item, queue, &block)
-            SemanticLogger.named_tags(queue: queue) do
+          def call(worker, item, queue)
+            SemanticLogger.tagged(queue: queue) do
               worker.logger.info(
                 "Start #perform",
                 metric:        "sidekiq.queue.latency",
@@ -224,16 +224,15 @@ module Sidekiq
                 "Completed #perform",
                 on_exception_level: :error,
                 log_exception:      :full,
-                metric:             "sidekiq.job.perform",
-                &block
-              )
+                metric:             "sidekiq.job.perform"
+              ) { yield }
             end
           end
 
           def job_latency_ms(job)
             return unless job && job["enqueued_at"]
 
-            (Time.now.to_f - job["enqueued_at"]) * 1000
+            (Time.now.to_f - job["enqueued_at"].to_f) * 1000
           end
         end
       end

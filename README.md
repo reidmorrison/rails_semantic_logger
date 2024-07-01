@@ -37,26 +37,30 @@ make_col event:parse_json(log)
 
 make_col
    time:parse_isotime(event.timestamp),
+   application:string(event.application),
+   environment:string(event.environment),
    duration:duration_ms(event.duration_ms),
    level:string(event.level),
    name:string(event.name),
    message:string(event.message),
-   metric:string(event.metric),
    named_tags:event.named_tags,
    payload:event.payload,
+   metric:string(event.metric),
+   metric_amount:float64(event.metric_amount),
    tags:array(event.tags),
+   exception:event.exception,
    host:string(event.host),
-   application:string(event.application),
-   environment:string(event.environment),
-   level_index:int64(event.level_index),
    pid:int64(event.pid),
    thread:string(event.thread),
    file:string(event.file),
    line:int64(event.line),
-   backtrace:array(event.backtrace),
-   metric_amount:int64(event.metric_amount),
    dimensions:event.dimensions,
-   exception:event.exception
+   backtrace:array(event.backtrace),
+   level_index:int64(event.level_index)
+
+set_valid_from(time)
+drop_col timestamp, log, event, stream
+rename_col timestamp:time
 ~~~
 
 Now queries can be built to drill down into each of these fields, including `payload` which is a nested object.
@@ -65,15 +69,24 @@ For example to find all failed Sidekiq job calls where the causing exception cla
 ~~~ruby
 filter environment = "uat2"
 filter level = "error"
-filter metric ~ /Sidekiq/
+filter metric = "sidekiq.job.perform"
 filter (string(exception.cause.name) = "NoMethodError")
 ~~~
 
-Or, to create a dashboard showing the duration of all successful Sidekiq jobs:
+Example: create a dashboard showing the duration of all successful Sidekiq jobs:
 ~~~ruby
 filter environment = "production"
 filter level = "info"
-filter metric ~ /Sidekiq.*/
+filter metric = "sidekiq.job.perform"
+timechart duration:avg(duration), group_by(name)
+~~~
+
+Example: create a dashboard showing the queue latency of all Sidekiq jobs. 
+The queue latency is the time between when the job was enqueued and when it was started:
+~~~ruby
+filter environment = "production"
+filter level = "info"
+filter metric = "sidekiq.queue.latency"
 timechart duration:avg(duration), group_by(name)
 ~~~
 
@@ -83,7 +96,14 @@ timechart duration:avg(duration), group_by(name)
 
 For complete documentation see: https://logger.rocketjob.io/rails
 
-## Upgrading to Semantic Logger v4.15 - Sidekiq Support
+## Upgrading to Semantic Logger V4.16 - Sidekiq Metrics Support
+
+Rails Semantic Logger now supports Sidekiq metrics. 
+Below are the metrics that are now available when the JSON logging format is used:
+- `sidekiq.job.perform` - The duration of each Sidekiq job.
+- `sidekiq.queue.latency` - The time between when a Sidekiq job was enqueued and when it was started.
+
+## Upgrading to Semantic Logger v4.15 & V4.16 - Sidekiq Support
 
 Rails Semantic Logger introduces direct support for Sidekiq v4, v5, v6, and v7. 
 Please remove any previous custom patches or configurations to make Sidekiq work with Semantic Logger.

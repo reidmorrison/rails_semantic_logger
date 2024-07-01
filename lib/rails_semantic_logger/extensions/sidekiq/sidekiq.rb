@@ -101,8 +101,8 @@ module Sidekiq
   end
 
   # Exception is already logged by Semantic Logger during the perform call
-  # Sidekiq <= v6.5
   if defined?(::Sidekiq::ExceptionHandler)
+    # Sidekiq <= v6.5
     module ExceptionHandler
       class Logger
         def call(_exception, ctx)
@@ -115,8 +115,8 @@ module Sidekiq
         end
       end
     end
-    # Sidekiq >= v7
   elsif defined?(::Sidekiq::Config)
+    # Sidekiq >= v7
     class Config
       remove_const :ERROR_HANDLER
 
@@ -198,7 +198,8 @@ module Sidekiq
     end
   end
 
-  if Sidekiq::VERSION.to_i == 4
+  if defined?(::Sidekiq::Middleware::Server::Logging)
+    # Sidekiq v4
     # Convert string to machine readable format
     class Processor
       def log_context(job_hash)

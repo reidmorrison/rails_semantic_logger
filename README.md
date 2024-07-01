@@ -87,7 +87,7 @@ The queue latency is the time between when the job was enqueued and when it was 
 filter environment = "production"
 filter level = "info"
 filter metric = "sidekiq.queue.latency"
-timechart duration:avg(duration), group_by(name)
+timechart latency:avg(metric_amount), group_by(name)
 ~~~
 
 * http://github.com/reidmorrison/rails_semantic_logger
@@ -100,8 +100,12 @@ For complete documentation see: https://logger.rocketjob.io/rails
 
 Rails Semantic Logger now supports Sidekiq metrics. 
 Below are the metrics that are now available when the JSON logging format is used:
-- `sidekiq.job.perform` - The duration of each Sidekiq job.
-- `sidekiq.queue.latency` - The time between when a Sidekiq job was enqueued and when it was started.
+- `sidekiq.job.perform`
+  - The duration of each Sidekiq job.
+  - `duration` contains the time in milliseconds that the job took to run.
+- `sidekiq.queue.latency` 
+  - The time between when a Sidekiq job was enqueued and when it was started.
+  - `metric_amount` contains the time in milliseconds that the job was waiting in the queue.
 
 ## Upgrading to Semantic Logger v4.15 & V4.16 - Sidekiq Support
 

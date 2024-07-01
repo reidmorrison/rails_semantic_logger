@@ -28,18 +28,8 @@ class SidekiqTest < Minitest::Test
         end
       elsif Sidekiq::VERSION.to_i == 6
         let(:processor) do
-          # TODO: Sidekiq 6.5 default handler is not accepting the patch
-          handler = lambda { |_ex, ctx|
-            unless ctx.empty?
-              job_hash = ctx[:job] || {}
-              klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-              logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
-              ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
-            end
-          }
-          config                  = Sidekiq
-          config[:error_handlers] = [handler]
-          config[:fetch]          = Sidekiq::BasicFetch.new(config)
+          config = Sidekiq
+          config[:fetch] = Sidekiq::BasicFetch.new(config)
           Sidekiq::Processor.new(config) { |*args| }
         end
       elsif Sidekiq::VERSION.to_i < 7

@@ -120,25 +120,25 @@ module Sidekiq
     class Config
       remove_const :ERROR_HANDLER
 
-      ERROR_HANDLER = lambda { |_ex, ctx, _cfg = Sidekiq.default_configuration|
+      ERROR_HANDLER = ->(ex, ctx, cfg = Sidekiq.default_configuration) do
         unless ctx.empty?
           job_hash = ctx[:job] || {}
           klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
           logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
           ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
         end
-      }
+      end
     end
   else
     # Sidekiq >= 6.5
-    # TODO: Not taking effect. See test/sidekiq_test.rb
-    def self.default_error_handler(_exception, ctx)
-      return if ctx.empty?
-
-      job_hash = ctx[:job] || {}
-      klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-      logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
-      ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+    Sidekiq.error_handlers.delete(Sidekiq::DEFAULT_ERROR_HANDLER)
+    Sidekiq.error_handlers << ->(ex, ctx) do
+      unless ctx.empty?
+        job_hash = ctx[:job] || {}
+        klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+        logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+        ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+      end
     end
   end
 

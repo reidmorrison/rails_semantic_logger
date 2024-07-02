@@ -129,9 +129,9 @@ module Sidekiq
         end
       end
     end
-  else
+  elsif Sidekiq.error_handlers.delete(Sidekiq::DEFAULT_ERROR_HANDLER)
     # Sidekiq >= 6.5
-    Sidekiq.error_handlers.delete(Sidekiq::DEFAULT_ERROR_HANDLER)
+    # Replace default error handler if present
     Sidekiq.error_handlers << ->(ex, ctx) do
       unless ctx.empty?
         job_hash = ctx[:job] || {}

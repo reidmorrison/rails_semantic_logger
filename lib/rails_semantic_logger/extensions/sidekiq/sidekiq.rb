@@ -23,6 +23,7 @@ elsif Sidekiq::VERSION.to_i == 6
   require "sidekiq/job_logger"
   require "sidekiq/worker"
 else
+  require "sidekiq/component"
   require "sidekiq/config"
   require "sidekiq/job_logger"
   require "sidekiq/job"

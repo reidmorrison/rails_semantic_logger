@@ -87,7 +87,7 @@ The queue latency is the time between when the job was enqueued and when it was 
 filter environment = "production"
 filter level = "info"
 filter metric = "sidekiq.queue.latency"
-timechart latency:avg(metric_amount), group_by(name)
+timechart latency:avg(metric_amount/1000), group_by(string(named_tags.queue))
 ~~~
 
 * http://github.com/reidmorrison/rails_semantic_logger

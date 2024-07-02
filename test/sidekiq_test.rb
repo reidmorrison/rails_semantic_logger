@@ -17,12 +17,12 @@ class SidekiqTest < Minitest::Test
 
     describe "#perform" do
       let(:config) { Sidekiq::Config.new(error_handlers: []) }
-      let(:msg) { Sidekiq.dump_json({ "class" => job.to_s, "args" => args }) }
+      let(:msg) { Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => 1.minute.ago}) }
       let(:uow) { Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg) }
       if Sidekiq::VERSION.to_i == 6 && Sidekiq::VERSION.to_f < 6.5
         let(:processor) do
-          mgr = Minitest::Mock.new
-          opts = {:queues => ['default']}
+          mgr          = Minitest::Mock.new
+          opts         = {queues: ["default"]}
           opts[:fetch] = Sidekiq::BasicFetch.new(opts)
           Sidekiq::Processor.new(mgr, opts)
         end
@@ -35,9 +35,9 @@ class SidekiqTest < Minitest::Test
       elsif Sidekiq::VERSION.to_i < 7
         let(:processor) do
           mgr = Minitest::Mock.new
-          mgr.expect(:options, {:queues => ['default']})
-          mgr.expect(:options, {:queues => ['default']})
-          mgr.expect(:options, {:queues => ['default']})
+          mgr.expect(:options, {queues: ["default"]})
+          mgr.expect(:options, {queues: ["default"]})
+          mgr.expect(:options, {queues: ["default"]})
           Sidekiq::Processor.new(mgr)
         end
       else
@@ -57,17 +57,20 @@ class SidekiqTest < Minitest::Test
           level:            :info,
           name:             "SimpleJob",
           message_includes: "Start #perform",
-          named_tags:       { class: "SimpleJob", jid: nil }
+          metric:           "sidekiq.queue.latency",
+          named_tags:       {jid: nil, queue: "default"}
         )
+        assert messages[0].metric_amount.is_a?(Float)
 
         assert_semantic_logger_event(
           messages[1],
           level:            :info,
           name:             "SimpleJob",
           message_includes: "Completed #perform",
-          metric:           "Sidekiq/SimpleJob/perform",
-          named_tags:       { class: "SimpleJob", jid: nil }
+          metric:           "sidekiq.job.perform",
+          named_tags:       {jid: nil, queue: "default"}
         )
+        assert messages[1].duration.is_a?(Float)
       end
 
       describe "with Bad Job" do
@@ -88,27 +91,32 @@ class SidekiqTest < Minitest::Test
             level:      :info,
             name:       "BadJob",
             message:    "Start #perform",
-            named_tags: { class: "BadJob", jid: nil }
+            metric:     "sidekiq.queue.latency",
+            named_tags: {jid: nil, queue: "default"}
           )
+          assert messages[0].metric_amount.is_a?(Float)
 
           assert_semantic_logger_event(
             messages[1],
             level:      :error,
             name:       "BadJob",
             message:    "Completed #perform",
-            metric:     "Sidekiq/BadJob/perform",
-            named_tags: { class: "BadJob", jid: nil }
-          # exception: { name: "ArgumentError", message: "This is a bad job" }
+            metric:     "sidekiq.job.perform",
+            named_tags: {jid: nil, queue: "default"}
+            # exception: { name: "ArgumentError", message: "This is a bad job" }
           )
+          assert messages[1].duration.is_a?(Float)
 
           assert_semantic_logger_event(
             messages[2],
             level:            :warn,
             name:             "BadJob",
             message:          "Job raised exception",
-            payload_includes: { context: "Job raised exception", job: { "class" => "BadJob", "args" => [] } }
-          # exception: { name: "ArgumentError", message: "This is a bad job" }
+            payload_includes: {context: "Job raised exception"}
+            # exception: { name: "ArgumentError", message: "This is a bad job" }
           )
+          assert_equal messages[2].payload[:job]["class"], "BadJob"
+          assert_equal messages[2].payload[:job]["args"], []
         end
       end
     end

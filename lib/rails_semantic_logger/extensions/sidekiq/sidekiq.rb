@@ -33,18 +33,26 @@ module Sidekiq
   if defined?(::Sidekiq::JobLogger)
     # Let Semantic Logger handle duration logging
     class JobLogger
-      def call(item, queue)
+      def call(item, queue, &block)
         klass  = item["wrapped"] || item["class"]
-        metric = "Sidekiq/#{klass}/perform" if klass
         logger = klass ? SemanticLogger[klass] : Sidekiq.logger
-        logger.info("Start #perform")
-        logger.measure_info(
-          "Completed #perform",
-          on_exception_level: :error,
-          log_exception:      :full,
-          metric:             metric
-        ) do
-          yield
+
+        SemanticLogger.tagged(queue: queue) do
+          # Latency is the time between when the job was enqueued and when it started executing.
+          logger.info(
+            "Start #perform",
+            metric:        "sidekiq.queue.latency",
+            metric_amount: job_latency_ms(item)
+          )
+
+          # Measure the duration of running the job
+          logger.measure_info(
+            "Completed #perform",
+            on_exception_level: :error,
+            log_exception:      :full,
+            metric:             "sidekiq.job.perform",
+            &block
+          )
         end
       end
 
@@ -60,13 +68,17 @@ module Sidekiq
       end
 
       def job_hash_context(job_hash)
-        h        = {
-          class: job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"],
-          jid:   job_hash["jid"]
-        }
-        h[:bid]  = job_hash["bid"] if job_hash["bid"]
-        h[:tags] = job_hash["tags"] if job_hash["tags"]
+        h         = {jid: job_hash["jid"]}
+        h[:bid]   = job_hash["bid"] if job_hash["bid"]
+        h[:tags]  = job_hash["tags"] if job_hash["tags"]
+        h[:queue] = job_hash["queue"] if job_hash["queue"]
         h
+      end
+
+      def job_latency_ms(job)
+        return unless job && job["enqueued_at"]
+
+        (Time.now.to_f - job["enqueued_at"].to_f) * 1000
       end
     end
   end
@@ -80,39 +92,39 @@ module Sidekiq
       end
 
       def self.job_hash_context(job_hash)
-        klass       = job_hash["wrapped"] || job_hash["class"]
-        event       = { class: klass, jid: job_hash["jid"] }
-        event[:bid] = job_hash["bid"] if job_hash["bid"]
-        event
+        h         = {jid: job_hash["jid"]}
+        h[:bid]   = job_hash["bid"] if job_hash["bid"]
+        h[:queue] = job_hash["queue"] if job_hash["queue"]
+        h
       end
     end
   end
 
   # Exception is already logged by Semantic Logger during the perform call
-  # Sidekiq <= v6.5
   if defined?(::Sidekiq::ExceptionHandler)
+    # Sidekiq <= v6.5
     module ExceptionHandler
       class Logger
-        def call(ex, ctx)
-          unless ctx.empty?
-            job_hash = ctx[:job] || {}
-            klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-            logger = klass ? SemanticLogger[klass] : Sidekiq.logger
-            ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
-          end
+        def call(_exception, ctx)
+          return if ctx.empty?
+
+          job_hash = ctx[:job] || {}
+          klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+          logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
+          ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
         end
       end
     end
-  # Sidekiq >= v7
   elsif defined?(::Sidekiq::Config)
+    # Sidekiq >= v7
     class Config
       remove_const :ERROR_HANDLER
 
       ERROR_HANDLER = ->(ex, ctx, cfg = Sidekiq.default_configuration) do
         unless ctx.empty?
           job_hash = ctx[:job] || {}
-          klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-          logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+          klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+          logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
           ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
         end
       end
@@ -131,10 +143,13 @@ module Sidekiq
   end
 
   # Logging within each worker should use its own logger
-  if Sidekiq::VERSION.to_i == 4
+  case Sidekiq::VERSION.to_i
+  when 4
     module Worker
       def self.included(base)
-        raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}" if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}"
+        end
 
         base.extend(ClassMethods)
         base.include(SemanticLogger::Loggable)
@@ -143,10 +158,12 @@ module Sidekiq
         base.class_attribute :sidekiq_retries_exhausted_block
       end
     end
-  elsif Sidekiq::VERSION.to_i == 5
+  when 5
     module Worker
       def self.included(base)
-        raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}" if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "You cannot include Sidekiq::Worker in an ActiveJob: #{base.name}"
+        end
 
         base.extend(ClassMethods)
         base.include(SemanticLogger::Loggable)
@@ -155,10 +172,12 @@ module Sidekiq
         base.sidekiq_class_attribute :sidekiq_retries_exhausted_block
       end
     end
-  elsif Sidekiq::VERSION.to_i == 6
+  when 6
     module Worker
       def self.included(base)
-        raise ArgumentError, "Sidekiq::Worker cannot be included in an ActiveJob: #{base.name}" if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "Sidekiq::Worker cannot be included in an ActiveJob: #{base.name}"
+        end
 
         base.include(Options)
         base.extend(ClassMethods)
@@ -168,7 +187,9 @@ module Sidekiq
   else
     module Job
       def self.included(base)
-        raise ArgumentError, "Sidekiq::Job cannot be included in an ActiveJob: #{base.name}" if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+        if base.ancestors.any? { |c| c.name == "ActiveJob::Base" }
+          raise ArgumentError, "Sidekiq::Job cannot be included in an ActiveJob: #{base.name}"
+        end
 
         base.include(Options)
         base.extend(ClassMethods)
@@ -177,14 +198,15 @@ module Sidekiq
     end
   end
 
-  if Sidekiq::VERSION.to_i == 4
+  if defined?(::Sidekiq::Middleware::Server::Logging)
+    # Sidekiq v4
     # Convert string to machine readable format
     class Processor
       def log_context(job_hash)
-        klass       = job_hash["wrapped"] || job_hash["class"]
-        event       = { class: klass, jid: job_hash["jid"] }
-        event[:bid] = job_hash["bid"] if job_hash["bid"]
-        event
+        h         = {jid: job_hash["jid"]}
+        h[:bid]   = job_hash["bid"] if job_hash["bid"]
+        h[:queue] = job_hash["queue"] if job_hash["queue"]
+        h
       end
     end
 
@@ -193,15 +215,25 @@ module Sidekiq
       module Server
         class Logging
           def call(worker, item, queue)
-            worker.logger.info("Start #perform")
-            worker.logger.measure_info(
-              "Completed #perform",
-              on_exception_level: :error,
-              log_exception:      :full,
-              metric:             "Sidekiq/#{worker.class.name}/perform"
-            ) do
-              yield
+            SemanticLogger.tagged(queue: queue) do
+              worker.logger.info(
+                "Start #perform",
+                metric:        "sidekiq.queue.latency",
+                metric_amount: job_latency_ms(item)
+              )
+              worker.logger.measure_info(
+                "Completed #perform",
+                on_exception_level: :error,
+                log_exception:      :full,
+                metric:             "sidekiq.job.perform"
+              ) { yield }
             end
+          end
+
+          def job_latency_ms(job)
+            return unless job && job["enqueued_at"]
+
+            (Time.now.to_f - job["enqueued_at"].to_f) * 1000
           end
         end
       end

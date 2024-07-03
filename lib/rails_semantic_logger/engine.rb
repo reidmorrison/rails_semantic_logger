@@ -123,40 +123,9 @@ module RailsSemanticLogger
 
           SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
 
-          # Replace default error handler if present
-          # Prevent exception logging since the Job Logger already logged the exception.
-          # Only log the context that was not available during the job_logger call.
-          if defined?(::Sidekiq::ExceptionHandler)
-            existing = ::Sidekiq.error_handlers.find { |handler| handler.is_a?(::Sidekiq::ExceptionHandler::Logger) }
-            if existing && config.error_handlers.delete(existing)
-              config.error_handlers << ->(ex, ctx) do
-                unless ctx.empty?
-                  job_hash = ctx[:job] || {}
-                  klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-                  logger = klass ? SemanticLogger[klass] : Sidekiq.logger
-                  ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
-                end
-              end
-            end
-          elsif defined?(::Sidekiq::DEFAULT_ERROR_HANDLER) && config.error_handlers.delete(::Sidekiq::DEFAULT_ERROR_HANDLER)
-            config.error_handlers << ->(ex, ctx) do
-              unless ctx.empty?
-                job_hash = ctx[:job] || {}
-                klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-                logger = klass ? SemanticLogger[klass] : Sidekiq.logger
-                ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
-              end
-            end
-          elsif defined?(::Sidekiq::Config::ERROR_HANDLER) && config.error_handlers.delete(::Sidekiq::Config::ERROR_HANDLER)
-            config.error_handlers << ->(ex, ctx, _default_configuration) do
-              unless ctx.empty?
-                job_hash = ctx[:job] || {}
-                klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-                logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
-                ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
-              end
-            end
-          end
+          # Replace default error handler when present
+          existing = RailsSemanticLogger::Sidekiq::Defaults.delete_default_error_handler(config.error_handlers)
+          config.error_handlers << RailsSemanticLogger::Sidekiq::Defaults::ERROR_HANDLER if existing
         end
 
         if defined?(::Sidekiq::Job)

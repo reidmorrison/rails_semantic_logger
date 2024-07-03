@@ -1,5 +1,4 @@
 require_relative "test_helper"
-require "sidekiq/processor"
 
 class SidekiqTest < Minitest::Test
   # Cannot use inline testing since it bypasses the Sidekiq logging calls.
@@ -16,7 +15,7 @@ class SidekiqTest < Minitest::Test
     end
 
     describe "#perform" do
-      let(:config) { Sidekiq::Config.new(error_handlers: []) }
+      let(:config) { Sidekiq.default_configuration }
       let(:msg) { Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => 1.minute.ago}) }
       let(:uow) { Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg) }
       if Sidekiq::VERSION.to_i == 6 && Sidekiq::VERSION.to_f < 6.5

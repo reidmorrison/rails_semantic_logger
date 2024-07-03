@@ -108,12 +108,61 @@ module RailsSemanticLogger
       Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 
       # Replace the Sidekiq logger
-      if defined?(Sidekiq)
-        if Sidekiq.respond_to?(:logger=)
-          Sidekiq.logger = SemanticLogger[Sidekiq]
-        elsif Sidekiq::VERSION[0..1] == "7."
-          method = Sidekiq.server? ? :configure_server : :configure_client
-          Sidekiq.public_send(method) { |cfg| cfg.logger = SemanticLogger[Sidekiq] }
+      if defined?(::Sidekiq)
+        ::Sidekiq.configure_client do |config|
+          config.logger = ::SemanticLogger[::Sidekiq]
+        end
+
+        ::Sidekiq.configure_server do |config|
+          config.logger               = ::SemanticLogger[::Sidekiq]
+          if config.respond_to?(:options)
+            config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          else
+            config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          end
+
+          SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
+
+          # Replace default error handler if present
+          # Prevent exception logging since the Job Logger already logged the exception.
+          # Only log the context that was not available during the job_logger call.
+          if defined?(::Sidekiq::ExceptionHandler)
+            existing = ::Sidekiq.error_handlers.find { |handler| handler.is_a?(::Sidekiq::ExceptionHandler::Logger) }
+            if existing && config.error_handlers.delete(existing)
+              config.error_handlers << ->(ex, ctx) do
+                unless ctx.empty?
+                  job_hash = ctx[:job] || {}
+                  klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+                  logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+                  ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+                end
+              end
+            end
+          elsif defined?(::Sidekiq::DEFAULT_ERROR_HANDLER) && config.error_handlers.delete(::Sidekiq::DEFAULT_ERROR_HANDLER)
+            config.error_handlers << ->(ex, ctx) do
+              unless ctx.empty?
+                job_hash = ctx[:job] || {}
+                klass = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+                logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+                ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+              end
+            end
+          elsif defined?(::Sidekiq::Config::ERROR_HANDLER) && config.error_handlers.delete(::Sidekiq::Config::ERROR_HANDLER)
+            config.error_handlers << ->(ex, ctx, _default_configuration) do
+              unless ctx.empty?
+                job_hash = ctx[:job] || {}
+                klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+                logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
+                ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+              end
+            end
+          end
+        end
+
+        if defined?(::Sidekiq::Job)
+          ::Sidekiq::Job.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
+        else
+          ::Sidekiq::Worker.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
         end
       end
 
@@ -154,7 +203,7 @@ module RailsSemanticLogger
 
       if config.rails_semantic_logger.semantic
         # Active Job
-        if defined?(::ActiveJob) && defined?(::ActiveJob::Logging::LogSubscriber)
+        if defined?(::ActiveJob::Logging::LogSubscriber)
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::Logging::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,
@@ -162,7 +211,7 @@ module RailsSemanticLogger
           )
         end
 
-        if defined?(::ActiveJob) && defined?(::ActiveJob::LogSubscriber)
+        if defined?(::ActiveJob::LogSubscriber)
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,

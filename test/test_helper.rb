@@ -1,5 +1,7 @@
 ENV["RAILS_ENV"] ||= "test"
 ENV["DISABLE_DATABASE_ENVIRONMENT_CHECK"] = "1"
+# Load first so Sidekiq thinks it is running as a server instance
+require "sidekiq/cli"
 require_relative "dummy/config/environment"
 
 require "rails/test_help"

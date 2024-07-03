@@ -31,10 +31,12 @@ module RailsSemanticLogger
 
         # Create a logger instance that uses the class name that the original log message came from.
         logger = self.logger
-        words  = name.split
-        if words.size == 2
-          logger = SemanticLogger[words[0]]
-          name   = words[1]
+        if name.present?
+          words  = name.split
+          if words.size == 2
+            logger = SemanticLogger[words[0]]
+            name   = words[1]
+          end
         end
 
         log_payload               = {sql: payload[:sql]}

@@ -34,6 +34,12 @@ appraise "rails_7.1" do
   gem "sqlite3", "~> 1.4"
 end
 
+appraise "rails_7.1b" do
+  gem "rails", "~> 7.1.0"
+  gem "sidekiq", "~> 7.3.0"
+  gem "sqlite3", "~> 1.4"
+end
+
 appraise "rails_7.2" do
   gem "rails", "~> 7.2.0.beta2"
   gem "sidekiq", "~> 7.2.4"

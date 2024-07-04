@@ -91,7 +91,8 @@ class SidekiqTest < Minitest::Test
             name:       "BadJob",
             message:    "Start #perform",
             metric:     "sidekiq.queue.latency",
-            named_tags: {jid: nil, queue: "default"}
+            named_tags: {jid: nil, queue: "default"},
+            exception:        :nil
           )
           assert messages[0].metric_amount.is_a?(Float)
 
@@ -101,8 +102,8 @@ class SidekiqTest < Minitest::Test
             name:       "BadJob",
             message:    "Completed #perform",
             metric:     "sidekiq.job.perform",
-            named_tags: {jid: nil, queue: "default"}
-            # exception: { name: "ArgumentError", message: "This is a bad job" }
+            named_tags: {jid: nil, queue: "default"},
+            exception:  ArgumentError
           )
           assert messages[1].duration.is_a?(Float)
 
@@ -111,8 +112,8 @@ class SidekiqTest < Minitest::Test
             level:            :warn,
             name:             "BadJob",
             message:          "Job raised exception",
-            payload_includes: {context: "Job raised exception"}
-            # exception: { name: "ArgumentError", message: "This is a bad job" }
+            payload_includes: {context: "Job raised exception"},
+            exception:        :nil
           )
           assert_equal messages[2].payload[:job]["class"], "BadJob"
           assert_equal messages[2].payload[:job]["args"], []

@@ -31,7 +31,7 @@ module RailsSemanticLogger
 
         return unless defined?(::Sidekiq::ExceptionHandler)
         existing = error_handlers.find { |handler| handler.is_a?(::Sidekiq::ExceptionHandler::Logger) }
-        return config.error_handlers.delete(existing) if existing
+        return error_handlers.delete(existing) if existing
       end
     end
   end

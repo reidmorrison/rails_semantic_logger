@@ -92,7 +92,7 @@ class SidekiqTest < Minitest::Test
             message:    "Start #perform",
             metric:     "sidekiq.queue.latency",
             named_tags: {jid: nil, queue: "default"},
-            exception:        :nil
+            exception:  :nil
           )
           assert messages[0].metric_amount.is_a?(Float)
 

@@ -114,7 +114,7 @@ module RailsSemanticLogger
         end
 
         ::Sidekiq.configure_server do |config|
-          config.logger               = ::SemanticLogger[::Sidekiq]
+          config.logger = ::SemanticLogger[::Sidekiq]
           if config.respond_to?(:options)
             config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
           else

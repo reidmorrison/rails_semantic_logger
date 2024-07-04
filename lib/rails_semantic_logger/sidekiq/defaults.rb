@@ -2,7 +2,8 @@ module RailsSemanticLogger
   module Sidekiq
     module Defaults
       # Prevent exception logging during standard error handling since the Job Logger below already logs the exception.
-      if ::Sidekiq::VERSION.to_f < 7.2
+      if ::Sidekiq::VERSION.to_f < 7.1 ||
+         (::Sidekiq::VERSION.to_f == 7.1 && ::Sidekiq::VERSION.split(".").last.to_i < 6)
         ERROR_HANDLER = ->(ex, ctx) do
           unless ctx.empty?
             job_hash = ctx[:job] || {}

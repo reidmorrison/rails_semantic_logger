@@ -121,6 +121,7 @@ module RailsSemanticLogger
             config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
           end
 
+          # Add back the default console logger unless already added
           SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
 
           # Replace default error handler when present

@@ -8,6 +8,7 @@ class SidekiqTest < Minitest::Test
 
     describe "#logger" do
       it "has its own logger with the same name as the job" do
+        assert_kind_of SemanticLogger::Logger, SimpleJob.logger
         assert_kind_of SemanticLogger::Logger, job.logger
         assert_equal job.logger.name, job.name
         refute_same Sidekiq.logger, job.logger
@@ -21,22 +22,23 @@ class SidekiqTest < Minitest::Test
       if Sidekiq::VERSION.to_i == 6 && Sidekiq::VERSION.to_f < 6.5
         let(:processor) do
           mgr          = Minitest::Mock.new
-          opts         = {queues: ["default"]}
+          opts         = Sidekiq.options
           opts[:fetch] = Sidekiq::BasicFetch.new(opts)
           Sidekiq::Processor.new(mgr, opts)
         end
       elsif Sidekiq::VERSION.to_i == 6
         let(:processor) do
-          config = Sidekiq
+          config         = Sidekiq
           config[:fetch] = Sidekiq::BasicFetch.new(config)
           Sidekiq::Processor.new(config) { |*args| }
         end
       elsif Sidekiq::VERSION.to_i < 7
         let(:processor) do
-          mgr = Minitest::Mock.new
-          mgr.expect(:options, {queues: ["default"]})
-          mgr.expect(:options, {queues: ["default"]})
-          mgr.expect(:options, {queues: ["default"]})
+          opts = Sidekiq.options
+          mgr  = Minitest::Mock.new
+          mgr.expect(:options, opts)
+          mgr.expect(:options, opts)
+          mgr.expect(:options, opts)
           Sidekiq::Processor.new(mgr)
         end
       else
@@ -53,21 +55,21 @@ class SidekiqTest < Minitest::Test
 
         assert_semantic_logger_event(
           messages[0],
-          level:            :info,
-          name:             "SimpleJob",
-          message_includes: "Start #perform",
-          metric:           "sidekiq.queue.latency",
-          named_tags:       {jid: nil, queue: "default"}
+          level:      :info,
+          name:       "SimpleJob",
+          message:    "Start #perform",
+          metric:     "sidekiq.queue.latency",
+          named_tags: {jid: nil, queue: "default"}
         )
         assert messages[0].metric_amount.is_a?(Float)
 
         assert_semantic_logger_event(
           messages[1],
-          level:            :info,
-          name:             "SimpleJob",
-          message_includes: "Completed #perform",
-          metric:           "sidekiq.job.perform",
-          named_tags:       {jid: nil, queue: "default"}
+          level:      :info,
+          name:       "SimpleJob",
+          message:    "Completed #perform",
+          metric:     "sidekiq.job.perform",
+          named_tags: {jid: nil, queue: "default"}
         )
         assert messages[1].duration.is_a?(Float)
       end

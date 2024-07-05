@@ -128,7 +128,7 @@ module RailsSemanticLogger
           config.error_handlers << RailsSemanticLogger::Sidekiq::Defaults::ERROR_HANDLER if existing
         end
 
-        if defined?(::Sidekiq::Job)
+        if defined?(::Sidekiq::Job) && (::Sidekiq::VERSION.to_i != 5)
           ::Sidekiq::Job.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
         else
           ::Sidekiq::Worker.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)

@@ -41,6 +41,7 @@ module Sidekiq
     module Middleware
       module Server
         class Logging
+          # rubocop:disable Style/ExplicitBlockArgument
           def call(worker, item, queue)
             SemanticLogger.tagged(queue: queue) do
               worker.logger.info(

@@ -2,8 +2,8 @@ module RailsSemanticLogger
   module Sidekiq
     module Loggable
       def included(base)
-        base.include(SemanticLogger::Loggable)
         super
+        base.include(SemanticLogger::Loggable)
       end
     end
   end

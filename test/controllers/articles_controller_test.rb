@@ -39,7 +39,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
 
         assert_semantic_logger_event(
           messages[1],
-          message: "Processing #create",
+          message: "Processing ArticlesController#create",
           name:    "ArticlesController",
           level:   :debug
         )
@@ -63,7 +63,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
 
         assert_semantic_logger_event(
           messages[4],
-          message:          "Completed #create",
+          message:          "Completed ArticlesController#create",
           name:             "ArticlesController",
           level:            :info,
           payload_includes: {

@@ -5,7 +5,7 @@ module RailsSemanticLogger
 
       # Log as debug to hide Processing messages in production
       def start_processing(event)
-        controller_logger(event).debug { "Processing ##{event.payload[:action]}" }
+        controller_logger(event).debug { "Processing #{event.payload[:controller]}##{event.payload[:action]}" }
       end
 
       def process_action(event)
@@ -59,7 +59,7 @@ module RailsSemanticLogger
           payload.delete(:response)
 
           {
-            message:  "Completed ##{payload[:action]}",
+            message:  "Completed #{payload[:controller]}##{payload[:action]}",
             duration: event.duration,
             payload:  payload
           }

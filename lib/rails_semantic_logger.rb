@@ -31,6 +31,12 @@ module RailsSemanticLogger
     autoload :Plugin, "rails_semantic_logger/delayed_job/plugin"
   end
 
+  module Sidekiq
+    autoload :Defaults, "rails_semantic_logger/sidekiq/defaults"
+    autoload :JobLogger, "rails_semantic_logger/sidekiq/job_logger"
+    autoload :Loggable, "rails_semantic_logger/sidekiq/loggable"
+  end
+
   autoload :Options, "rails_semantic_logger/options"
 
   # Swap an existing subscriber with a new one

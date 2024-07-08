@@ -108,12 +108,31 @@ module RailsSemanticLogger
       Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 
       # Replace the Sidekiq logger
-      if defined?(Sidekiq)
-        if Sidekiq.respond_to?(:logger=)
-          Sidekiq.logger = SemanticLogger[Sidekiq]
-        elsif Sidekiq::VERSION[0..1] == "7."
-          method = Sidekiq.server? ? :configure_server : :configure_client
-          Sidekiq.public_send(method) { |cfg| cfg.logger = SemanticLogger[Sidekiq] }
+      if defined?(::Sidekiq)
+        ::Sidekiq.configure_client do |config|
+          config.logger = ::SemanticLogger[::Sidekiq]
+        end
+
+        ::Sidekiq.configure_server do |config|
+          config.logger = ::SemanticLogger[::Sidekiq]
+          if config.respond_to?(:options)
+            config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          else
+            config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          end
+
+          # Add back the default console logger unless already added
+          SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
+
+          # Replace default error handler when present
+          existing = RailsSemanticLogger::Sidekiq::Defaults.delete_default_error_handler(config.error_handlers)
+          config.error_handlers << RailsSemanticLogger::Sidekiq::Defaults::ERROR_HANDLER if existing
+        end
+
+        if defined?(::Sidekiq::Job) && (::Sidekiq::VERSION.to_i != 5)
+          ::Sidekiq::Job.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
+        else
+          ::Sidekiq::Worker.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
         end
       end
 
@@ -154,7 +173,7 @@ module RailsSemanticLogger
 
       if config.rails_semantic_logger.semantic
         # Active Job
-        if defined?(::ActiveJob) && defined?(::ActiveJob::Logging::LogSubscriber)
+        if defined?(::ActiveJob::Logging::LogSubscriber)
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::Logging::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,
@@ -162,7 +181,7 @@ module RailsSemanticLogger
           )
         end
 
-        if defined?(::ActiveJob) && defined?(::ActiveJob::LogSubscriber)
+        if defined?(::ActiveJob::LogSubscriber)
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,

@@ -17,8 +17,9 @@ class ActiveRecordTest < Minitest::Test
         assert_semantic_logger_event(
           messages[0],
           level:            :debug,
-          name:             "ActiveRecord",
-          message:          "Sample Load",
+          name:             "Sample",
+          message:          "Load",
+          metric:           "rails.active_record.sql",
           payload_includes: {
             sql:   expected_sql,
             binds: {limit: 1}
@@ -38,8 +39,9 @@ class ActiveRecordTest < Minitest::Test
         assert_semantic_logger_event(
           messages[0],
           level:            :debug,
-          name:             "ActiveRecord",
-          message:          "Sample Load",
+          name:             "Sample",
+          message:          "Load",
+          metric:           "rails.active_record.sql",
           payload_includes: {
             sql:   expected_sql,
             binds: {name: "foo", limit: 1}
@@ -50,8 +52,9 @@ class ActiveRecordTest < Minitest::Test
         assert_semantic_logger_event(
           messages[1],
           level:            :debug,
-          name:             "ActiveRecord",
-          message:          "Sample Load",
+          name:             "Sample",
+          message:          "Load",
+          metric:           "rails.active_record.sql",
           payload_includes: {
             sql:    expected_sql,
             binds:  {name: "foo", limit: 1},
@@ -77,8 +80,9 @@ class ActiveRecordTest < Minitest::Test
         assert_semantic_logger_event(
           messages[0],
           level:            :debug,
-          name:             "ActiveRecord",
-          message:          "Sample Load",
+          name:             "Sample",
+          message:          "Load",
+          metric:           "rails.active_record.sql",
           payload_includes: {
             sql:   expected_sql,
             binds: {name: "Jack", limit: 1}
@@ -100,8 +104,9 @@ class ActiveRecordTest < Minitest::Test
         assert_semantic_logger_event(
           messages[0],
           level:            :debug,
-          name:             "ActiveRecord",
-          message:          "Sample Load",
+          name:             "Sample",
+          message:          "Load",
+          metric:           "rails.active_record.sql",
           payload_includes: {
             sql:   expected_sql,
             binds: {age: [2, 21], limit: 1}
@@ -123,13 +128,33 @@ class ActiveRecordTest < Minitest::Test
         assert_semantic_logger_event(
           messages[0],
           level:            :debug,
-          name:             "ActiveRecord",
-          message:          "Sample Load",
+          name:             "Sample",
+          message:          "Load",
+          metric:           "rails.active_record.sql",
           payload_includes: {
             sql:   expected_sql,
             binds: {age: [2, 3], limit: 1}
           }
         )
+      end
+
+      it "counts" do
+        expected_sql = "SELECT COUNT(*) FROM \"samples\""
+
+        messages = semantic_logger_events do
+          Sample.count
+        end
+        assert_equal 1, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "Sample",
+          message:          "Count",
+          metric:           "rails.active_record.sql",
+          payload_includes: {sql: expected_sql}
+        )
+        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
       end
     end
   end

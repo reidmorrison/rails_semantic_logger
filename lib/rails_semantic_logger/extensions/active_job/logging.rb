@@ -9,7 +9,11 @@ module ActiveJob
 
     undef_method :tag_logger
     def tag_logger(*tags, &block)
-      logger.tagged(*tags, &block)
+      if logger.respond_to?(:tagged)
+        logger.tagged(*tags, &block)
+      else
+        yield
+      end
     end
   end
 end

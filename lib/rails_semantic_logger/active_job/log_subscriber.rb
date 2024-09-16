@@ -4,14 +4,44 @@ module RailsSemanticLogger
   module ActiveJob
     class LogSubscriber < ::ActiveSupport::LogSubscriber
       def enqueue(event)
-        log_with_formatter event: event do |fmt|
-          {message: "Enqueued #{fmt.job_info}"}
+        ex = event.payload[:exception_object]
+
+        if ex
+          log_with_formatter level: :error, event: event do |fmt|
+            {
+              message:   "Failed enqueuing #{fmt.job_info} (#{ex.class} (#{ex.message})",
+              exception: ex
+            }
+          end
+        elsif event.payload[:aborted]
+          log_with_formatter level: :info, event: event do |fmt|
+            {message: "Failed enqueuing #{fmt.job_info}, a before_enqueue callback halted the enqueuing execution."}
+          end
+        else
+          log_with_formatter event: event do |fmt|
+            {message: "Enqueued #{fmt.job_info}"}
+          end
         end
       end
 
       def enqueue_at(event)
-        log_with_formatter event: event do |fmt|
-          {message: "Enqueued #{fmt.job_info} at #{fmt.scheduled_at}"}
+        ex = event.payload[:exception_object]
+
+        if ex
+          log_with_formatter level: :error, event: event do |fmt|
+            {
+              message:   "Failed enqueuing #{fmt.job_info} (#{ex.class} (#{ex.message})",
+              exception: ex
+            }
+          end
+        elsif event.payload[:aborted]
+          log_with_formatter level: :info, event: event do |fmt|
+            {message: "Failed enqueuing #{fmt.job_info}, a before_enqueue callback halted the enqueuing execution."}
+          end
+        else
+          log_with_formatter event: event do |fmt|
+            {message: "Enqueued #{fmt.job_info} at #{fmt.scheduled_at}"}
+          end
         end
       end
 
@@ -26,7 +56,7 @@ module RailsSemanticLogger
         if ex
           log_with_formatter event: event, log_duration: true, level: :error do |fmt|
             {
-              message: "Error performing #{fmt.job_info} in #{event.duration.round(2)}ms",
+              message:   "Error performing #{fmt.job_info} in #{event.duration.round(2)}ms",
               exception: ex
             }
           end

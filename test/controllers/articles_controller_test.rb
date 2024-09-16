@@ -2,7 +2,7 @@ require_relative "../test_helper"
 
 class ArticlesControllerTest < ActionDispatch::IntegrationTest
   describe ArticlesController do
-    let(:params) { { article: { text: "Text1", title: "Title1" } } }
+    let(:params) { {article: {text: "Text1", title: "Title1"}} }
 
     describe "#new" do
       it "shows new article" do
@@ -82,6 +82,25 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
             status_message: "OK"
           }
         )
+      end
+    end
+
+    describe "#show" do
+      it "raises and logs exception" do
+        # we're testing ActionDispatch::DebugExceptions in fact
+        messages = semantic_logger_events do
+          old_show = Rails.application.env_config["action_dispatch.show_exceptions"]
+          begin
+            Rails.application.env_config["action_dispatch.show_exceptions"] = :all
+            get article_url(:show)
+          rescue ActiveRecord::RecordNotFound => e
+            # expected
+          ensure
+            Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
+          end
+        end
+        assert_equal 4, messages.count, messages
+        assert_kind_of ActiveRecord::RecordNotFound, messages[3].exception
       end
     end
   end

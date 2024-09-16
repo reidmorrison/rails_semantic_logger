@@ -3,7 +3,7 @@ require_relative "test_helper"
 class ActiveRecordTest < Minitest::Test
   describe "ActiveRecord" do
     # Rails 5 has an extra space
-    let(:extra_space) { Rails::VERSION::MAJOR >= 6 ? "" : " "}
+    let(:extra_space) { Rails::VERSION::MAJOR >= 6 ? "" : " " }
 
     describe "logs" do
       it "sql" do
@@ -21,7 +21,7 @@ class ActiveRecordTest < Minitest::Test
           message:          "Sample Load",
           payload_includes: {
             sql:   expected_sql,
-            binds: { limit: 1 }
+            binds: {limit: 1}
           }
         )
         assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
@@ -42,7 +42,7 @@ class ActiveRecordTest < Minitest::Test
           message:          "Sample Load",
           payload_includes: {
             sql:   expected_sql,
-            binds: { name: "foo", limit: 1 }
+            binds: {name: "foo", limit: 1}
           }
         )
         assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
@@ -54,7 +54,7 @@ class ActiveRecordTest < Minitest::Test
           message:          "Sample Load",
           payload_includes: {
             sql:    expected_sql,
-            binds:  { name: "foo", limit: 1 },
+            binds:  {name: "foo", limit: 1},
             cached: true
           }
         )
@@ -81,7 +81,7 @@ class ActiveRecordTest < Minitest::Test
           message:          "Sample Load",
           payload_includes: {
             sql:   expected_sql,
-            binds: { name: "Jack", limit: 1 }
+            binds: {name: "Jack", limit: 1}
           }
         )
         assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
@@ -96,7 +96,6 @@ class ActiveRecordTest < Minitest::Test
           Sample.where(age: 2..21).first
         end
         assert_equal 1, messages.count, messages
-        ap messages
 
         assert_semantic_logger_event(
           messages[0],
@@ -105,7 +104,7 @@ class ActiveRecordTest < Minitest::Test
           message:          "Sample Load",
           payload_includes: {
             sql:   expected_sql,
-            binds: { age: [2, 21], limit: 1 }
+            binds: {age: [2, 21], limit: 1}
           }
         )
         assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
@@ -128,7 +127,7 @@ class ActiveRecordTest < Minitest::Test
           message:          "Sample Load",
           payload_includes: {
             sql:   expected_sql,
-            binds: { age: [2, 3], limit: 1 }
+            binds: {age: [2, 3], limit: 1}
           }
         )
       end

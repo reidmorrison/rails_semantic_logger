@@ -121,6 +121,144 @@ class ActiveJobTest < Minitest::Test
         end
       end
 
+      describe "#enqueue with exception object" do
+        let(:event_name) { "enqueue.active_job" }
+
+        let(:payload) do
+          {
+            adapter:          ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:              job,
+            exception_object: ArgumentError.new("error")
+          }
+        end
+
+        it "logs message" do
+          messages = semantic_logger_events do
+            subscriber.enqueue(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :error,
+            name:             "Rails",
+            message_includes: "Failed enqueuing ActiveJobTest::MyJob",
+            payload_includes: {
+              job_class:  "ActiveJobTest::MyJob",
+              queue:      "my_jobs",
+              event_name: "enqueue.active_job"
+            }
+          )
+          assert_includes messages[0].payload, :job_id
+
+          exception = messages[0].exception
+          assert exception.is_a?(ArgumentError)
+          assert_equal "error", exception.message
+        end
+      end
+
+      describe "#enqueue with throwing :abort" do
+        let(:event_name) { "enqueue.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            aborted: true
+          }
+        end
+
+        it "logs message" do
+          messages = semantic_logger_events do
+            subscriber.enqueue(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :info,
+            name:             "Rails",
+            message_includes: "Failed enqueuing ActiveJobTest::MyJob",
+            payload_includes: {
+              job_class:  "ActiveJobTest::MyJob",
+              queue:      "my_jobs",
+              event_name: "enqueue.active_job"
+            }
+          )
+          assert_match(/Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/, messages[0].message)
+          assert_includes messages[0].payload, :job_id
+        end
+      end
+
+      describe "#enqueue_at with exception object" do
+        let(:event_name) { "enqueue.active_job" }
+
+        let(:payload) do
+          {
+            adapter:          ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:              job,
+            exception_object: ArgumentError.new("error")
+          }
+        end
+
+        it "logs message" do
+          messages = semantic_logger_events do
+            subscriber.enqueue_at(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :error,
+            name:             "Rails",
+            message_includes: "Failed enqueuing ActiveJobTest::MyJob",
+            payload_includes: {
+              job_class:  "ActiveJobTest::MyJob",
+              queue:      "my_jobs",
+              event_name: "enqueue.active_job"
+            }
+          )
+          assert_includes messages[0].payload, :job_id
+
+          exception = messages[0].exception
+          assert exception.is_a?(ArgumentError)
+          assert_equal "error", exception.message
+        end
+      end
+
+      describe "#enqueue_at with throwing :abort" do
+        let(:event_name) { "enqueue.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            aborted: true
+          }
+        end
+
+        it "logs message" do
+          messages = semantic_logger_events do
+            subscriber.enqueue_at(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :info,
+            name:             "Rails",
+            message_includes: "Failed enqueuing ActiveJobTest::MyJob",
+            payload_includes: {
+              job_class:  "ActiveJobTest::MyJob",
+              queue:      "my_jobs",
+              event_name: "enqueue.active_job"
+            }
+          )
+          assert_match(/Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/, messages[0].message)
+          assert_includes messages[0].payload, :job_id
+        end
+      end
+
       describe "ActiveJob::Logging::LogSubscriber::EventFormatter" do
         let(:formatter) do
           RailsSemanticLogger::ActiveJob::LogSubscriber::EventFormatter.new(event: event, log_duration: true)

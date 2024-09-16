@@ -16,11 +16,11 @@ Gem::Specification.new do |s|
   s.required_ruby_version = ">= 2.5"
   s.add_dependency "rack"
   s.add_dependency "railties", ">= 5.1"
-  s.add_dependency "semantic_logger", "~> 4.13"
+  s.add_dependency "semantic_logger", "~> 4.16"
   s.metadata = {
     "bug_tracker_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/issues",
     "documentation_uri"     => "https://logger.rocketjob.io",
-    "source_code_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/tree/#{RailsSemanticLogger::VERSION}",
+    "source_code_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/tree/v#{RailsSemanticLogger::VERSION}",
     "rubygems_mfa_required" => "true"
   }
 end

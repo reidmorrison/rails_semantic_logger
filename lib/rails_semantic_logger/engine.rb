@@ -77,7 +77,7 @@ module RailsSemanticLogger
           logger = SemanticLogger[Rails]
           logger.warn(
             "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " \
-              "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
+            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
             e
           )
           logger
@@ -108,17 +108,36 @@ module RailsSemanticLogger
       Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 
       # Replace the Sidekiq logger
-      if defined?(Sidekiq)
-        if Sidekiq.respond_to?(:logger=)
-          Sidekiq.logger = SemanticLogger[Sidekiq]
-        elsif Sidekiq::VERSION[0..1] == '7.'
-          method = Sidekiq.server? ? :configure_server : :configure_client
-          Sidekiq.public_send(method) { |cfg| cfg.logger = SemanticLogger[Sidekiq] }
+      if defined?(::Sidekiq)
+        ::Sidekiq.configure_client do |config|
+          config.logger = ::SemanticLogger[::Sidekiq]
+        end
+
+        ::Sidekiq.configure_server do |config|
+          config.logger = ::SemanticLogger[::Sidekiq]
+          if config.respond_to?(:options)
+            config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          else
+            config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          end
+
+          # Add back the default console logger unless already added
+          SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
+
+          # Replace default error handler when present
+          existing = RailsSemanticLogger::Sidekiq::Defaults.delete_default_error_handler(config.error_handlers)
+          config.error_handlers << RailsSemanticLogger::Sidekiq::Defaults::ERROR_HANDLER if existing
+        end
+
+        if defined?(::Sidekiq::Job) && (::Sidekiq::VERSION.to_i != 5)
+          ::Sidekiq::Job.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
+        else
+          ::Sidekiq::Worker.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
         end
       end
 
       # Replace the Sidetiq logger
-      Sidetiq.logger       = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
+      Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
 
       # Replace the DelayedJob logger
       if defined?(Delayed::Worker)
@@ -127,7 +146,7 @@ module RailsSemanticLogger
       end
 
       # Replace the Bugsnag logger
-      Bugsnag.configure { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+      Bugsnag.configure(false) { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Set the IOStreams PGP logger
       IOStreams::Pgp.logger = SemanticLogger["IOStreams::Pgp"] if defined?(IOStreams)
@@ -138,12 +157,14 @@ module RailsSemanticLogger
       config = Rails.application.config
 
       # Replace the Bugsnag logger
-      Bugsnag.configure { |bugsnag_config| bugsnag_config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
+      Bugsnag.configure(false) { |bugsnag_config| bugsnag_config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Rails Patches
       require("rails_semantic_logger/extensions/action_cable/tagged_logger_proxy") if defined?(::ActionCable)
       require("rails_semantic_logger/extensions/action_controller/live") if defined?(::ActionController::Live)
-      require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions") if defined?(::ActionDispatch::DebugExceptions)
+      if defined?(::ActionDispatch::DebugExceptions)
+        require("rails_semantic_logger/extensions/action_dispatch/debug_exceptions")
+      end
       if defined?(::ActionView::StreamingTemplateRenderer::Body)
         require("rails_semantic_logger/extensions/action_view/streaming_template_renderer")
       end
@@ -152,7 +173,7 @@ module RailsSemanticLogger
 
       if config.rails_semantic_logger.semantic
         # Active Job
-        if defined?(::ActiveJob) && defined?(::ActiveJob::Logging::LogSubscriber)
+        if defined?(::ActiveJob::Logging::LogSubscriber)
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::Logging::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,
@@ -160,7 +181,7 @@ module RailsSemanticLogger
           )
         end
 
-        if defined?(::ActiveJob) && defined?(::ActiveJob::LogSubscriber)
+        if defined?(::ActiveJob::LogSubscriber)
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,
@@ -222,6 +243,8 @@ module RailsSemanticLogger
             :action_mailer
           )
         end
+
+        require("rails_semantic_logger/extensions/sidekiq/sidekiq") if defined?(::Sidekiq)
       end
 
       #
@@ -237,7 +260,7 @@ module RailsSemanticLogger
       end
 
       # Re-open appenders after Resque has forked a worker
-      Resque.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Resque)
+      Resque.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Resque.after_fork)
 
       # Re-open appenders after Spring has forked a process
       Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)

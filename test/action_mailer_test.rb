@@ -2,8 +2,8 @@ require_relative "test_helper"
 
 class ActionMailerTest < Minitest::Test
   class MyMailer < ActionMailer::Base
-    def some_email(to:, from:, subject:)
-      mail(to: to, from: from, subject: subject, body: "Hello")
+    def some_email(opts)
+      mail(to: opts[:to], from: opts[:from], subject: opts[:subject], body: "Hello")
     end
   end
 
@@ -14,39 +14,39 @@ class ActionMailerTest < Minitest::Test
       end
 
       it "sends the email" do
-        MyMailer.some_email(to: 'test@test.com', from: 'test@test.com', subject: 'test').deliver_now
+        MyMailer.some_email(to: "test@test.com", from: "test@test.com", subject: "test").deliver_now
       end
 
       it "writes log messages" do
         messages = semantic_logger_events do
-          MyMailer.some_email(to: 'test@test.com', from: 'test@test.com', subject: 'test').deliver_now
+          MyMailer.some_email(to: "test@test.com", from: "test@test.com", subject: "test").deliver_now
         end
         assert_equal 2, messages.count, messages
 
         assert_semantic_logger_event(
           messages[0],
-          level: :info,
-          name: "ActionMailer::Base",
+          level:            :info,
+          name:             "ActionMailer::Base",
           message_includes: "ActionMailerTest::MyMailer#some_email: processed outbound mail",
           payload_includes: {
             event_name: "process.action_mailer",
-            mailer: "ActionMailerTest::MyMailer",
-            action: :some_email,
+            mailer:     "ActionMailerTest::MyMailer",
+            action:     :some_email
           }
         )
 
         assert_semantic_logger_event(
           messages[1],
-          level: :info,
-          name: "ActionMailer::Base",
+          level:            :info,
+          name:             "ActionMailer::Base",
           message_includes: Rails::VERSION::MAJOR >= 6 ? "Delivered mail" : "Skipped delivery",
           payload_includes: {
-            event_name: "deliver.action_mailer",
-            mailer: "ActionMailerTest::MyMailer",
+            event_name:         "deliver.action_mailer",
+            mailer:             "ActionMailerTest::MyMailer",
             perform_deliveries: Rails::VERSION::MAJOR >= 6 ? true : nil,
-            subject: "test",
-            to: ["test@test.com"],
-            from: ["test@test.com"],
+            subject:            "test",
+            to:                 ["test@test.com"],
+            from:               ["test@test.com"]
           }
         )
       end
@@ -65,15 +65,15 @@ class ActionMailerTest < Minitest::Test
 
       let(:payload) do
         {
-          mailer: 'MyMailer',
-          action: :some_email,
+          mailer: "MyMailer",
+          action: :some_email
         }
       end
 
       let(:event_name) { "deliver.action_mailer" }
 
       let(:mailer) do
-        MyMailer.some_email(to: 'test@test.com', from: 'test@test.com', subject: 'test')
+        MyMailer.some_email(to: "test@test.com", from: "test@test.com", subject: "test")
       end
 
       %i[deliver process].each do |method|

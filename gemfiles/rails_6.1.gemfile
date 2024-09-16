@@ -10,13 +10,9 @@ gem "minitest"
 gem "minitest-rails"
 gem "rake"
 gem "sprockets", "< 4.0"
-gem "semantic_logger", github: "reidmorrison/semantic_logger"
 gem "rails", "~> 6.1.0"
-gem "sqlite3", "~> 1.4.0", platform: :ruby
-gem "activerecord-jdbcsqlite3-adapter", "~> 61.0", platform: :jruby
-
-group :development do
-  gem "rubocop"
-end
+gem "sidekiq", "~> 5.2"
+gem "sqlite3", "~> 1.4"
+gem "rubocop"
 
 gemspec path: "../"

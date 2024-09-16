@@ -1,9 +1,10 @@
 AllCops:
-  TargetRubyVersion: 2.4
   Exclude:
-    - '.git/**/*'
-    - '.github/**/*'
-    - 'gemfiles/**/*'
+    - ".git/**/*"
+    - "docs/**/*"
+    - "gemfiles/*"
+  NewCops: enable
+  TargetRubyVersion: 2.5
 
 #
 # RuboCop built-in settings.
@@ -31,7 +32,7 @@ Layout/HashAlignment:
 Layout/LineLength:
   Max: 128
   Exclude:
-    - '**/test/**/*'
+    - "**/test/**/*"
 
 # Match existing layout
 Layout/SpaceInsideHashLiteralBraces:
@@ -44,17 +45,17 @@ Metrics/AbcSize:
 # Support long block lengths for tests
 Metrics/BlockLength:
   Exclude:
-    - 'test/**/*'
-    - '**/*/cli.rb'
-  ExcludedMethods:
-    - 'aasm'
-    - 'included'
+    - "test/**/*"
+    - "**/*/cli.rb"
+  AllowedMethods:
+    - "aasm"
+    - "included"
 
 # Soften limits
 Metrics/ClassLength:
   Max: 250
   Exclude:
-    - 'test/**/*'
+    - "test/**/*"
 
 # TODO: Soften Limits for phase 1 only
 Metrics/CyclomaticComplexity:
@@ -77,7 +78,7 @@ Metrics/PerceivedComplexity:
 
 # Initialization Vector abbreviation
 Naming/MethodParameterName:
-  AllowedNames: ['iv', '_', 'io', 'ap']
+  AllowedNames: [ "iv", "_", "io", "ap", "id", "_id" ]
 
 # Does not allow Symbols to load
 Security/YAMLLoad:
@@ -85,7 +86,7 @@ Security/YAMLLoad:
 
 # Needed for testing DateTime
 Style/DateTime:
-  Exclude: ['test/**/*']
+  Exclude: [ "test/**/*" ]
 
 # TODO: Soften Limits for phase 1 only
 Style/Documentation:

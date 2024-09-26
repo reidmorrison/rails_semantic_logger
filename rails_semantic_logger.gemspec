@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
   s.license               = "Apache-2.0"
   s.required_ruby_version = ">= 2.5"
   s.add_dependency "rack"
-  s.add_dependency "railties", ">= 5.1"
+  s.add_dependency "railties", ">= 6.0"
   s.add_dependency "semantic_logger", "~> 4.16"
   s.metadata = {
     "bug_tracker_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/issues",

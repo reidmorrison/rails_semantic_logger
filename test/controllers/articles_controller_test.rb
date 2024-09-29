@@ -83,6 +83,45 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           }
         )
       end
+
+      it "customize action message" do
+        old_action_message_format = RailsSemanticLogger::ActionController::LogSubscriber.action_message_format
+        RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = -> (message, payload) do
+          "#{message} #{payload[:controller]}##{payload[:action]}"
+        end
+
+        messages = semantic_logger_events do
+          post articles_url(params: params)
+        end
+        assert_equal 5, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          message: "Started"
+        )
+
+        assert_semantic_logger_event(
+          messages[1],
+          message: "Processing ArticlesController#create"
+        )
+
+        assert_semantic_logger_event(
+          messages[2],
+          message: "Rendering"
+        )
+
+        assert_semantic_logger_event(
+          messages[3],
+          message: "Rendered"
+        )
+
+        assert_semantic_logger_event(
+          messages[4],
+          message: "Completed ArticlesController#create",
+        )
+      ensure
+        RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = old_action_message_format
+      end
     end
 
     describe "#show" do

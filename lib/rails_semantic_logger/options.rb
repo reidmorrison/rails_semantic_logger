@@ -100,23 +100,32 @@ module RailsSemanticLogger
   # * named_tags: *DEPRECATED*
   #   Instead, supply a Hash to config.log_tags
   #   config.rails_semantic_logger.named_tags = nil
+  #
+  # * Change the message format of Action Controller action.
+  #   A block that will be called to format the message.
+  #   It is supplied with the `message` and `payload` and should return the formatted data.
+  #
+  #     config.rails_semantic_logger.action_message_format = -> (message, payload) do
+  #       "#{message} - #{payload[:controller]}##{payload[:action]}"
+  #     end
   class Options
     attr_accessor :semantic, :started, :processing, :rendered, :ap_options, :add_file_appender,
-                  :quiet_assets, :format, :named_tags, :filter, :console_logger
+                  :quiet_assets, :format, :named_tags, :filter, :console_logger, :action_message_format
 
     # Setup default values
     def initialize
-      @semantic          = true
-      @started           = false
-      @processing        = false
-      @rendered          = false
-      @ap_options        = {multiline: false}
-      @add_file_appender = true
-      @quiet_assets      = false
-      @format            = :default
-      @named_tags        = nil
-      @filter            = nil
-      @console_logger    = true
+      @semantic              = true
+      @started               = false
+      @processing            = false
+      @rendered              = false
+      @ap_options            = {multiline: false}
+      @add_file_appender     = true
+      @quiet_assets          = false
+      @format                = :default
+      @named_tags            = nil
+      @filter                = nil
+      @console_logger        = true
+      @action_message_format = nil
     end
   end
 end

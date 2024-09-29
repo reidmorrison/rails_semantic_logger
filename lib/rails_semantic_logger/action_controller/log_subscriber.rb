@@ -3,9 +3,13 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       INTERNAL_PARAMS = %w[controller action format _method only_path].freeze
 
+      class << self
+        attr_accessor :action_message_format
+      end
+
       # Log as debug to hide Processing messages in production
       def start_processing(event)
-        controller_logger(event).debug { "Processing ##{event.payload[:action]}" }
+        controller_logger(event).debug { action_message("Processing", event.payload) }
       end
 
       def process_action(event)
@@ -59,7 +63,7 @@ module RailsSemanticLogger
           payload.delete(:response)
 
           {
-            message:  "Completed ##{payload[:action]}",
+            message:  action_message("Completed", event.payload),
             duration: event.duration,
             payload:  payload
           }
@@ -121,6 +125,14 @@ module RailsSemanticLogger
       def extract_path(path)
         index = path.index("?")
         index ? path[0, index] : path
+      end
+
+      def action_message(message, payload)
+        if self.class.action_message_format
+          self.class.action_message_format.call(message, payload)
+        else
+          "#{message} ##{payload[:action]}"
+        end
       end
     end
   end

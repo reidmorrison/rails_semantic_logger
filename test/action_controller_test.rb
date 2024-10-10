@@ -12,7 +12,8 @@ class ActionControllerTest < Minitest::Test
           Time.zone.now,
           SecureRandom.uuid,
           {
-            payload: "{}"
+            action: "index",
+            path:   "/path"
           }
         )
 
@@ -21,6 +22,19 @@ class ActionControllerTest < Minitest::Test
         end
 
         assert_equal 1, messages.count, messages
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :info,
+          name:    "Rails",
+          message: "Completed #index",
+          payload: {
+            action:      "index",
+            path:        "/path",
+            allocations: 0
+          },
+          metric:  "rails.controller.action"
+        )
+        assert messages[0].duration.is_a?(Float)
       end
     end
   end

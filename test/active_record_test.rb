@@ -87,6 +87,34 @@ class ActiveRecordTest < Minitest::Test
         assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
       end
 
+      it "filtered bind value" do
+        filter_params_setting true, %i[name] do
+          expected_sql =
+            if Rails.version.to_f >= 5.2
+              "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+            else
+              "SELECT  \"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+            end
+
+          messages = semantic_logger_events do
+            Sample.where(name: "Jack").first
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :debug,
+            name:             "ActiveRecord",
+            message:          "Sample Load",
+            payload_includes: {
+              sql:   expected_sql,
+              binds: {name: "[FILTERED]", limit: 1}
+            }
+          )
+          assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+        end
+      end
+
       it "multiple bind values" do
         skip "Not applicable to older rails" if Rails.version.to_f <= 5.1
 

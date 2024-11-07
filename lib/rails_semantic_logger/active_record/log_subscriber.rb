@@ -54,8 +54,13 @@ module RailsSemanticLogger
 
       # When multiple values are received for a single bound field, it is converted into an array
       def add_bind_value(binds, key, value)
-        key        = key.downcase.to_sym unless key.nil?
-        value      = (Array(binds[key]) << value) if binds.key?(key)
+        key = key.downcase.to_sym unless key.nil?
+        if Rails.configuration.filter_parameters.include? key
+          value = "[FILTERED]"
+        elsif binds.key?(key)
+          value = (Array(binds[key]) << value)
+        end
+
         binds[key] = value
       end
 

@@ -23,3 +23,10 @@ Rails.backtrace_cleaner.remove_silencers!
 Minitest::Test.include SemanticLogger::Test::Minitest
 
 ActionMailer::Base.delivery_method = :test
+
+def filter_params_setting(value, user_defined_params, &block)
+  Rails.configuration.filter_parameters += user_defined_params
+  block.call
+ensure
+  Rails.configuration.filter_parameters -= user_defined_params
+end

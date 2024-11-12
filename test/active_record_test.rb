@@ -131,6 +131,30 @@ class ActiveRecordTest < Minitest::Test
           }
         )
       end
+
+      it "marks async queries with async: true" do
+        skip "Not applicable to older rails" if Rails.version.to_f < 7.1
+
+        expected_sql = 'SELECT COUNT(*) FROM "samples"'
+
+        messages = semantic_logger_events do
+          Sample.count
+          Sample.async_count.value
+        end
+        assert_equal 2, messages.count, messages
+
+        messages.each do |message|
+          assert_semantic_logger_event(
+            message,
+            level:            :debug,
+            name:             "ActiveRecord",
+            message:          "Sample Count",
+            payload_includes: {sql: expected_sql}
+          )
+        end
+        refute messages[0].payload.key?(:async)
+        assert_equal true, messages[1].payload[:async]
+      end
     end
   end
 end

@@ -33,6 +33,7 @@ module RailsSemanticLogger
         log_payload[:binds] = bind_values(payload) unless (payload[:binds] || []).empty?
         log_payload[:allocations] = event.allocations if event.respond_to?(:allocations)
         log_payload[:cached] = event.payload[:cached]
+        log_payload[:async] = true if event.payload[:async]
 
         log = {
           message:  name,

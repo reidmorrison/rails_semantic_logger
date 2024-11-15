@@ -36,10 +36,11 @@ module RailsSemanticLogger
 
       def call_app(request, env)
         instrumenter        = ActiveSupport::Notifications.instrumenter
-        instrumenter_state  = instrumenter.start "request.action_dispatch", request: request
+        handle              = instrumenter.build_handle "request.action_dispatch", request: request
         instrumenter_finish = lambda {
-          instrumenter.finish_with_state(instrumenter_state, "request.action_dispatch", request: request)
+          handle.finish
         }
+        handle.start
 
         logger.send(self.class.started_request_log_level) { started_request_message(request) }
         status, headers, body = @app.call(env)

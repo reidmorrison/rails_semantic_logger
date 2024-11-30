@@ -266,6 +266,9 @@ module RailsSemanticLogger
       # Re-open appenders after Spring has forked a process
       Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)
 
+      # Re-open appenders after SolidQueue has forked a worker
+      SolidQueue.on_worker_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_worker_start)
+
       console do |_app|
         # Don't use a background thread for logging
         SemanticLogger.sync!

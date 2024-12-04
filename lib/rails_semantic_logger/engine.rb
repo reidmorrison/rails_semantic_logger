@@ -104,6 +104,13 @@ module RailsSemanticLogger
       Moped.logger         = SemanticLogger[Moped] if defined?(Moped)
       Mongo::Logger.logger = SemanticLogger[Mongo] if defined?(Mongo::Logger)
 
+      # Replace default Stdout Open Telemetry logger, can be overridden during configuration
+      if defined?(::OpenTelemetry)
+        formatter                 = Rails.application.config.colorize_logging ? :color : :default
+        OpenTelemetry.logger      = SemanticLogger::Appender.factory(io: $stdout, formatter: formatter)
+        OpenTelemetry.logger.name = "OpenTelemetry"
+      end
+
       # Replace the Resque Logger
       Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 

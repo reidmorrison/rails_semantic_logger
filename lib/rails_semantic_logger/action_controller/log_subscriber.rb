@@ -3,9 +3,24 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       INTERNAL_PARAMS = %w[controller action format _method only_path].freeze
 
+      class_attribute :start_processing_log_level, default: :debug
+      class_attribute :start_processing_entire_payload, default: false
+
       # Log as debug to hide Processing messages in production
       def start_processing(event)
-        controller_logger(event).debug { "Processing ##{event.payload[:action]}" }
+        payload =
+          if start_processing_entire_payload
+            build_payload(event)
+          else
+            {path: event.payload[:path], action: event.payload[:action]}
+          end
+
+        controller_logger(event).send(
+          start_processing_log_level || :debug,
+          message: "Processing ##{event.payload[:action]}",
+          payload: payload,
+          metric:  "rails.controller.start"
+        )
       end
 
       def process_action(event)
@@ -25,7 +40,10 @@ module RailsSemanticLogger
       end
 
       def halted_callback(event)
-        controller_logger(event).info { "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected" }
+        controller_logger(event).info(
+          "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected",
+          metric: "rails.controller.halted"
+        )
       end
 
       def send_file(event)

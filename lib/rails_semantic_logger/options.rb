@@ -22,11 +22,11 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.rendered = false
   #
-  # * Override the Awesome Print options for logging Hash data as text:
+  # * Override the Amazing Print options for logging Hash data as text:
   #
-  #     Any valid AwesomePrint option for rendering data.
+  #     Any valid AmazingPrint option for rendering data.
   #     The defaults can changed be creating a `~/.aprc` file.
-  #     See: https://github.com/michaeldv/awesome_print
+  #     See: https://github.com/amazing-print/amazing_print
   #
   #     Note: The option :multiline is set to false if not supplied.
   #     Note: Has no effect if Awesome Print is not installed.

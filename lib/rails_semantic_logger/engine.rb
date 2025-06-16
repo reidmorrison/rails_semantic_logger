@@ -267,6 +267,7 @@ module RailsSemanticLogger
       Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)
 
       # Re-open appenders after SolidQueue worker/dispatcher/scheduler has finished booting
+      SolidQueue.on_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_start)
       SolidQueue.on_worker_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_worker_start)
       SolidQueue.on_dispatcher_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_dispatcher_start)
       SolidQueue.on_scheduler_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_scheduler_start)

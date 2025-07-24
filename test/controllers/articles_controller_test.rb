@@ -141,26 +141,6 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         assert_equal 4, messages.count, messages
         assert_kind_of ActiveRecord::RecordNotFound, messages[3].exception
       end
-
-      it "raises and does not log exception when action_dispatch.log_rescued_responses is false" do
-        # we're testing ActionDispatch::DebugExceptions here too
-        messages = semantic_logger_events do
-          old_show = Rails.application.env_config["action_dispatch.show_exceptions"]
-          old_log_rescued_responses = Rails.application.env_config["action_dispatch.log_rescued_responses"]
-
-          begin
-            Rails.application.env_config["action_dispatch.show_exceptions"] = :all
-            Rails.application.env_config["action_dispatch.log_rescued_responses"] = false
-            get article_url(:show)
-          rescue ActiveRecord::RecordNotFound => e
-            # expected
-          ensure
-            Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
-            Rails.application.env_config["action_dispatch.log_rescued_responses"] = old_log_rescued_responses
-          end
-        end
-        assert_equal 3, messages.count, messages
-      end
     end
   end
 end

@@ -11,6 +11,7 @@ module Dummy
     # Configure sensitive parameters which will be filtered from the log file.
     config.filter_parameters += [:password]
     config.active_record.sqlite3.represent_boolean_as_integer = true if config.active_record.sqlite3
+    config.active_record.async_query_executor = :global_thread_pool
 
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers

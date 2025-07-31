@@ -187,11 +187,19 @@ class ActiveRecordTest < Minitest::Test
           }
         )
       end
+    end
+
+    describe "async queries" do
+      before do
+        skip "Not applicable to older rails" if Rails.version.to_f < 7.1
+        ActiveRecord::Base.asynchronous_queries_tracker.start_session
+      end
+
+      after do
+        ActiveRecord::Base.asynchronous_queries_tracker.finalize_session
+      end
 
       it "marks async queries with async: true" do
-        skip "Not applicable to older rails" if Rails.version.to_f < 7.1
-        skip "TODO: Fails on Rails 8 because of a missing session." if Rails.version.to_i >= 8
-
         expected_sql = 'SELECT COUNT(*) FROM "samples"'
 
         messages = semantic_logger_events do
@@ -209,6 +217,10 @@ class ActiveRecordTest < Minitest::Test
             payload_includes: {sql: expected_sql}
           )
         end
+
+        # On Rails prior to 8.0.2, these assertions will mostly pass, but not always.
+        # https://github.com/rails/rails/pull/54344
+        skip "Older Rails has flakey async instrumentation" if Rails.version < Gem::Version.new("8.0.2")
         refute messages[0].payload.key?(:async)
         assert_equal true, messages[1].payload[:async]
       end

@@ -204,7 +204,7 @@ module RailsSemanticLogger
         RailsSemanticLogger::Rack::Logger.started_request_log_level = :info if config.rails_semantic_logger.started
 
         # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
-        if config.rails_semantic_logger.quiet_assets && config.assets.prefix
+        if config.rails_semantic_logger.quiet_assets && config.respond_to?(:assets) && config.assets.prefix
           assets_root                                     = config.relative_url_root.to_s + config.assets.prefix
           assets_regex                                    = %r(\A/{0,2}#{assets_root})
           RailsSemanticLogger::Rack::Logger.logger.filter = ->(log) { log.payload[:path] !~ assets_regex if log.payload }

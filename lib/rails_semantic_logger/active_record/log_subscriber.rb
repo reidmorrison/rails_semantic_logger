@@ -8,11 +8,15 @@ module RailsSemanticLogger
       end
 
       def self.runtime=(value)
-        ::ActiveRecord::RuntimeRegistry.sql_runtime = value
+        ::ActiveRecord::RuntimeRegistry.respond_to?(:stats) ?
+          ::ActiveRecord::RuntimeRegistry.stats.sql_runtime = value :
+          ::ActiveRecord::RuntimeRegistry.sql_runtime = value
       end
 
       def self.runtime
-        ::ActiveRecord::RuntimeRegistry.sql_runtime ||= 0
+        ::ActiveRecord::RuntimeRegistry.respond_to?(:stats) ?
+          ::ActiveRecord::RuntimeRegistry.stats.sql_runtime ||= 0 :
+          ::ActiveRecord::RuntimeRegistry.sql_runtime ||= 0
       end
 
       def self.reset_runtime

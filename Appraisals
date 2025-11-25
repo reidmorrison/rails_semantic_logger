@@ -43,3 +43,8 @@ appraise "rails_8.0" do
   gem "rails", "~> 8.0.0"
   gem "sidekiq", "~> 7.2.4"
 end
+
+appraise "rails_8.1" do
+  gem "rails", "~> 8.1.1"
+  gem "sidekiq", "~> 7.2.4"
+end

@@ -225,5 +225,13 @@ class ActiveRecordTest < Minitest::Test
         assert_equal true, messages[1].payload[:async]
       end
     end
+
+    describe "runtime" do
+      it "reads and writes the runtime" do
+        RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = 5.0
+
+        assert RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, 5.0
+      end
+    end
   end
 end

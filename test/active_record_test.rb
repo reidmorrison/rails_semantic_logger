@@ -226,11 +226,23 @@ class ActiveRecordTest < Minitest::Test
       end
     end
 
-    describe "runtime" do
-      it "reads and writes the runtime" do
+    # we could feasibly pull this back to rails 7.1.  This update is related to rails 8.1
+    # https://github.com/reidmorrison/rails_semantic_logger/pull/276#issuecomment-3533151110
+    describe "runtime=" do
+      gem_version = RailsSemanticLogger::ActiveRecord::LogSubscriber::RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT
+      it "older versions of rails than #{gem_version} allow reads and writes to the runtime" do
+        skip "We only set runtime on rails versions older than #{gem_version}" if Rails.version >= gem_version
         RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = 5.0
 
-        assert RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, 5.0
+        assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, 5.0
+      end
+
+      it "starting with rails #{gem_version} and later we do not write to the runtime" do
+        skip "We skip setting runtime on rails versions equal or newer than #{gem_version}" if Rails.version < gem_version
+
+        initial_value = RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime
+        RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = initial_value + 5000.0
+        assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, initial_value
       end
     end
   end

@@ -2,7 +2,7 @@ module RailsSemanticLogger
   module ActiveRecord
     class LogSubscriber < ActiveSupport::LogSubscriber
       IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
-      RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT = Gem::Version.new( "8.1")
+      RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT = Gem::Version.new( "8.0.3")
 
       class << self
         attr_reader :logger

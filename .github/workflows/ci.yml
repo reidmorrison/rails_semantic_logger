@@ -33,6 +33,9 @@ jobs:
           - rails: "8.0"
             ruby: "3.4"
 
+          - rails: "8.1"
+            ruby: "3.4"
+
     env:
       BUNDLE_GEMFILE: gemfiles/rails_${{ matrix.rails }}.gemfile
       DISPLAY: ":99.0"

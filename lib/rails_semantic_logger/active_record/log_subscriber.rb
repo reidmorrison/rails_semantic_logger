@@ -2,17 +2,24 @@ module RailsSemanticLogger
   module ActiveRecord
     class LogSubscriber < ActiveSupport::LogSubscriber
       IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
+      RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT = Gem::Version.new( "8.0.3")
 
       class << self
         attr_reader :logger
       end
 
       def self.runtime=(value)
-        ::ActiveRecord::RuntimeRegistry.sql_runtime = value
+        return if Rails.version >= RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT
+
+        ::ActiveRecord::RuntimeRegistry.respond_to?(:stats) ?
+          ::ActiveRecord::RuntimeRegistry.stats.sql_runtime = value :
+          ::ActiveRecord::RuntimeRegistry.sql_runtime = value
       end
 
       def self.runtime
-        ::ActiveRecord::RuntimeRegistry.sql_runtime ||= 0
+        ::ActiveRecord::RuntimeRegistry.respond_to?(:stats) ?
+          ::ActiveRecord::RuntimeRegistry.stats.sql_runtime ||= 0 :
+          ::ActiveRecord::RuntimeRegistry.sql_runtime ||= 0
       end
 
       def self.reset_runtime

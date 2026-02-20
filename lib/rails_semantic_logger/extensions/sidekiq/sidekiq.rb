@@ -44,18 +44,27 @@ module Sidekiq
           # rubocop:disable Style/ExplicitBlockArgument
           def call(worker, item, queue)
             SemanticLogger.tagged(queue: queue) do
-              worker.logger.info(
-                "Start #perform",
-                metric:        "sidekiq.queue.latency",
-                metric_amount: job_latency_ms(item)
-              )
-              worker.logger.measure_info(
-                "Completed #perform",
-                on_exception_level: :error,
-                log_exception:      :full,
-                metric:             "sidekiq.job.perform"
-              ) { yield }
+              if perform_messages_enabled?
+                worker.logger.info(
+                  "Start #perform",
+                  metric:        "sidekiq.queue.latency",
+                  metric_amount: job_latency_ms(item)
+                )
+
+                worker.logger.measure_info(
+                  "Completed #perform",
+                  on_exception_level: :error,
+                  log_exception:      :full,
+                  metric:             "sidekiq.job.perform"
+                ) { yield }
+              else
+                yield
+              end
             end
+          end
+
+          def perform_messages_enabled?
+            RailsSemanticLogger::Sidekiq::JobLogger.perform_messages != false
           end
 
           def job_latency_ms(job)

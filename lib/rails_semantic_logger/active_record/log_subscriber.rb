@@ -7,29 +7,25 @@ module RailsSemanticLogger
         attr_reader :logger
       end
 
-      def self.runtime=(value)
-        # Rails no longer supports set runtime support as of v8.0.3
-        return if Rails::VERSION::MAJOR >= 8
-
-        ::ActiveRecord::RuntimeRegistry.respond_to?(:stats) ?
-          ::ActiveRecord::RuntimeRegistry.stats.sql_runtime = value :
+      # Rails 7.2 removed runtime from log subscribers
+      if Rails.version.to_f < 7.2
+        def self.runtime=(value)
           ::ActiveRecord::RuntimeRegistry.sql_runtime = value
-      end
+        end
 
-      def self.runtime
-        ::ActiveRecord::RuntimeRegistry.respond_to?(:stats) ?
-          ::ActiveRecord::RuntimeRegistry.stats.sql_runtime ||= 0 :
-          ::ActiveRecord::RuntimeRegistry.sql_runtime ||= 0
-      end
+        def self.runtime
+          ::ActiveRecord::RuntimeRegistry.sql_runtime
+        end
 
-      def self.reset_runtime
-        rt           = runtime
-        self.runtime = 0
-        rt
+        def self.reset_runtime
+          rt           = runtime
+          self.runtime = 0
+          rt
+        end
       end
 
       def sql(event)
-        self.class.runtime += event.duration
+        self.class.runtime += event.duration if self.class.respond_to?(:runtime)
         return unless logger.debug?
 
         payload = event.payload

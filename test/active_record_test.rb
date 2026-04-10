@@ -220,7 +220,7 @@ class ActiveRecordTest < Minitest::Test
 
         # On Rails prior to 8.0.2, these assertions will mostly pass, but not always.
         # https://github.com/rails/rails/pull/54344
-        skip "Older Rails has flakey async instrumentation" if Rails.version < Gem::Version.new("8.0.2")
+        skip "Older Rails has flakey async instrumentation" if Rails::VERSION::MAJOR < 8
         refute messages[0].payload.key?(:async)
         assert_equal true, messages[1].payload[:async]
       end
@@ -229,16 +229,16 @@ class ActiveRecordTest < Minitest::Test
     # we could feasibly pull this back to rails 7.1.  This update is related to rails 8.1
     # https://github.com/reidmorrison/rails_semantic_logger/pull/276#issuecomment-3533151110
     describe "runtime=" do
-      gem_version = RailsSemanticLogger::ActiveRecord::LogSubscriber::RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT
-      it "older versions of rails than #{gem_version} allow reads and writes to the runtime" do
-        skip "We only set runtime on rails versions older than #{gem_version}" if Rails.version >= gem_version
+      it "older versions of rails than v8 allow reads and writes to the runtime" do
+        skip "We only set runtime on rails versions older than v8" if Rails::VERSION::MAJOR >= 8
+
         RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = 5.0
 
         assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, 5.0
       end
 
-      it "starting with rails #{gem_version} and later we do not write to the runtime" do
-        skip "We skip setting runtime on rails versions equal or newer than #{gem_version}" if Rails.version < gem_version
+      it "starting with rails v8 and later we do not write to the runtime" do
+        skip "We skip setting runtime on rails versions equal or newer than v8" if Rails::VERSION::MAJOR >= 8
 
         initial_value = RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime
         RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = initial_value + 5000.0

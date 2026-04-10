@@ -7,14 +7,14 @@ module RailsSemanticLogger
         attr_reader :logger
       end
 
-      # Rails 7.2 removed runtime from log subscribers
-      if Rails.version.to_f < 7.2
+      # Rails 7.1 stopped using runtime in log subscribers
+      if Rails.version.to_f < 7.1
         def self.runtime=(value)
           ::ActiveRecord::RuntimeRegistry.sql_runtime = value
         end
 
         def self.runtime
-          ::ActiveRecord::RuntimeRegistry.sql_runtime
+          ::ActiveRecord::RuntimeRegistry.sql_runtime ||= 0
         end
 
         def self.reset_runtime

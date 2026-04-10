@@ -231,7 +231,7 @@ class ActiveRecordTest < Minitest::Test
     describe "runtime=" do
       it "allow reads and writes to the runtime" do
         unless RailsSemanticLogger::ActiveRecord::LogSubscriber.respond_to?(:runtime)
-          skip "runtime support ended with Rails v7.2"
+          skip "runtime support ended with Rails v7.1"
         end
 
         RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = 5.0
@@ -241,12 +241,12 @@ class ActiveRecordTest < Minitest::Test
 
       it "write to the runtime" do
         unless RailsSemanticLogger::ActiveRecord::LogSubscriber.respond_to?(:runtime)
-          skip "runtime support ended with Rails v7.2"
+          skip "runtime support ended with Rails v7.1"
         end
 
         initial_value = RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime
         RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = initial_value + 5000.0
-        assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, initial_value
+        assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, initial_value + 5000.0
       end
     end
   end

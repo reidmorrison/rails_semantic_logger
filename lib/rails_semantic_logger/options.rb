@@ -108,24 +108,30 @@ module RailsSemanticLogger
   #     config.rails_semantic_logger.action_message_format = -> (message, payload) do
   #       "#{message} - #{payload[:controller]}##{payload[:action]}"
   #     end
+  #
+  # * Do not replace the Sidekiq logger with a Semantic Logger logger.
+  #
+  #     config.rails_semantic_logger.replace_sidekiq_logger = false
   class Options
     attr_accessor :semantic, :started, :processing, :rendered, :ap_options, :add_file_appender,
-                  :quiet_assets, :format, :named_tags, :filter, :console_logger, :action_message_format
+                  :quiet_assets, :format, :named_tags, :filter, :console_logger, :action_message_format,
+                  :replace_sidekiq_logger
 
     # Setup default values
     def initialize
-      @semantic              = true
-      @started               = false
-      @processing            = false
-      @rendered              = false
-      @ap_options            = {multiline: false}
-      @add_file_appender     = true
-      @quiet_assets          = false
-      @format                = :default
-      @named_tags            = nil
-      @filter                = nil
-      @console_logger        = true
-      @action_message_format = nil
+      @semantic               = true
+      @started                = false
+      @processing             = false
+      @rendered               = false
+      @ap_options             = {multiline: false}
+      @add_file_appender      = true
+      @quiet_assets           = false
+      @format                 = :default
+      @named_tags             = nil
+      @filter                 = nil
+      @console_logger         = true
+      @action_message_format  = nil
+      @replace_sidekiq_logger = true
     end
   end
 end

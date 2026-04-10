@@ -122,6 +122,8 @@ module RailsSemanticLogger
 
         def format(arg)
           case arg
+          when String
+            arg.encode("UTF-8", invalid: :replace, undef: :replace)
           when Hash
             arg.transform_values { |value| format(value) }
           when Array

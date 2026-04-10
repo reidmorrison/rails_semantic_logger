@@ -4,10 +4,6 @@ module RailsSemanticLogger
       IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
       RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT = Gem::Version.new( "8.0.3")
 
-      class << self
-        attr_reader :logger
-      end
-
       def self.runtime=(value)
         return if Rails.version >= RAILS_VERSION_ENDING_SET_RUNTIME_SUPPORT
 
@@ -58,8 +54,6 @@ module RailsSemanticLogger
 
       private
 
-      @logger = SemanticLogger["ActiveRecord"]
-
       # When multiple values are received for a single bound field, it is converted into an array
       def add_bind_value(binds, key, value)
         key = key.downcase.to_sym unless key.nil?
@@ -82,7 +76,7 @@ module RailsSemanticLogger
       end
 
       def logger
-        self.class.logger
+        ::ActiveRecord::Base.logger
       end
 
       #

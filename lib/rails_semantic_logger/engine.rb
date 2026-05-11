@@ -115,7 +115,7 @@ module RailsSemanticLogger
 
         ::Sidekiq.configure_server do |config|
           config.logger = ::SemanticLogger[::Sidekiq]
-          if Gem::Version.new(::Sidekiq::VERSION) < Gem::Version.new("6.5.1")
+          if ::Sidekiq::VERSION.to_i < 6 || (::Sidekiq::VERSION.to_i == 6 && ::Sidekiq::VERSION.to_f < 6.5)
             config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
           else
             config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger

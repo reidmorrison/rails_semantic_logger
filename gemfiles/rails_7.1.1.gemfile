@@ -14,5 +14,6 @@ gem "rails", "7.1.1"
 gem "sidekiq", "~> 7.0.9"
 gem "sqlite3", "~> 1.4"
 gem "rubocop"
+gem "solid_queue", "~> 1.4"
 
 gemspec path: "../"

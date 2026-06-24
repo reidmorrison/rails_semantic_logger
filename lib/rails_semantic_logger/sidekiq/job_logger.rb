@@ -70,7 +70,15 @@ module RailsSemanticLogger
       def job_latency_ms(job)
         return unless job && job["enqueued_at"]
 
-        (Time.now.to_f - job["enqueued_at"].to_f) * 1000
+        enqueued_at = job["enqueued_at"]
+        if enqueued_at.is_a?(Float)
+          # Sidekiq <= 7: seconds since epoch
+          (Time.now.to_f - enqueued_at) * 1000
+        else
+          # Sidekiq 8+: milliseconds since epoch
+          now = Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond)
+          now - enqueued_at
+        end
       end
     end
   end

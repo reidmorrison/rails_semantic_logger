@@ -67,7 +67,43 @@ module RailsSemanticLogger
         end
       end
 
+      def enqueue_all(event)
+        jobs           = event.payload[:jobs]
+        adapter        = event.payload[:adapter]
+        enqueued_count = event.payload[:enqueued_count].to_i
+        adapter_name   = ::ActiveJob.adapter_name(adapter)
+        failed_count   = jobs.size - enqueued_count
+
+        message =
+          if failed_count.zero?
+            enqueued_jobs_message(adapter_name, jobs)
+          elsif jobs.any?(&:successfully_enqueued?)
+            "#{enqueued_jobs_message(adapter_name, jobs.select(&:successfully_enqueued?))}. " \
+              "Failed enqueuing #{failed_count} #{'job'.pluralize(failed_count)}"
+          else
+            "Failed enqueuing #{failed_count} #{'job'.pluralize(failed_count)} to #{adapter_name}"
+          end
+
+        logger.info(
+          message: message,
+          payload: {
+            event_name:     event.name,
+            adapter:        adapter_name,
+            enqueued_count: enqueued_count,
+            total_count:    jobs.size,
+            job_classes:    jobs.map { |job| job.class.name }.tally
+          }
+        )
+      end
+
       private
+
+      def enqueued_jobs_message(adapter_name, enqueued_jobs)
+        enqueued_count     = enqueued_jobs.size
+        job_classes_counts = enqueued_jobs.map(&:class).tally.sort_by { |_k, v| -v }
+        "Enqueued #{enqueued_count} #{'job'.pluralize(enqueued_count)} to #{adapter_name} " \
+          "(#{job_classes_counts.map { |klass, count| "#{count} #{klass}" }.join(', ')})"
+      end
 
       class EventFormatter
         def initialize(event:, log_duration: false)

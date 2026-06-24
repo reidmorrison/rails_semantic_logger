@@ -104,7 +104,7 @@ class ActiveRecordTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :debug,
-            name:             "ActiveRecord",
+            name:             "ActiveRecord::Base",
             message:          "Sample Load",
             payload_includes: {
               sql:   expected_sql,
@@ -132,7 +132,7 @@ class ActiveRecordTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :debug,
-            name:             "ActiveRecord",
+            name:             "ActiveRecord::Base",
             message:          "Sample Load",
             payload_includes: {
               sql:   expected_sql,
@@ -212,7 +212,7 @@ class ActiveRecordTest < Minitest::Test
           assert_semantic_logger_event(
             message,
             level:            :debug,
-            name:             "ActiveRecord",
+            name:             "ActiveRecord::Base",
             message:          "Sample Count",
             payload_includes: {sql: expected_sql}
           )

@@ -37,6 +37,10 @@ module RailsSemanticLogger
     autoload :Loggable, "rails_semantic_logger/sidekiq/loggable"
   end
 
+  module SolidQueue
+    autoload :LogSubscriber, "rails_semantic_logger/solid_queue/log_subscriber"
+  end
+
   autoload :Options, "rails_semantic_logger/options"
 
   # Swap an existing subscriber with a new one

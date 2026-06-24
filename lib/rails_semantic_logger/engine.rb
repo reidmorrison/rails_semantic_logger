@@ -136,6 +136,11 @@ module RailsSemanticLogger
         end
       end
 
+      # Replace the SolidQueue logger
+      if config.rails_semantic_logger.replace_solid_queue_logger && defined?(::SolidQueue) && ::SolidQueue.respond_to?(:logger=)
+        ::SolidQueue.logger = SemanticLogger[::SolidQueue]
+      end
+
       # Replace the Sidetiq logger
       Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
 
@@ -247,6 +252,15 @@ module RailsSemanticLogger
 
         if config.rails_semantic_logger.replace_sidekiq_logger && defined?(::Sidekiq)
           require("rails_semantic_logger/extensions/sidekiq/sidekiq")
+        end
+
+        # SolidQueue
+        if config.rails_semantic_logger.replace_solid_queue_logger && defined?(::SolidQueue::LogSubscriber)
+          RailsSemanticLogger.swap_subscriber(
+            ::SolidQueue::LogSubscriber,
+            RailsSemanticLogger::SolidQueue::LogSubscriber,
+            :solid_queue
+          )
         end
       end
 

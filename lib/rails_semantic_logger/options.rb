@@ -22,14 +22,14 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.rendered = false
   #
-  # * Override the Awesome Print options for logging Hash data as text:
+  # * Override the Amazing Print options for logging Hash data as text:
   #
-  #     Any valid AwesomePrint option for rendering data.
+  #     Any valid Amazing Print option for rendering data.
   #     The defaults can changed be creating a `~/.aprc` file.
-  #     See: https://github.com/michaeldv/awesome_print
+  #     See: https://github.com/amazing-print/amazing_print
   #
   #     Note: The option :multiline is set to false if not supplied.
-  #     Note: Has no effect if Awesome Print is not installed.
+  #     Note: Has no effect if Amazing Print is not installed.
   #
   #        config.rails_semantic_logger.ap_options = {multiline: false}
   #
@@ -100,23 +100,43 @@ module RailsSemanticLogger
   # * named_tags: *DEPRECATED*
   #   Instead, supply a Hash to config.log_tags
   #   config.rails_semantic_logger.named_tags = nil
+  #
+  # * Change the message format of Action Controller action.
+  #   A block that will be called to format the message.
+  #   It is supplied with the `message` and `payload` and should return the formatted data.
+  #
+  #     config.rails_semantic_logger.action_message_format = -> (message, payload) do
+  #       "#{message} - #{payload[:controller]}##{payload[:action]}"
+  #     end
+  #
+  # * Do not replace the Sidekiq logger with a Semantic Logger logger.
+  #
+  #     config.rails_semantic_logger.replace_sidekiq_logger = false
+  #
+  # * Do not replace the SolidQueue logger / log subscriber.
+  #
+  #     config.rails_semantic_logger.replace_solid_queue_logger = false
   class Options
     attr_accessor :semantic, :started, :processing, :rendered, :ap_options, :add_file_appender,
-                  :quiet_assets, :format, :named_tags, :filter, :console_logger
+                  :quiet_assets, :format, :named_tags, :filter, :console_logger, :action_message_format,
+                  :replace_sidekiq_logger, :replace_solid_queue_logger
 
     # Setup default values
     def initialize
-      @semantic          = true
-      @started           = false
-      @processing        = false
-      @rendered          = false
-      @ap_options        = {multiline: false}
-      @add_file_appender = true
-      @quiet_assets      = false
-      @format            = :default
-      @named_tags        = nil
-      @filter            = nil
-      @console_logger    = true
+      @semantic                   = true
+      @started                    = false
+      @processing                 = false
+      @rendered                   = false
+      @ap_options                 = {multiline: false}
+      @add_file_appender          = true
+      @quiet_assets               = false
+      @format                     = :default
+      @named_tags                 = nil
+      @filter                     = nil
+      @console_logger             = true
+      @action_message_format      = nil
+      @replace_sidekiq_logger     = true
+      @replace_solid_queue_logger = true
     end
   end
 end

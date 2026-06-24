@@ -83,6 +83,45 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           }
         )
       end
+
+      it "customize action message" do
+        old_action_message_format = RailsSemanticLogger::ActionController::LogSubscriber.action_message_format
+        RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = -> (message, payload) do
+          "#{message} #{payload[:controller]}##{payload[:action]}"
+        end
+
+        messages = semantic_logger_events do
+          post articles_url(params: params)
+        end
+        assert_equal 5, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          message: "Started"
+        )
+
+        assert_semantic_logger_event(
+          messages[1],
+          message: "Processing ArticlesController#create"
+        )
+
+        assert_semantic_logger_event(
+          messages[2],
+          message: "Rendering"
+        )
+
+        assert_semantic_logger_event(
+          messages[3],
+          message: "Rendered"
+        )
+
+        assert_semantic_logger_event(
+          messages[4],
+          message: "Completed ArticlesController#create",
+        )
+      ensure
+        RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = old_action_message_format
+      end
     end
 
     describe "#show" do
@@ -101,6 +140,27 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
         assert_equal 4, messages.count, messages
         assert_kind_of ActiveRecord::RecordNotFound, messages[3].exception
+      end
+
+      it "raises and does not log exception when action_dispatch.log_rescued_responses is false" do
+        skip "Not applicable to older rails" if Rails.version.to_f < 7.1
+        # we're testing ActionDispatch::DebugExceptions here too
+        messages = semantic_logger_events do
+          old_show = Rails.application.env_config["action_dispatch.show_exceptions"]
+          old_log_rescued_responses = Rails.application.env_config["action_dispatch.log_rescued_responses"]
+
+          begin
+            Rails.application.env_config["action_dispatch.show_exceptions"] = :all
+            Rails.application.env_config["action_dispatch.log_rescued_responses"] = false
+            get article_url(:show)
+          rescue ActiveRecord::RecordNotFound => e
+            # expected
+          ensure
+            Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
+            Rails.application.env_config["action_dispatch.log_rescued_responses"] = old_log_rescued_responses
+          end
+        end
+        assert_equal 3, messages.count, messages
       end
     end
   end

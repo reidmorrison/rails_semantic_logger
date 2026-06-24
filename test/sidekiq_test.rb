@@ -17,7 +17,7 @@ class SidekiqTest < Minitest::Test
 
     describe "#perform" do
       let(:config) { Sidekiq.default_configuration }
-      let(:msg) { Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => 1.minute.ago}) }
+      let(:msg) { Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => (Time.now - 60).to_f}) }
       let(:uow) { Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg) }
       if Sidekiq::VERSION.to_i == 6 && Sidekiq::VERSION.to_f < 6.5
         let(:processor) do
@@ -62,6 +62,40 @@ class SidekiqTest < Minitest::Test
           named_tags: {jid: nil, queue: "default"}
         )
         assert messages[0].metric_amount.is_a?(Float)
+
+        assert_semantic_logger_event(
+          messages[1],
+          level:      :info,
+          name:       "SimpleJob",
+          message:    "Completed #perform",
+          metric:     "sidekiq.job.perform",
+          named_tags: {jid: nil, queue: "default"}
+        )
+        assert messages[1].duration.is_a?(Float)
+      end
+
+      it "a simple job with Sidekiq 8+ timestamp (milliseconds)" do
+        # Sidekiq 8+ stores enqueued_at as milliseconds since epoch (Integer)
+        enqueued_at_ms = (Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) - 60000).to_i
+        msg_sidekiq8 = Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => enqueued_at_ms})
+        uow_sidekiq8 = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg_sidekiq8)
+
+        messages = semantic_logger_events do
+          processor.send(:process, uow_sidekiq8)
+        end
+
+        assert_equal 2, messages.count, -> { messages.collect(&:to_h).ai }
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:      :info,
+          name:       "SimpleJob",
+          message:    "Start #perform",
+          metric:     "sidekiq.queue.latency",
+          named_tags: {jid: nil, queue: "default"}
+        )
+        # Sidekiq 8+ returns Integer latency, whereas earlier versions return Float
+        assert messages[0].metric_amount.is_a?(Numeric)
 
         assert_semantic_logger_event(
           messages[1],

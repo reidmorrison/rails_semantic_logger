@@ -9,7 +9,7 @@ module RailsSemanticLogger
             unless ctx.empty?
               job_hash = ctx[:job] || {}
               klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-              logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
+              logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
               ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
             end
           end
@@ -18,7 +18,7 @@ module RailsSemanticLogger
             unless ctx.empty?
               job_hash = ctx[:job] || {}
               klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-              logger   = klass ? SemanticLogger[klass] : Sidekiq.logger
+              logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
               ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
             end
           end

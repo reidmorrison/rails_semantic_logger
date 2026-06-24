@@ -37,6 +37,10 @@ module RailsSemanticLogger
     autoload :Loggable, "rails_semantic_logger/sidekiq/loggable"
   end
 
+  module SolidQueue
+    autoload :LogSubscriber, "rails_semantic_logger/solid_queue/log_subscriber"
+  end
+
   autoload :Options, "rails_semantic_logger/options"
 
   # Swap an existing subscriber with a new one
@@ -49,7 +53,7 @@ module RailsSemanticLogger
 
   def self.unattach(subscriber)
     subscriber_patterns(subscriber).each do |pattern|
-      ActiveSupport::Notifications.notifier.listeners_for(pattern).each do |sub|
+      listeners_for(ActiveSupport::Notifications.notifier, pattern).each do |sub|
         next unless sub.instance_variable_get(:@delegate) == subscriber
 
         ActiveSupport::Notifications.unsubscribe(sub)
@@ -67,7 +71,15 @@ module RailsSemanticLogger
     end
   end
 
-  private_class_method :subscriber_patterns, :unattach
+  def self.listeners_for(notifier, pattern)
+    if notifier.respond_to?(:all_listeners_for) # Rails >= 7.1
+      notifier.all_listeners_for(pattern)
+    else
+      notifier.listeners_for(pattern)
+    end
+  end
+
+  private_class_method :listeners_for, :subscriber_patterns, :unattach
 end
 
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)

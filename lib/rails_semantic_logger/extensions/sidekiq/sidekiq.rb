@@ -44,24 +44,41 @@ module Sidekiq
           # rubocop:disable Style/ExplicitBlockArgument
           def call(worker, item, queue)
             SemanticLogger.tagged(queue: queue) do
-              worker.logger.info(
-                "Start #perform",
-                metric:        "sidekiq.queue.latency",
-                metric_amount: job_latency_ms(item)
-              )
-              worker.logger.measure_info(
-                "Completed #perform",
-                on_exception_level: :error,
-                log_exception:      :full,
-                metric:             "sidekiq.job.perform"
-              ) { yield }
+              if perform_messages_enabled?
+                worker.logger.info(
+                  "Start #perform",
+                  metric:        "sidekiq.queue.latency",
+                  metric_amount: job_latency_ms(item)
+                )
+
+                worker.logger.measure_info(
+                  "Completed #perform",
+                  on_exception_level: :error,
+                  log_exception:      :full,
+                  metric:             "sidekiq.job.perform"
+                ) { yield }
+              else
+                yield
+              end
             end
+          end
+
+          def perform_messages_enabled?
+            RailsSemanticLogger::Sidekiq::JobLogger.perform_messages != false
           end
 
           def job_latency_ms(job)
             return unless job && job["enqueued_at"]
 
-            (Time.now.to_f - job["enqueued_at"].to_f) * 1000
+            enqueued_at = job["enqueued_at"]
+            if enqueued_at.is_a?(Float)
+              # Sidekiq <= 7: seconds since epoch
+              (Time.now.to_f - enqueued_at) * 1000
+            else
+              # Sidekiq 8+: milliseconds since epoch
+              now = Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond)
+              now - enqueued_at
+            end
           end
         end
       end

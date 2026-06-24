@@ -108,14 +108,14 @@ module RailsSemanticLogger
       Resque.logger        = SemanticLogger[Resque] if defined?(Resque) && Resque.respond_to?(:logger=)
 
       # Replace the Sidekiq logger
-      if defined?(::Sidekiq)
+      if config.rails_semantic_logger.replace_sidekiq_logger && defined?(::Sidekiq)
         ::Sidekiq.configure_client do |config|
           config.logger = ::SemanticLogger[::Sidekiq]
         end
 
         ::Sidekiq.configure_server do |config|
           config.logger = ::SemanticLogger[::Sidekiq]
-          if config.respond_to?(:options)
+          if ::Sidekiq::VERSION.to_i < 6 || (::Sidekiq::VERSION.to_i == 6 && ::Sidekiq::VERSION.to_f < 6.5)
             config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
           else
             config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
@@ -134,6 +134,11 @@ module RailsSemanticLogger
         else
           ::Sidekiq::Worker.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
         end
+      end
+
+      # Replace the SolidQueue logger
+      if config.rails_semantic_logger.replace_solid_queue_logger && defined?(::SolidQueue) && ::SolidQueue.respond_to?(:logger=)
+        ::SolidQueue.logger = SemanticLogger[::SolidQueue]
       end
 
       # Replace the Sidetiq logger
@@ -204,7 +209,7 @@ module RailsSemanticLogger
         RailsSemanticLogger::Rack::Logger.started_request_log_level = :info if config.rails_semantic_logger.started
 
         # Silence asset logging by applying a filter to the Rails logger itself, not any of the appenders.
-        if config.rails_semantic_logger.quiet_assets && config.assets.prefix
+        if config.rails_semantic_logger.quiet_assets && config.respond_to?(:assets) && config.assets.prefix
           assets_root                                     = config.relative_url_root.to_s + config.assets.prefix
           assets_regex                                    = %r(\A/{0,2}#{assets_root})
           RailsSemanticLogger::Rack::Logger.logger.filter = ->(log) { log.payload[:path] !~ assets_regex if log.payload }
@@ -226,6 +231,7 @@ module RailsSemanticLogger
         if defined?(::ActionController)
           require "action_controller/log_subscriber"
 
+          RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = config.rails_semantic_logger.action_message_format
           RailsSemanticLogger.swap_subscriber(
             ::ActionController::LogSubscriber,
             RailsSemanticLogger::ActionController::LogSubscriber,
@@ -244,7 +250,18 @@ module RailsSemanticLogger
           )
         end
 
-        require("rails_semantic_logger/extensions/sidekiq/sidekiq") if defined?(::Sidekiq)
+        if config.rails_semantic_logger.replace_sidekiq_logger && defined?(::Sidekiq)
+          require("rails_semantic_logger/extensions/sidekiq/sidekiq")
+        end
+
+        # SolidQueue
+        if config.rails_semantic_logger.replace_solid_queue_logger && defined?(::SolidQueue::LogSubscriber)
+          RailsSemanticLogger.swap_subscriber(
+            ::SolidQueue::LogSubscriber,
+            RailsSemanticLogger::SolidQueue::LogSubscriber,
+            :solid_queue
+          )
+        end
       end
 
       #
@@ -264,6 +281,12 @@ module RailsSemanticLogger
 
       # Re-open appenders after Spring has forked a process
       Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)
+
+      # Re-open appenders after SolidQueue worker/dispatcher/scheduler has finished booting
+      SolidQueue.on_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_start)
+      SolidQueue.on_worker_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_worker_start)
+      SolidQueue.on_dispatcher_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_dispatcher_start)
+      SolidQueue.on_scheduler_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_scheduler_start)
 
       console do |_app|
         # Don't use a background thread for logging

@@ -259,6 +259,87 @@ class ActiveJobTest < Minitest::Test
         end
       end
 
+      describe "#enqueue_all" do
+        before do
+          skip "enqueue_all requires Rails 7.1+" unless Rails.version.to_f >= 7.1
+        end
+
+        let(:event_name) { "enqueue_all.active_job" }
+
+        let(:adapter) { ActiveJob::QueueAdapters::InlineAdapter.new }
+
+        let(:jobs) { [MyJob.new("a"), MyJob.new("b")] }
+
+        let(:enqueued_count) { jobs.size }
+
+        let(:payload) do
+          {
+            adapter:        adapter,
+            jobs:           jobs,
+            enqueued_count: enqueued_count
+          }
+        end
+
+        it "logs an info message with the enqueued count" do
+          messages = semantic_logger_events do
+            subscriber.enqueue_all(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :info,
+            name:             "Rails",
+            message_includes: "Enqueued 2 jobs to Inline",
+            payload_includes: {
+              adapter:        "Inline",
+              enqueued_count: 2,
+              total_count:    2,
+              event_name:     "enqueue_all.active_job"
+            }
+          )
+          assert_equal({"ActiveJobTest::MyJob" => 2}, messages[0].payload[:job_classes])
+        end
+
+        describe "with partial failure" do
+          let(:enqueued_count) { 1 }
+
+          before do
+            jobs[0].successfully_enqueued = true
+            jobs[1].successfully_enqueued = false
+          end
+
+          it "logs an info message including the failed count" do
+            messages = semantic_logger_events do
+              subscriber.enqueue_all(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Failed enqueuing 1 job/, messages[0].message)
+            assert_equal 1, messages[0].payload[:enqueued_count]
+            assert_equal 2, messages[0].payload[:total_count]
+          end
+        end
+
+        describe "with total failure" do
+          let(:enqueued_count) { 0 }
+
+          before do
+            jobs.each { |job| job.successfully_enqueued = false }
+          end
+
+          it "logs an info message reporting all jobs failed" do
+            messages = semantic_logger_events do
+              subscriber.enqueue_all(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/\AFailed enqueuing 2 jobs to Inline/, messages[0].message)
+            assert_equal 0, messages[0].payload[:enqueued_count]
+          end
+        end
+      end
+
       describe "ActiveJob::Logging::LogSubscriber::EventFormatter" do
         let(:formatter) do
           RailsSemanticLogger::ActiveJob::LogSubscriber::EventFormatter.new(event: event, log_duration: true)

@@ -3,10 +3,6 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
 
-      class << self
-        attr_reader :logger
-      end
-
       # Rails 7.1 stopped using runtime in log subscribers
       if Rails.version.to_f < 7.1
         def self.runtime=(value)
@@ -54,8 +50,6 @@ module RailsSemanticLogger
 
       private
 
-      @logger = SemanticLogger["ActiveRecord"]
-
       # When multiple values are received for a single bound field, it is converted into an array
       def add_bind_value(binds, key, value)
         key = key.downcase.to_sym unless key.nil?
@@ -78,7 +72,7 @@ module RailsSemanticLogger
       end
 
       def logger
-        self.class.logger
+        ::ActiveRecord::Base.logger
       end
 
       #

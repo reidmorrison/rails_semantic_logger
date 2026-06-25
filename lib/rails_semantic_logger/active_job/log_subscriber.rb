@@ -122,7 +122,7 @@ module RailsSemanticLogger
             h[:queue]           = job.queue_name
             h[:job_class]       = job.class.name
             h[:job_id]          = job.job_id
-            h[:provider_job_id] = job.try(:provider_job_id) # Not available in Rails 4.2
+            h[:provider_job_id] = job.provider_job_id
             h[:duration]        = event.duration.round(2) if log_duration?
             h[:arguments]       = formatted_args
           end

@@ -64,19 +64,11 @@ module RailsSemanticLogger
   end
 
   def self.subscriber_patterns(subscriber)
-    if subscriber.patterns.respond_to?(:keys)
-      subscriber.patterns.keys
-    else
-      subscriber.patterns
-    end
+    subscriber.patterns.keys
   end
 
   def self.listeners_for(notifier, pattern)
-    if notifier.respond_to?(:all_listeners_for) # Rails >= 7.1
-      notifier.all_listeners_for(pattern)
-    else
-      notifier.listeners_for(pattern)
-    end
+    notifier.all_listeners_for(pattern)
   end
 
   private_class_method :listeners_for, :subscriber_patterns, :unattach
@@ -84,7 +76,6 @@ end
 
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)
 require("rails_semantic_logger/extensions/active_support/logger") if defined?(ActiveSupport::Logger)
-require("rails_semantic_logger/extensions/active_support/log_subscriber") if defined?(ActiveSupport::LogSubscriber)
 
 begin
   require "rackup"

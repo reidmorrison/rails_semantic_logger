@@ -223,29 +223,5 @@ class ActiveRecordTest < Minitest::Test
         # assert_equal true, messages[1].payload[:async]
       end
     end
-
-    # we could feasibly pull this back to rails 7.1.  This update is related to rails 8.1
-    # https://github.com/reidmorrison/rails_semantic_logger/pull/276#issuecomment-3533151110
-    describe "runtime=" do
-      it "allow reads and writes to the runtime" do
-        unless RailsSemanticLogger::ActiveRecord::LogSubscriber.respond_to?(:runtime)
-          skip "runtime support ended with Rails v7.1"
-        end
-
-        RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = 5.0
-
-        assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, 5.0
-      end
-
-      it "write to the runtime" do
-        unless RailsSemanticLogger::ActiveRecord::LogSubscriber.respond_to?(:runtime)
-          skip "runtime support ended with Rails v7.1"
-        end
-
-        initial_value = RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime
-        RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime = initial_value + 5000.0
-        assert_equal RailsSemanticLogger::ActiveRecord::LogSubscriber.runtime, initial_value + 5000.0
-      end
-    end
   end
 end

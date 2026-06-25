@@ -13,10 +13,10 @@ Gem::Specification.new do |s|
   s.summary               = "Feature rich logging framework that replaces the Rails logger."
   s.files                 = Dir["lib/**/*", "LICENSE.txt", "Rakefile", "README.md"]
   s.license               = "Apache-2.0"
-  s.required_ruby_version = ">= 3.2.0"
+  s.required_ruby_version = ">= 3.2"
   s.add_dependency "rack"
-  s.add_dependency "railties", ">= 5.1"
-  s.add_dependency "semantic_logger", "~> 4.16"
+  s.add_dependency "railties", ">= 7.2"
+  s.add_dependency "semantic_logger", ">= 4.16"
   s.metadata = {
     "bug_tracker_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/issues",
     "documentation_uri"     => "https://logger.rocketjob.io",

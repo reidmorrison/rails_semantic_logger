@@ -22,10 +22,15 @@ For example, adding these lines to `config/application.rb` and removing any othe
 
     # Switch to JSON Logging output to stdout when running on Kubernetes
     if ENV["LOG_TO_CONSOLE"] || ENV["KUBERNETES_SERVICE_HOST"]
-      config.rails_semantic_logger.add_file_appender = false
-      config.semantic_logger.add_appender(io: $stdout, formatter: :json)
+      config.rails_semantic_logger.appenders do |appenders|
+        appenders.add(io: $stdout, formatter: :json)
+      end
     end
 ~~~
+
+Declaring an appender this way automatically replaces the default `log/<env>.log` file appender, so
+JSON to stdout becomes the only destination. See [Configuring appenders](https://logger.rocketjob.io/rails)
+for the full guide.
 
 Then configure the centralized logging system to tell it that the data is in JSON format, so that it will parse it for you into a hierarchy.
 
@@ -95,6 +100,25 @@ timechart latency:avg(metric_amount/1000), group_by(string(named_tags.queue))
 ## Documentation
 
 For complete documentation see: https://logger.rocketjob.io/rails
+
+## Upgrading to Semantic Logger v5 - Configuring appenders
+
+Appenders (log destinations) are now configured in a single block, where the method names the
+context in which the appender is created:
+
+~~~ruby
+config.rails_semantic_logger.appenders do |appenders|
+  appenders.add(file_name: "log/#{Rails.env}.log", formatter: :color) # always created
+  appenders.add_server(formatter: :color)                             # only while serving requests
+  appenders.add_console(formatter: :color)                            # only inside `rails console`
+end
+~~~
+
+Declaring any appender replaces the default file appender. The previous options
+(`format`, `add_file_appender`, `ap_options`, `filter`, `console_logger`) still work but are now
+deprecated and will be removed in v6. See the
+[v4 to v5 migration guide](https://logger.rocketjob.io/rails#migrating-from-v4-to-v5) for the
+before/after mapping.
 
 ## Upgrading to Semantic Logger V4.16 - Sidekiq Metrics Support
 

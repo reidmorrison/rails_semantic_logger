@@ -159,8 +159,8 @@ in `application.rb`. Key flags include `semantic`, `started`, `processing`, `ren
 long comment block at the top of that file is the authoritative documentation for each option, so keep it in
 sync when changing defaults or behavior.
 
-The `format`, `ap_options`, `filter`, and `console_logger` options are **deprecated** in favor of declaring
-appenders directly (see below). Their setters warn through `RailsSemanticLogger.deprecator` (whose removal
+The `format`, `ap_options`, `filter`, `console_logger`, and `add_file_appender` options are **deprecated** in
+favor of declaring appenders directly (see below). Their setters warn through `RailsSemanticLogger.deprecator` (whose removal
 horizon, `"6.0"`, is set in `lib/rails_semantic_logger.rb`) via the shared `deprecate_appender_option(option,
 via:)` helper; the `via:` argument customizes the suggested replacement call. The readers remain so the engine
 can still honor them on the legacy path. Reuse `deprecate_appender_option` when deprecating another option.

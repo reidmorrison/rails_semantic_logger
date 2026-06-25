@@ -46,6 +46,10 @@ module RailsSemanticLogger
   #
   #       config.rails_semantic_logger.add_file_appender = true
   #
+  #   DEPRECATED: declare appenders via #appenders instead. Declaring any appender there already
+  #   replaces the default file appender, so this flag is no longer needed:
+  #     config.rails_semantic_logger.appenders { |appenders| appenders.add(file_name: ...) }
+  #
   # * Silence asset logging
   #
   #     config.rails_semantic_logger.quiet_assets = false
@@ -123,12 +127,12 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.replace_solid_queue_logger = false
   class Options
-    attr_accessor :semantic, :started, :processing, :rendered, :add_file_appender,
+    attr_accessor :semantic, :started, :processing, :rendered,
                   :quiet_assets, :named_tags, :action_message_format,
                   :replace_sidekiq_logger, :replace_solid_queue_logger
 
     # DEPRECATED: configure these on the appender instead, via #appenders.
-    attr_reader :ap_options, :format, :filter, :console_logger
+    attr_reader :ap_options, :format, :filter, :console_logger, :add_file_appender
 
     # Setup default values
     def initialize
@@ -205,6 +209,11 @@ module RailsSemanticLogger
     def console_logger=(value)
       deprecate_appender_option(:console_logger, via: "appenders.add_console(...)")
       @console_logger = value
+    end
+
+    def add_file_appender=(value)
+      deprecate_appender_option(:add_file_appender)
+      @add_file_appender = value
     end
 
     private

@@ -169,6 +169,13 @@ class AppendersTest < Minitest::Test
         assert_match(/console_logger/, messages.first)
         refute options.console_logger
       end
+
+      it "warns when assigning add_file_appender but still sets it" do
+        messages = AppendersTest.capture_deprecations { options.add_file_appender = false }
+
+        assert_match(/add_file_appender/, messages.first)
+        refute options.add_file_appender
+      end
     end
   end
 

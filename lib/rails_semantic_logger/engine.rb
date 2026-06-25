@@ -46,6 +46,7 @@ module RailsSemanticLogger
             # The application declared its own appenders; create those and skip the default file appender.
             RailsSemanticLogger.add_appenders(config.rails_semantic_logger.appenders)
           elsif config.rails_semantic_logger.add_file_appender
+            # DEPRECATED: This option is deprecated and will be removed in a future version.
             path = config.paths["log"].first
             FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
 

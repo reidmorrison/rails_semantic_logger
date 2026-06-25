@@ -340,6 +340,348 @@ class ActiveJobTest < Minitest::Test
         end
       end
 
+      describe "#enqueue_retry" do
+        let(:event_name) { "enqueue_retry.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            error:   StandardError.new("boom"),
+            wait:    5
+          }
+        end
+
+        it "logs an info message with the retry details" do
+          messages = semantic_logger_events do
+            subscriber.enqueue_retry(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :info,
+            name:             "Rails",
+            message_includes: "Retrying ActiveJobTest::MyJob"
+          )
+          assert_match(/in 5 seconds, due to a StandardError \(boom\)\./, messages[0].message)
+          assert_equal StandardError, messages[0].exception.class
+          assert_equal 5, messages[0].payload[:wait]
+          assert_includes messages[0].payload, :executions
+        end
+      end
+
+      describe "#retry_stopped" do
+        let(:event_name) { "retry_stopped.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            error:   StandardError.new("boom")
+          }
+        end
+
+        it "logs an error message" do
+          messages = semantic_logger_events do
+            subscriber.retry_stopped(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :error,
+            name:             "Rails",
+            message_includes: "Stopped retrying ActiveJobTest::MyJob"
+          )
+          assert_equal StandardError, messages[0].exception.class
+          assert_includes messages[0].payload, :executions
+        end
+      end
+
+      describe "#discard" do
+        let(:event_name) { "discard.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            error:   StandardError.new("boom")
+          }
+        end
+
+        it "logs an error message" do
+          messages = semantic_logger_events do
+            subscriber.discard(event)
+          end
+          assert_equal 1, messages.count, messages
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:            :error,
+            name:             "Rails",
+            message_includes: "Discarded ActiveJobTest::MyJob"
+          )
+          assert_equal StandardError, messages[0].exception.class
+        end
+      end
+
+      describe "#enqueue_retry without an error" do
+        let(:event_name) { "enqueue_retry.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            wait:    3
+          }
+        end
+
+        it "logs the retry without a cause" do
+          messages = semantic_logger_events do
+            subscriber.enqueue_retry(event)
+          end
+          assert_equal 1, messages.count, messages
+          assert_equal :info, messages[0].level
+          assert_match(/Retrying ActiveJobTest::MyJob.* in 3 seconds\.\z/, messages[0].message)
+          refute_match(/due to a/, messages[0].message)
+          assert_nil messages[0].exception
+          assert_equal 3, messages[0].payload[:wait]
+        end
+      end
+
+      describe "#perform with a halted callback" do
+        let(:event_name) { "perform.active_job" }
+
+        let(:payload) do
+          {
+            adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+            job:     job,
+            aborted: true
+          }
+        end
+
+        it "logs an error message reporting the halt" do
+          messages = semantic_logger_events do
+            subscriber.perform(event)
+          end
+          assert_equal 1, messages.count, messages
+          assert_equal :error, messages[0].level
+          assert_match(/a before_perform callback halted the job execution/, messages[0].message)
+          assert_nil messages[0].exception
+        end
+      end
+
+      describe "#enqueue with job.enqueue_error" do
+        let(:event_name) { "enqueue.active_job" }
+
+        it "falls back to the job's enqueue_error" do
+          job.stub(:enqueue_error, StandardError.new("could not enqueue")) do
+            messages = semantic_logger_events do
+              subscriber.enqueue(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :error, messages[0].level
+            assert_match(/Failed enqueuing ActiveJobTest::MyJob/, messages[0].message)
+            assert_equal StandardError, messages[0].exception.class
+            assert_equal "could not enqueue", messages[0].exception.message
+          end
+        end
+      end
+
+      describe "ActiveJob Continuations (Rails 8.1+)" do
+        before do
+          skip "Continuations require Rails 8.1+" unless Rails.version.to_f >= 8.1
+        end
+
+        unless defined?(Step)
+          Step = Struct.new(:name, :cursor, :resumed) do
+            def resumed?
+              resumed
+            end
+          end
+        end
+
+        describe "#interrupt" do
+          let(:event_name) { "interrupt.active_job" }
+
+          let(:payload) do
+            {
+              adapter:     ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:         job,
+              description: "at step 'one'",
+              reason:      "shutdown"
+            }
+          end
+
+          it "logs an info message" do
+            messages = semantic_logger_events do
+              subscriber.interrupt(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Interrupted ActiveJobTest::MyJob/, messages[0].message)
+            assert_equal "shutdown", messages[0].payload[:reason]
+          end
+        end
+
+        describe "#resume" do
+          let(:event_name) { "resume.active_job" }
+
+          let(:payload) do
+            {
+              adapter:     ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:         job,
+              description: "from step 'one'"
+            }
+          end
+
+          it "logs an info message" do
+            messages = semantic_logger_events do
+              subscriber.resume(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Resuming ActiveJobTest::MyJob/, messages[0].message)
+          end
+        end
+
+        describe "#step_started" do
+          let(:event_name) { "step_started.active_job" }
+
+          let(:payload) do
+            {
+              adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:     job,
+              step:    Step.new("one", nil, false)
+            }
+          end
+
+          it "logs an info message with the step name" do
+            messages = semantic_logger_events do
+              subscriber.step_started(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Step 'one' started/, messages[0].message)
+            assert_equal "one", messages[0].payload[:step_name]
+          end
+        end
+
+        describe "#step_skipped" do
+          let(:event_name) { "step_skipped.active_job" }
+
+          let(:payload) do
+            {
+              adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:     job,
+              step:    Step.new("one", nil, false)
+            }
+          end
+
+          it "logs an info message" do
+            messages = semantic_logger_events do
+              subscriber.step_skipped(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Step 'one' skipped/, messages[0].message)
+            assert_equal "one", messages[0].payload[:step_name]
+          end
+        end
+
+        describe "#step_started when resumed" do
+          let(:event_name) { "step_started.active_job" }
+
+          let(:payload) do
+            {
+              adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:     job,
+              step:    Step.new("one", "5", true)
+            }
+          end
+
+          it "logs that the step resumed from its cursor" do
+            messages = semantic_logger_events do
+              subscriber.step_started(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Step 'one' resumed from cursor '5'/, messages[0].message)
+            assert_equal "5", messages[0].payload[:step_cursor]
+          end
+        end
+
+        describe "#step with exception" do
+          let(:event_name) { "step.active_job" }
+
+          let(:payload) do
+            {
+              adapter:          ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:              job,
+              step:             Step.new("one", "5", true),
+              exception_object: StandardError.new("boom")
+            }
+          end
+
+          it "logs an error message with the cursor" do
+            messages = semantic_logger_events do
+              subscriber.step(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :error, messages[0].level
+            assert_match(/Error during step 'one' at cursor '5'/, messages[0].message)
+            assert_equal "5", messages[0].payload[:step_cursor]
+            assert_equal StandardError, messages[0].exception.class
+          end
+        end
+
+        describe "#step when interrupted" do
+          let(:event_name) { "step.active_job" }
+
+          let(:payload) do
+            {
+              adapter:     ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:         job,
+              step:        Step.new("one", "5", true),
+              interrupted: true
+            }
+          end
+
+          it "logs an info message reporting the interruption" do
+            messages = semantic_logger_events do
+              subscriber.step(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Step 'one' interrupted at cursor '5'/, messages[0].message)
+            assert_nil messages[0].exception
+          end
+        end
+
+        describe "#step when completed" do
+          let(:event_name) { "step.active_job" }
+
+          let(:payload) do
+            {
+              adapter: ActiveJob::QueueAdapters::InlineAdapter.new,
+              job:     job,
+              step:    Step.new("one", "5", true)
+            }
+          end
+
+          it "logs an info message reporting completion" do
+            messages = semantic_logger_events do
+              subscriber.step(event)
+            end
+            assert_equal 1, messages.count, messages
+            assert_equal :info, messages[0].level
+            assert_match(/Step 'one' completed/, messages[0].message)
+            assert_includes messages[0].payload, :duration
+          end
+        end
+      end
+
       describe "ActiveJob::Logging::LogSubscriber::EventFormatter" do
         let(:formatter) do
           RailsSemanticLogger::ActiveJob::LogSubscriber::EventFormatter.new(event: event, log_duration: true)
@@ -354,6 +696,30 @@ class ActiveJobTest < Minitest::Test
             assert_equal(formatter.payload[:queue], "my_jobs")
             assert_kind_of(String, formatter.payload[:job_id])
             assert_kind_of(Float, formatter.payload[:duration])
+          end
+
+          describe "scheduled_at" do
+            it "is omitted when the job is not scheduled" do
+              refute_includes formatter.payload, :scheduled_at
+            end
+
+            it "is included when the job is scheduled" do
+              job.stub(:scheduled_at, Time.zone.now.to_i) do
+                assert_kind_of Time, formatter.payload[:scheduled_at]
+              end
+            end
+          end
+
+          describe "enqueued_at" do
+            it "is omitted when blank" do
+              refute_includes formatter.payload, :enqueued_at
+            end
+
+            it "is included when present" do
+              job.stub(:enqueued_at, Time.zone.now.utc.iso8601) do
+                assert formatter.payload[:enqueued_at]
+              end
+            end
           end
 
           describe "Show arguments in log" do

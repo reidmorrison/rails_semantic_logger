@@ -5,6 +5,17 @@ class ActiveRecordTest < Minitest::Test
     # Rails 5 has an extra space
     let(:extra_space) { Rails::VERSION::MAJOR >= 6 ? "" : " " }
 
+    # Emit a sql.active_record event with a controlled payload so the metadata branches
+    # (async / lock_wait / cached) can be asserted deterministically.
+    def instrument_sql(**payload)
+      semantic_logger_events do
+        ActiveSupport::Notifications.instrument(
+          "sql.active_record",
+          {sql: "SELECT 1", name: "Sample Load"}.merge(payload)
+        )
+      end
+    end
+
     describe "logs" do
       it "sql" do
         expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" ORDER BY \"samples\".\"id\" ASC LIMIT ?"
@@ -88,7 +99,7 @@ class ActiveRecordTest < Minitest::Test
       end
 
       it "filtered bind value" do
-        filter_params_setting true, %i[name] do
+        filter_params_setting %i[name] do
           expected_sql =
             if Rails.version.to_f >= 5.2
               "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
@@ -116,7 +127,7 @@ class ActiveRecordTest < Minitest::Test
       end
 
       it "filtered bind value when filter_parameters set as regex" do
-        filter_params_regex_setting true, %i[name] do
+        filter_params_regex_setting %i[name] do
           expected_sql =
             if Rails.version.to_f >= 5.2
               "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
@@ -221,6 +232,101 @@ class ActiveRecordTest < Minitest::Test
 
         # TODO: This test is flaky and needs to be fixed.
         # assert_equal true, messages[1].payload[:async]
+      end
+    end
+
+    describe "async metadata" do
+      it "includes lock_wait for async queries" do
+        messages = instrument_sql(async: true, lock_wait: 12.5)
+        assert_equal 1, messages.count, messages
+        assert_equal true, messages[0].payload[:async]
+        assert_equal 12.5, messages[0].payload[:lock_wait]
+      end
+
+      it "omits async and lock_wait for synchronous queries" do
+        messages = instrument_sql
+        assert_equal 1, messages.count, messages
+        refute messages[0].payload.key?(:async)
+        refute messages[0].payload.key?(:lock_wait)
+      end
+    end
+
+    describe "cached metadata" do
+      it "sets cached: true when served from the query cache" do
+        messages = instrument_sql(cached: true)
+        assert_equal true, messages[0].payload[:cached]
+      end
+
+      it "omits cached when the query was not cached" do
+        messages = instrument_sql(cached: false)
+        refute messages[0].payload.key?(:cached)
+      end
+    end
+
+    describe "strict loading violations" do
+      let(:owner) do
+        Class.new do
+          def self.name
+            "Article"
+          end
+        end
+      end
+
+      def instrument_violation(reflection, owner)
+        semantic_logger_events do
+          ActiveSupport::Notifications.instrument(
+            "strict_loading_violation.active_record",
+            owner: owner, reflection: reflection
+          )
+        end
+      end
+
+      it "logs a non-polymorphic violation with the associated class" do
+        klass = Class.new do
+          def self.name
+            "Comment"
+          end
+        end
+        reflection = Struct.new(:name, :klass) do
+          def polymorphic?
+            false
+          end
+
+          def strict_loading_violation_message(owner)
+            "`#{owner}` is marked for strict_loading. " \
+              "The #{klass} association named `:#{name}` cannot be lazily loaded."
+          end
+        end.new(:comments, klass)
+
+        messages = instrument_violation(reflection, owner)
+        assert_equal 1, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord::Base",
+          payload_includes: {owner: "Article", association: :comments, class: "Comment"}
+        )
+        assert_includes messages[0].message, "strict_loading"
+      end
+
+      it "omits the class for polymorphic associations" do
+        reflection = Struct.new(:name) do
+          def polymorphic?
+            true
+          end
+
+          def strict_loading_violation_message(owner)
+            "`#{owner}` is marked for strict_loading."
+          end
+        end.new(:commentable)
+
+        messages = instrument_violation(reflection, owner)
+        assert_equal 1, messages.count, messages
+
+        assert_equal "Article", messages[0].payload[:owner]
+        assert_equal :commentable, messages[0].payload[:association]
+        refute messages[0].payload.key?(:class)
       end
     end
   end

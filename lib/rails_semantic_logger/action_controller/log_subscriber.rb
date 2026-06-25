@@ -12,6 +12,8 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       INTERNAL_PARAMS = %w[controller action format _method only_path].freeze
 
+      class_attribute :backtrace_cleaner, default: ActiveSupport::BacktraceCleaner.new
+
       class << self
         attr_accessor :action_message_format
       end
@@ -61,6 +63,7 @@ module RailsSemanticLogger
           end
 
           payload[:allocations] = event.allocations
+          payload[:gc_time]     = event.gc_time.round(2) if event.respond_to?(:gc_time)
 
           payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
 
@@ -80,12 +83,40 @@ module RailsSemanticLogger
         controller_logger(event).info { "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected" }
       end
 
+      # Rails 8.1+ emits this event when an exception is handled by a `rescue_from` callback.
+      # On earlier Rails versions the event is never instrumented, so this handler is dormant.
+      def rescue_from_callback(event)
+        controller_logger(event).info do
+          exception = event.payload[:exception]
+          backtrace = exception.backtrace&.first
+          backtrace = backtrace&.delete_prefix("#{Rails.root}/") if defined?(Rails.root) && Rails.root
+
+          {
+            message: "rescue_from handled #{exception.class}",
+            payload: {
+              exception:         exception.class.name,
+              exception_message: exception.message,
+              backtrace:         backtrace
+            }
+          }
+        end
+      end
+
       def send_file(event)
         controller_logger(event).info(message: "Sent file", payload: {path: event.payload[:path]}, duration: event.duration)
       end
 
       def redirect_to(event)
-        controller_logger(event).info(message: "Redirected to", payload: {location: event.payload[:location]})
+        payload = {location: event.payload[:location]}
+
+        # Rails 8.1+ optionally logs the source location of the redirect when
+        # ActionDispatch.verbose_redirect_logs is enabled.
+        if ActionDispatch.respond_to?(:verbose_redirect_logs) && ActionDispatch.verbose_redirect_logs
+          source           = redirect_source_location
+          payload[:source] = source if source
+        end
+
+        controller_logger(event).info(message: "Redirected to", payload: payload)
       end
 
       def send_data(event)
@@ -97,7 +128,14 @@ module RailsSemanticLogger
       def unpermitted_parameters(event)
         controller_logger(event).debug do
           unpermitted_keys = event.payload[:keys]
-          "Unpermitted parameter#{'s' if unpermitted_keys.size > 1}: #{unpermitted_keys.join(', ')}"
+          payload          = {keys: unpermitted_keys}
+          # Rails includes the controller/action context alongside the rejected keys.
+          payload[:context] = event.payload[:context] if event.payload[:context]
+
+          {
+            message: "Unpermitted parameter#{'s' if unpermitted_keys.size > 1}: #{unpermitted_keys.join(', ')}",
+            payload: payload
+          }
         end
       end
 
@@ -130,6 +168,11 @@ module RailsSemanticLogger
       def extract_path(path)
         index = path.index("?")
         index ? path[0, index] : path
+      end
+
+      # Rails 8.1+ BacktraceCleaner exposes #first_clean_frame for verbose redirect logging.
+      def redirect_source_location
+        backtrace_cleaner.first_clean_frame if backtrace_cleaner.respond_to?(:first_clean_frame)
       end
 
       def action_message(message, payload)

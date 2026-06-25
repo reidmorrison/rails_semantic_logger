@@ -24,26 +24,27 @@ Minitest::Test.include SemanticLogger::Test::Minitest
 
 ActionMailer::Base.delivery_method = :test
 
-def filter_params_setting(value, user_defined_params, &block)
-  original_value = Rails.configuration.filter_parameters
-  Rails.configuration.filter_parameters = user_defined_params
+# ActiveRecord filters bind values using ActiveRecord::Base.inspection_filter, which is built from
+# filter_attributes (seeded from config.filter_parameters at boot). Assigning filter_attributes
+# resets the memoized inspection_filter, so these helpers drive that attribute directly.
+def filter_params_setting(user_defined_params, &block)
+  original_value = ActiveRecord::Base.filter_attributes
+  ActiveRecord::Base.filter_attributes = user_defined_params
   block.call
 ensure
-  Rails.configuration.filter_parameters = original_value
+  ActiveRecord::Base.filter_attributes = original_value
 end
 
-def filter_params_regex_setting(value, user_defined_params, &block)
-  original_value = Rails.configuration.filter_parameters
+def filter_params_regex_setting(user_defined_params, &block)
+  original_value = ActiveRecord::Base.filter_attributes
 
-  Rails.configuration.filter_parameters += user_defined_params
-
-  filter_params_regex = Rails.configuration.filter_parameters.map do |key|
+  filter_params_regex = user_defined_params.map do |key|
     "(?i:#{key})"
   end.join("|")
 
-  Rails.configuration.filter_parameters = [/(?-mix:#{filter_params_regex})/]
+  ActiveRecord::Base.filter_attributes = [/(?-mix:#{filter_params_regex})/]
 
   block.call
 ensure
-  Rails.configuration.filter_parameters = original_value
+  ActiveRecord::Base.filter_attributes = original_value
 end

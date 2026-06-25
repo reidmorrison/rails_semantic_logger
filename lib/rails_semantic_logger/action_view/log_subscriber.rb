@@ -9,6 +9,9 @@ require "active_support/log_subscriber"
 #   Rails 8.0: https://github.com/rails/rails/blob/8-0-stable/actionview/lib/action_view/log_subscriber.rb
 #   Rails 7.2: https://github.com/rails/rails/blob/7-2-stable/actionview/lib/action_view/log_subscriber.rb
 #
+# As of these versions the upstream subscriber is identical across 7.2, 8.0, and 8.1, so no
+# version-specific behavior is required here.
+#
 module RailsSemanticLogger
   module ActionView
     # Output Semantic logs from Action View.
@@ -33,6 +36,7 @@ module RailsSemanticLogger
         }
         payload[:within]      = from_rails_root(event.payload[:layout]) if event.payload[:layout]
         payload[:allocations] = event.allocations
+        payload[:gc_time]     = event.gc_time.round(2) if event.respond_to?(:gc_time)
 
         logger.measure(
           self.class.rendered_log_level,
@@ -51,10 +55,28 @@ module RailsSemanticLogger
         payload[:within]      = from_rails_root(event.payload[:layout]) if event.payload[:layout]
         payload[:cache]       = event.payload[:cache_hit] unless event.payload[:cache_hit].nil?
         payload[:allocations] = event.allocations
+        payload[:gc_time]     = event.gc_time.round(2) if event.respond_to?(:gc_time)
 
         logger.measure(
           self.class.rendered_log_level,
           "Rendered",
+          payload:  payload,
+          duration: event.duration
+        )
+      end
+
+      def render_layout(event)
+        return unless should_log?
+
+        payload = {
+          template: from_rails_root(event.payload[:identifier])
+        }
+        payload[:allocations] = event.allocations
+        payload[:gc_time]     = event.gc_time.round(2) if event.respond_to?(:gc_time)
+
+        logger.measure(
+          self.class.rendered_log_level,
+          "Rendered layout",
           payload:  payload,
           duration: event.duration
         )
@@ -71,6 +93,7 @@ module RailsSemanticLogger
         }
         payload[:cache_hits]  = event.payload[:cache_hits] if event.payload[:cache_hits]
         payload[:allocations] = event.allocations
+        payload[:gc_time]     = event.gc_time.round(2) if event.respond_to?(:gc_time)
 
         logger.measure(
           self.class.rendered_log_level,

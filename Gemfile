@@ -20,3 +20,5 @@ gem "solid_queue", "~> 1.4"
 gem "sqlite3"
 
 gem "rubocop"
+gem "rubocop-minitest"
+gem "rubocop-rake"

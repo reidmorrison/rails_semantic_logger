@@ -13,6 +13,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
         messages = semantic_logger_events do
           get dashboard_url
         end
+
         assert_equal 3, messages.count, messages
 
         assert_semantic_logger_event(
@@ -58,7 +59,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
         end
 
         payload = PayloadCollector.last
-        assert_equal payload[:params], {"controller" => "dashboard", "action" => "show"}
+
+        assert_equal({"controller" => "dashboard", "action" => "show"}, payload[:params])
       end
     end
   end

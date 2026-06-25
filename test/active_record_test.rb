@@ -23,6 +23,7 @@ class ActiveRecordTest < Minitest::Test
         messages = semantic_logger_events do
           Sample.first
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -44,6 +45,7 @@ class ActiveRecordTest < Minitest::Test
         messages = semantic_logger_events do
           Sample.cache { 2.times { Sample.where(name: "foo").first } }
         end
+
         assert_equal 2, messages.count, messages
 
         assert_semantic_logger_event(
@@ -83,6 +85,7 @@ class ActiveRecordTest < Minitest::Test
         messages = semantic_logger_events do
           Sample.where(name: "Jack").first
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -110,6 +113,7 @@ class ActiveRecordTest < Minitest::Test
           messages = semantic_logger_events do
             Sample.where(name: "Jack").first
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -138,6 +142,7 @@ class ActiveRecordTest < Minitest::Test
           messages = semantic_logger_events do
             Sample.where(name: "Jack").first
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -162,6 +167,7 @@ class ActiveRecordTest < Minitest::Test
         messages = semantic_logger_events do
           Sample.where(age: 2..21).first
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -185,6 +191,7 @@ class ActiveRecordTest < Minitest::Test
         messages = semantic_logger_events do
           Sample.where(age: [2, 3]).first
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -217,6 +224,7 @@ class ActiveRecordTest < Minitest::Test
           Sample.count
           Sample.async_count.value
         end
+
         assert_equal 2, messages.count, messages
 
         messages.each do |message|
@@ -238,13 +246,15 @@ class ActiveRecordTest < Minitest::Test
     describe "async metadata" do
       it "includes lock_wait for async queries" do
         messages = instrument_sql(async: true, lock_wait: 12.5)
+
         assert_equal 1, messages.count, messages
         assert_equal true, messages[0].payload[:async]
-        assert_equal 12.5, messages[0].payload[:lock_wait]
+        assert_in_delta(12.5, messages[0].payload[:lock_wait])
       end
 
       it "omits async and lock_wait for synchronous queries" do
         messages = instrument_sql
+
         assert_equal 1, messages.count, messages
         refute messages[0].payload.key?(:async)
         refute messages[0].payload.key?(:lock_wait)
@@ -254,11 +264,13 @@ class ActiveRecordTest < Minitest::Test
     describe "cached metadata" do
       it "sets cached: true when served from the query cache" do
         messages = instrument_sql(cached: true)
+
         assert_equal true, messages[0].payload[:cached]
       end
 
       it "omits cached when the query was not cached" do
         messages = instrument_sql(cached: false)
+
         refute messages[0].payload.key?(:cached)
       end
     end
@@ -299,6 +311,7 @@ class ActiveRecordTest < Minitest::Test
         end.new(:comments, klass)
 
         messages = instrument_violation(reflection, owner)
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -322,6 +335,7 @@ class ActiveRecordTest < Minitest::Test
         end.new(:commentable)
 
         messages = instrument_violation(reflection, owner)
+
         assert_equal 1, messages.count, messages
 
         assert_equal "Article", messages[0].payload[:owner]

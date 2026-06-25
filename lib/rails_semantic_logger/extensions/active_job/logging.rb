@@ -8,9 +8,9 @@ module ActiveJob
     private
 
     undef_method :tag_logger
-    def tag_logger(*tags, &block)
+    def tag_logger(*tags, &)
       if logger.respond_to?(:tagged)
-        logger.tagged(*tags, &block)
+        logger.tagged(*tags, &)
       else
         yield
       end

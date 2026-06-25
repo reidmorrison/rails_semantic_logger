@@ -22,6 +22,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.claim(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -46,6 +47,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.release_many_claimed(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -66,6 +68,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.fail_many_claimed(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -85,6 +88,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.thread_error(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -95,7 +99,8 @@ class SolidQueueTest < Minitest::Test
         )
 
         exception = messages[0].exception
-        assert exception.is_a?(ArgumentError)
+
+        assert_kind_of ArgumentError, exception
         assert_equal "boom", exception.message
       end
     end
@@ -112,6 +117,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.start_process(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -141,6 +147,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_recurring_task(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -160,6 +167,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_recurring_task(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -180,6 +188,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_recurring_task(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -199,6 +208,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_recurring_task(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -220,6 +230,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.dispatch_scheduled(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -240,6 +251,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.release_claimed(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -260,6 +272,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.retry_all(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -280,6 +293,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.retry(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -300,6 +314,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.discard_all(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -320,6 +335,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.discard(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -340,6 +356,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.release_many_blocked(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -360,6 +377,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.release_blocked(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -384,6 +402,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.shutdown_process(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -413,6 +432,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.register_process(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -435,6 +455,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.register_process(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -464,6 +485,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.deregister_process(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -491,6 +513,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.deregister_process(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -513,6 +536,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.prune_processes(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -535,6 +559,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.graceful_termination(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -556,6 +581,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.graceful_termination(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -577,6 +603,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.immediate_termination(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -597,6 +624,7 @@ class SolidQueueTest < Minitest::Test
         messages = semantic_logger_events do
           subscriber.unhandled_signal_error(event)
         end
+
         assert_equal 1, messages.count, messages
 
         assert_semantic_logger_event(
@@ -629,6 +657,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.replace_fork(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -655,6 +684,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.replace_fork(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -674,6 +704,7 @@ class SolidQueueTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.replace_fork(event)
           end
+
           assert_equal 0, messages.count, messages
         end
       end

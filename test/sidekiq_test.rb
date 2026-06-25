@@ -61,7 +61,7 @@ class SidekiqTest < Minitest::Test
           metric:     "sidekiq.queue.latency",
           named_tags: {jid: nil, queue: "default"}
         )
-        assert messages[0].metric_amount.is_a?(Float)
+        assert_kind_of Float, messages[0].metric_amount
 
         assert_semantic_logger_event(
           messages[1],
@@ -71,12 +71,12 @@ class SidekiqTest < Minitest::Test
           metric:     "sidekiq.job.perform",
           named_tags: {jid: nil, queue: "default"}
         )
-        assert messages[1].duration.is_a?(Float)
+        assert_kind_of Float, messages[1].duration
       end
 
       it "a simple job with Sidekiq 8+ timestamp (milliseconds)" do
         # Sidekiq 8+ stores enqueued_at as milliseconds since epoch (Integer)
-        enqueued_at_ms = (Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) - 60000).to_i
+        enqueued_at_ms = (Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) - 60_000).to_i
         msg_sidekiq8 = Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => enqueued_at_ms})
         uow_sidekiq8 = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg_sidekiq8)
 
@@ -95,7 +95,7 @@ class SidekiqTest < Minitest::Test
           named_tags: {jid: nil, queue: "default"}
         )
         # Sidekiq 8+ returns Integer latency, whereas earlier versions return Float
-        assert messages[0].metric_amount.is_a?(Numeric)
+        assert_kind_of Numeric, messages[0].metric_amount
 
         assert_semantic_logger_event(
           messages[1],
@@ -105,7 +105,7 @@ class SidekiqTest < Minitest::Test
           metric:     "sidekiq.job.perform",
           named_tags: {jid: nil, queue: "default"}
         )
-        assert messages[1].duration.is_a?(Float)
+        assert_kind_of Float, messages[1].duration
       end
 
       describe "with Bad Job" do
@@ -130,7 +130,7 @@ class SidekiqTest < Minitest::Test
             named_tags: {jid: nil, queue: "default"},
             exception:  :nil
           )
-          assert messages[0].metric_amount.is_a?(Float)
+          assert_kind_of Float, messages[0].metric_amount
 
           assert_semantic_logger_event(
             messages[1],
@@ -141,7 +141,7 @@ class SidekiqTest < Minitest::Test
             named_tags: {jid: nil, queue: "default"},
             exception:  ArgumentError
           )
-          assert messages[1].duration.is_a?(Float)
+          assert_kind_of Float, messages[1].duration
 
           assert_semantic_logger_event(
             messages[2],
@@ -151,8 +151,8 @@ class SidekiqTest < Minitest::Test
             payload_includes: {context: "Job raised exception"},
             exception:        :nil
           )
-          assert_equal messages[2].payload[:job]["class"], "BadJob"
-          assert_equal messages[2].payload[:job]["args"], []
+          assert_equal "BadJob", messages[2].payload[:job]["class"]
+          assert_equal [], messages[2].payload[:job]["args"]
         end
       end
     end

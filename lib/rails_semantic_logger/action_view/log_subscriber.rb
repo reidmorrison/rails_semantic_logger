@@ -16,7 +16,7 @@ module RailsSemanticLogger
   module ActionView
     # Output Semantic logs from Action View.
     class LogSubscriber < ActiveSupport::LogSubscriber
-      VIEWS_PATTERN = %r{^app/views/}.freeze
+      VIEWS_PATTERN = %r{^app/views/}
 
       class << self
         attr_reader :logger

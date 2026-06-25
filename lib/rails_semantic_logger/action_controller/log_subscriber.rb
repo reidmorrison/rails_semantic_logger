@@ -25,6 +25,12 @@ module RailsSemanticLogger
 
       def process_action(event)
         controller_logger(event).info do
+          # `event.payload` is shared with every other subscriber on this notification, so we work on
+          # a copy. A shallow `dup` is sufficient: only mutate `payload` via top-level key reassignment
+          # (e.g. `payload[:format] = ...`) or by writing into a freshly-created hash (e.g. the `.except`
+          # result below). Never mutate a nested object that still belongs to the original payload
+          # (e.g. `payload[:foo][:bar] = ...` on an unduped key), or the change will leak back into the
+          # shared payload and corrupt what other subscribers see.
           payload = event.payload.dup
 
           # Unused, but needed for Devise 401 status code monkey patch to still work.
@@ -63,6 +69,8 @@ module RailsSemanticLogger
           end
 
           payload[:allocations] = event.allocations
+          payload[:cpu_time]    = event.cpu_time.round(2)
+          payload[:idle_time]   = event.idle_time.round(2)
           payload[:gc_time]     = event.gc_time.round(2) if event.respond_to?(:gc_time)
 
           payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?

@@ -5,6 +5,8 @@ class ArticlesController < ApplicationController
     render plain: "handled", status: :ok
   end
 
+  before_action :halt_chain, only: :halted
+
   def new
   end
 
@@ -27,5 +29,27 @@ class ArticlesController < ApplicationController
   def filtered
     permitted = params.permit(:title)
     render plain: permitted.inspect
+  end
+
+  def halted
+    render plain: "should not be reached"
+  end
+
+  def download_data
+    send_data "hello world", filename: "greeting.txt"
+  end
+
+  def download_file
+    send_file Rails.root.join("public", "favicon.ico").to_s, disposition: :inline
+  end
+
+  def upload
+    render plain: params[:file].class.name
+  end
+
+  private
+
+  def halt_chain
+    redirect_to article_url(:new)
   end
 end

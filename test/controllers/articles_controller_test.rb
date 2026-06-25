@@ -135,6 +135,138 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         assert completed.payload.key?(:allocations), completed.payload
         assert completed.payload.key?(:gc_time), completed.payload
       end
+
+      it "omits params when there are none" do
+        messages = semantic_logger_events do
+          get article_url(:new)
+        end
+
+        completed = messages.find { |m| m.message&.start_with?("Completed") }
+        assert completed, messages
+        refute completed.payload.key?(:params), completed.payload
+      end
+
+      it "strips the query string from the path" do
+        messages = semantic_logger_events do
+          get filtered_articles_url(title: "ok")
+        end
+
+        completed = messages.find { |m| m.message&.start_with?("Completed") }
+        assert completed, messages
+        assert_equal "/articles/filtered", completed.payload[:path]
+      end
+
+      it "rounds *_runtime values to two decimals" do
+        messages = semantic_logger_events do
+          post articles_url(params: params)
+        end
+
+        completed = messages.find { |m| m.message&.start_with?("Completed") }
+        assert completed, messages
+        assert_kind_of Float, completed.payload[:view_runtime]
+        assert_equal completed.payload[:view_runtime].round(2), completed.payload[:view_runtime]
+      end
+
+      it "removes headers, request and response from the payload" do
+        messages = semantic_logger_events do
+          post articles_url(params: params)
+        end
+
+        completed = messages.find { |m| m.message&.start_with?("Completed") }
+        assert completed, messages
+        refute completed.payload.key?(:headers), completed.payload
+        refute completed.payload.key?(:request), completed.payload
+        refute completed.payload.key?(:response), completed.payload
+      end
+
+      it "converts an uploaded file param to a string" do
+        file = Rack::Test::UploadedFile.new(
+          Rails.root.join("public", "favicon.ico").to_s, "image/x-icon"
+        )
+
+        messages = semantic_logger_events do
+          post upload_articles_url, params: {file: file}
+        end
+
+        completed = messages.find { |m| m.message&.start_with?("Completed") }
+        assert completed, messages
+        assert_kind_of String, completed.payload[:params]["file"]
+      end
+
+      it "derives the status from the exception when status is nil" do
+        messages = semantic_logger_events do
+          old_show = Rails.application.env_config["action_dispatch.show_exceptions"]
+          begin
+            Rails.application.env_config["action_dispatch.show_exceptions"] = :all
+            get article_url(:show)
+          rescue ActiveRecord::RecordNotFound
+            # expected
+          ensure
+            Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
+          end
+        end
+
+        completed = messages.find { |m| m.message&.start_with?("Completed") }
+        assert completed, messages
+        assert_equal 404, completed.payload[:status]
+        assert_equal "Not Found", completed.payload[:status_message]
+      end
+    end
+
+    describe "controller_logger fallback" do
+      let(:subscriber) { RailsSemanticLogger::ActionController::LogSubscriber.new }
+
+      def build_event(payload)
+        ActiveSupport::Notifications::Event.new(
+          "process_action.action_controller", Time.now, Time.now, "id", payload
+        )
+      end
+
+      it "falls back to ActionController::Base.logger when no controller is present" do
+        event = build_event(controller: nil)
+        assert_equal ActionController::Base.logger, subscriber.send(:controller_logger, event)
+      end
+
+      it "falls back to ActionController::Base.logger when the controller cannot be resolved" do
+        event = build_event(controller: "NoSuchController")
+        assert_equal ActionController::Base.logger, subscriber.send(:controller_logger, event)
+      end
+    end
+
+    describe "#halted" do
+      it "logs the halted filter chain" do
+        messages = semantic_logger_events do
+          get halted_articles_url
+        end
+
+        halted = messages.find { |m| m.message&.start_with?("Filter chain halted") }
+        assert halted, messages
+        assert_equal :info, halted.level
+      end
+    end
+
+    describe "#download_data" do
+      it "logs sent data with the file name" do
+        messages = semantic_logger_events do
+          get download_data_articles_url
+        end
+
+        sent = messages.find { |m| m.message == "Sent data" }
+        assert sent, messages
+        assert_equal "greeting.txt", sent.payload[:file_name]
+      end
+    end
+
+    describe "#download_file" do
+      it "logs sent file with the path" do
+        messages = semantic_logger_events do
+          get download_file_articles_url
+        end
+
+        sent = messages.find { |m| m.message == "Sent file" }
+        assert sent, messages
+        assert sent.payload[:path].to_s.end_with?("favicon.ico"), sent.payload
+      end
     end
 
     describe "#redirector" do

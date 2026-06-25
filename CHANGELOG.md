@@ -17,6 +17,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - ActionView: emit a `Rendered layout` completion event (with `duration`, `allocations`, and
   `gc_time`) to mirror Rails' `render_layout` subscriber. The upstream ActionView log subscriber is
   identical across Rails 7.2 / 8.0 / 8.1, so no version-specific behavior is required.
+- ActiveJob: add the `enqueue_retry`, `retry_stopped`, and `discard` events (present in Rails since
+  before 7.2 but never reimplemented here, so they previously produced no output).
+- ActiveJob: add the Rails 8.1 Continuation events (`interrupt`, `resume`, `step_skipped`,
+  `step_started`, `step`). The handlers are defined unconditionally; on Rails < 8.1 those
+  notifications are never emitted, so no version-specific behavior is required.
+- ActiveJob: fall back to `job.enqueue_error` when no `exception_object` is present, matching Rails,
+  so a failed enqueue is no longer logged as a success.
+- ActiveJob: add the `aborted` branch to `perform`, logging a halted `before_perform` callback as an
+  error to match upstream.
+- ActiveJob: add `enqueued_at` and `scheduled_at` to the event payload (when applicable), plus
+  `executions`/`wait` on retry events and `step_name`/`step_cursor` on Continuation step events.
 
 ## [4.20.0] - 2026-04-10
 

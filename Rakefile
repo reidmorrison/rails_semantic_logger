@@ -28,7 +28,7 @@ RuboCop::RakeTask.new
 # By default lint once, then run tests against all appraisals
 if !ENV["APPRAISAL_INITIALIZED"] && !ENV["TRAVIS"]
   require "appraisal"
-  task default: %i[appraisal rubocop]
+  task default: %i[rubocop appraisal]
 else
   task default: :test
 end

@@ -9,6 +9,7 @@ AllCops:
     - ".git/**/*"
     - "docs/**/*"
     - "gemfiles/*"
+    - "vendor/**/*"
   NewCops: enable
   TargetRubyVersion: 3.2
   SuggestExtensions: false

@@ -195,9 +195,10 @@ The design and the points to keep in mind when changing it:
   `add_server` appenders are created by the public `RailsSemanticLogger.add_server_appenders`, called
   automatically from the `rails server` patch (`extensions/rails/server.rb`) and the Sidekiq server block in
   the engine. `add_console` appenders are created by `RailsSemanticLogger.add_console_appenders`, called from
-  the engine's `console do` hook. All of these route through the internal
-  `add_console_appender(io:, formatter:, declared:)`, which is idempotent via
-  `SemanticLogger.appenders.console_output?`.
+  the engine's `console do` hook. Both are idempotent via `SemanticLogger.appenders.console_output?`, and
+  both fall back to a default screen appender (stdout for server, stderr for console) for backward
+  compatibility when the app declared no appenders of its own (the console fallback is additionally gated
+  by the deprecated `console_logger` toggle).
 - **No heuristic server detection, by design.** App servers without a first-party hook (bare `puma`, `rackup`,
   Passenger, Unicorn) are deliberately not auto-detected: there is no `$PROGRAM_NAME` matching and no
   `Puma::Launcher` monkey-patch, because a detection that only "sometimes works" is a support burden. Users of

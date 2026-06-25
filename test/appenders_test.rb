@@ -172,84 +172,6 @@ class AppendersTest < Minitest::Test
     end
   end
 
-  describe ".add_console_appender" do
-    before do
-      @original_appenders = SemanticLogger.appenders.to_a
-    end
-
-    after do
-      (SemanticLogger.appenders.to_a - @original_appenders).each { |appender| SemanticLogger.remove_appender(appender) }
-    end
-
-    it "adds a console appender when none exists" do
-      refute_predicate SemanticLogger.appenders, :console_output?, "expected no console appender before the test"
-
-      RailsSemanticLogger.add_console_appender(io: $stderr)
-
-      assert_predicate SemanticLogger.appenders, :console_output?
-    end
-
-    it "does not add a second console appender" do
-      RailsSemanticLogger.add_console_appender(io: $stderr)
-      count = SemanticLogger.appenders.size
-
-      RailsSemanticLogger.add_console_appender(io: $stderr)
-
-      assert_equal count, SemanticLogger.appenders.size
-    end
-
-    it "adds no console appender when the app owns appender config but declared no add_server" do
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:appenders?, true) do
-        RailsSemanticLogger.add_console_appender(io: $stderr)
-      end
-
-      refute_predicate SemanticLogger.appenders, :console_output?
-    end
-
-    it "creates the declared add_server appenders when the app owns appender config" do
-      declared = RailsSemanticLogger::Appenders.new
-      declared.add_server(io: $stderr)
-
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:appenders?, true) do
-        options.stub(:appenders, declared) do
-          RailsSemanticLogger.add_console_appender(io: $stdout)
-        end
-      end
-
-      assert_predicate SemanticLogger.appenders, :console_output?
-    end
-
-    it "creates the declared add_console appenders when declared: :console" do
-      declared = RailsSemanticLogger::Appenders.new
-      declared.add_console(io: $stderr)
-
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:appenders?, true) do
-        options.stub(:appenders, declared) do
-          RailsSemanticLogger.add_console_appender(io: $stderr, declared: :console)
-        end
-      end
-
-      assert_predicate SemanticLogger.appenders, :console_output?
-    end
-
-    it "does not create add_server appenders when asked for the console list" do
-      declared = RailsSemanticLogger::Appenders.new
-      declared.add_server(io: $stderr)
-
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:appenders?, true) do
-        options.stub(:appenders, declared) do
-          RailsSemanticLogger.add_console_appender(io: $stderr, declared: :console)
-        end
-      end
-
-      refute_predicate SemanticLogger.appenders, :console_output?
-    end
-  end
-
   describe ".add_server_appenders" do
     before do
       @original_appenders = SemanticLogger.appenders.to_a
@@ -259,7 +181,15 @@ class AppendersTest < Minitest::Test
       (SemanticLogger.appenders.to_a - @original_appenders).each { |appender| SemanticLogger.remove_appender(appender) }
     end
 
-    it "creates the declared add_server appenders" do
+    it "adds the default stdout appender when the app declared no appenders" do
+      refute_predicate SemanticLogger.appenders, :console_output?, "expected no console appender before the test"
+
+      RailsSemanticLogger.add_server_appenders
+
+      assert_predicate SemanticLogger.appenders, :console_output?
+    end
+
+    it "creates the declared add_server appenders when the app owns appender config" do
       declared = RailsSemanticLogger::Appenders.new
       declared.add_server(io: $stderr)
 
@@ -273,11 +203,84 @@ class AppendersTest < Minitest::Test
       assert_predicate SemanticLogger.appenders, :console_output?
     end
 
+    it "adds no appender when the app owns appender config but declared no add_server" do
+      options = Rails.application.config.rails_semantic_logger
+      options.stub(:appenders?, true) do
+        RailsSemanticLogger.add_server_appenders
+      end
+
+      refute_predicate SemanticLogger.appenders, :console_output?
+    end
+
     it "is idempotent when a console appender already exists" do
       RailsSemanticLogger.add_server_appenders
       count = SemanticLogger.appenders.size
 
       RailsSemanticLogger.add_server_appenders
+
+      assert_equal count, SemanticLogger.appenders.size
+    end
+  end
+
+  describe ".add_console_appenders" do
+    before do
+      @original_appenders = SemanticLogger.appenders.to_a
+    end
+
+    after do
+      (SemanticLogger.appenders.to_a - @original_appenders).each { |appender| SemanticLogger.remove_appender(appender) }
+    end
+
+    it "creates the declared add_console appenders when the app owns appender config" do
+      declared = RailsSemanticLogger::Appenders.new
+      declared.add_console(io: $stderr)
+
+      options = Rails.application.config.rails_semantic_logger
+      options.stub(:appenders?, true) do
+        options.stub(:appenders, declared) do
+          RailsSemanticLogger.add_console_appenders
+        end
+      end
+
+      assert_predicate SemanticLogger.appenders, :console_output?
+    end
+
+    it "does not create add_server appenders for the console" do
+      declared = RailsSemanticLogger::Appenders.new
+      declared.add_server(io: $stderr)
+
+      options = Rails.application.config.rails_semantic_logger
+      options.stub(:appenders?, true) do
+        options.stub(:appenders, declared) do
+          RailsSemanticLogger.add_console_appenders
+        end
+      end
+
+      refute_predicate SemanticLogger.appenders, :console_output?
+    end
+
+    it "adds the default stderr appender when the app declared no appenders" do
+      refute_predicate SemanticLogger.appenders, :console_output?, "expected no console appender before the test"
+
+      RailsSemanticLogger.add_console_appenders
+
+      assert_predicate SemanticLogger.appenders, :console_output?
+    end
+
+    it "adds no appender when console_logger is disabled and no appenders are declared (legacy)" do
+      options = Rails.application.config.rails_semantic_logger
+      options.stub(:console_logger, false) do
+        RailsSemanticLogger.add_console_appenders
+      end
+
+      refute_predicate SemanticLogger.appenders, :console_output?
+    end
+
+    it "is idempotent when a console appender already exists" do
+      RailsSemanticLogger.add_console_appenders
+      count = SemanticLogger.appenders.size
+
+      RailsSemanticLogger.add_console_appenders
 
       assert_equal count, SemanticLogger.appenders.size
     end

@@ -50,30 +50,6 @@ module RailsSemanticLogger
     @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
   end
 
-  # Add a console (stdout/stderr) appender for the interactive contexts that need
-  # one (`rails server`, a rack server, the Rails console, Sidekiq in server mode).
-  #
-  # Skipped when a console appender already exists (avoids double logging to the
-  # screen).
-  #
-  # When the application has taken over appender configuration via
-  # `config.rails_semantic_logger.appenders`, the default appender is not used:
-  # instead the appenders it declared for this context are created here
-  # (`appenders.add_server` for serving contexts, `appenders.add_console` for the
-  # Rails console), or none at all when it declared none. `declared` selects which.
-  def self.add_console_appender(io:, formatter: :color, declared: :server)
-    return if SemanticLogger.appenders.console_output?
-
-    options = Rails.application.config.rails_semantic_logger
-    if options.appenders?
-      options.appenders.public_send(declared).each do |args, block|
-        SemanticLogger.add_appender(**args, &block)
-      end
-    else
-      SemanticLogger.add_appender(io: io, formatter: formatter)
-    end
-  end
-
   # Create the appenders declared via `config.rails_semantic_logger.appenders` with
   # `add_server` (or the default console appender when the application declared no
   # appenders of its own).
@@ -85,10 +61,16 @@ module RailsSemanticLogger
   # in `config/puma.rb`:
   #
   #   on_booted { RailsSemanticLogger.add_server_appenders }
-  #
-  # Idempotent: skipped when a console appender already exists.
   def self.add_server_appenders
-    add_console_appender(io: $stdout, declared: :server)
+    options = Rails.application.config.rails_semantic_logger
+    # Backward compatibility
+    if !options.appenders? && options.console_logger && !SemanticLogger.appenders.console_output?
+      SemanticLogger.add_appender(io: $stdout, formatter: :color)
+    end
+
+    options.appenders.server.each do |args, block|
+      SemanticLogger.add_appender(**args, &block)
+    end
   end
 
   # Console (REPL) counterpart of .add_server_appenders, used by the `rails console`
@@ -97,10 +79,13 @@ module RailsSemanticLogger
   # whether the default stderr console appender is added.
   def self.add_console_appenders
     options = Rails.application.config.rails_semantic_logger
-    if options.appenders?
-      add_console_appender(io: $stderr, declared: :console)
-    elsif options.console_logger
-      add_console_appender(io: $stderr)
+    # Backward compatibility: honor the deprecated console_logger toggle.
+    if !options.appenders? && options.console_logger && !SemanticLogger.appenders.console_output?
+      SemanticLogger.add_appender(io: $stderr, formatter: :color)
+    end
+
+    options.appenders.console.each do |args, block|
+      SemanticLogger.add_appender(**args, &block)
     end
   end
 

@@ -23,22 +23,22 @@ class TaggedLoggerProxyTest < Minitest::Test
 
     tagged_logger_proxy.send(:tag, logger) { :ok }
 
-    assert_equal [ :request_id, :user_id ], logger.received_tags
+    assert_equal %i[request_id user_id], logger.received_tags
   end
 
   def test_tag_removes_duplicate_tags_when_logger_exposes_tags
-    logger = LoggerWithTags.new([ :request_id ])
+    logger = LoggerWithTags.new([:request_id])
 
     tagged_logger_proxy.send(:tag, logger) { :ok }
 
-    assert_equal [ :user_id ], logger.received_tags
+    assert_equal [:user_id], logger.received_tags
   end
 
   private
 
   def tagged_logger_proxy
     proxy = ActionCable::Connection::TaggedLoggerProxy.allocate
-    proxy.singleton_class.define_method(:tags) { [ :request_id, :user_id ] }
+    proxy.singleton_class.define_method(:tags) { %i[request_id user_id] }
     proxy
   end
 end

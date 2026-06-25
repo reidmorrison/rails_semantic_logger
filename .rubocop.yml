@@ -4,7 +4,7 @@ AllCops:
     - "docs/**/*"
     - "gemfiles/*"
   NewCops: enable
-  TargetRubyVersion: 2.5
+  TargetRubyVersion: 3.2
 
 #
 # RuboCop built-in settings.

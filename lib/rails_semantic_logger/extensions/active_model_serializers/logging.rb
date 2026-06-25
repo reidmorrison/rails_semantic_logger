@@ -7,8 +7,8 @@ module ActiveModelSerializers
 
     private
 
-    def tag_logger(*tags, &block)
-      logger.tagged(*tags, &block)
+    def tag_logger(*tags, &)
+      logger.tagged(*tags, &)
     end
   end
 

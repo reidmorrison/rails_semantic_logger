@@ -12,8 +12,8 @@ module Sidekiq
   if defined?(::Sidekiq::Logging)
     # Replace Sidekiq logging context
     module Logging
-      def self.with_context(msg, &block)
-        SemanticLogger.tagged(msg, &block)
+      def self.with_context(msg, &)
+        SemanticLogger.tagged(msg, &)
       end
 
       def self.job_hash_context(job_hash)

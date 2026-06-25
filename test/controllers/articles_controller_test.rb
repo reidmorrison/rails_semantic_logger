@@ -86,9 +86,9 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
 
       it "customize action message" do
         old_action_message_format = RailsSemanticLogger::ActionController::LogSubscriber.action_message_format
-        RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = -> (message, payload) do
+        RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = lambda { |message, payload|
           "#{message} #{payload[:controller]}##{payload[:action]}"
-        end
+        }
 
         messages = semantic_logger_events do
           post articles_url(params: params)
@@ -117,7 +117,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
 
         assert_semantic_logger_event(
           messages[4],
-          message: "Completed ArticlesController#create",
+          message: "Completed ArticlesController#create"
         )
       ensure
         RailsSemanticLogger::ActionController::LogSubscriber.action_message_format = old_action_message_format
@@ -342,7 +342,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           begin
             Rails.application.env_config["action_dispatch.show_exceptions"] = :all
             get article_url(:show)
-          rescue ActiveRecord::RecordNotFound => e
+          rescue ActiveRecord::RecordNotFound
             # expected
           ensure
             Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
@@ -363,7 +363,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
             Rails.application.env_config["action_dispatch.show_exceptions"] = :all
             Rails.application.env_config["action_dispatch.log_rescued_responses"] = false
             get article_url(:show)
-          rescue ActiveRecord::RecordNotFound => e
+          rescue ActiveRecord::RecordNotFound
             # expected
           ensure
             Rails.application.env_config["action_dispatch.show_exceptions"] = old_show

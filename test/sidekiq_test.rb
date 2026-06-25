@@ -76,7 +76,7 @@ class SidekiqTest < Minitest::Test
 
       it "a simple job with Sidekiq 8+ timestamp (milliseconds)" do
         # Sidekiq 8+ stores enqueued_at as milliseconds since epoch (Integer)
-        enqueued_at_ms = (Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) - 60000).to_i
+        enqueued_at_ms = (Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) - 60_000).to_i
         msg_sidekiq8 = Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => enqueued_at_ms})
         uow_sidekiq8 = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg_sidekiq8)
 

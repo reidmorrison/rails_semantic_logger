@@ -19,7 +19,7 @@ module RailsSemanticLogger
 
         SemanticLogger.tagged(queue: queue) do
           if perform_messages_enabled?
-          # Latency is the time between when the job was enqueued and when it started executing.
+            # Latency is the time between when the job was enqueued and when it started executing.
             logger.info(
               "Start #perform",
               metric:        "sidekiq.queue.latency",
@@ -36,8 +36,8 @@ module RailsSemanticLogger
               metric:             "sidekiq.job.perform",
               &block
             )
-          else
-            yield if block_given?
+          elsif block_given?
+            yield
           end
         end
       end

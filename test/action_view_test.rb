@@ -23,9 +23,11 @@ class ActionViewTest < ActionDispatch::IntegrationTest
     describe "#render_partial" do
       it "strips the identifier and records allocations and gc_time" do
         events = instrument("render_partial", identifier: view_path("articles/_form.html.erb"))
+
         assert_equal 1, events.count, events
 
         rendered = events.first
+
         assert_equal "Rendered", rendered.message
         assert_equal :debug, rendered.level
         assert_equal "articles/_form.html.erb", rendered.payload[:partial]
@@ -37,6 +39,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         events = instrument("render_partial",
                             identifier: view_path("articles/_form.html.erb"),
                             cache_hit:  :hit)
+
         assert_equal :hit, events.first.payload[:cache]
       end
 
@@ -44,11 +47,13 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         events = instrument("render_partial",
                             identifier: view_path("articles/_form.html.erb"),
                             cache_hit:  :miss)
+
         assert_equal :miss, events.first.payload[:cache]
       end
 
       it "omits cache when there is no cache_hit" do
         events = instrument("render_partial", identifier: view_path("articles/_form.html.erb"))
+
         refute events.first.payload.key?(:cache), events.first.payload
       end
 
@@ -56,11 +61,13 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         events = instrument("render_partial",
                             identifier: view_path("articles/_form.html.erb"),
                             layout:     view_path("layouts/application.html.erb"))
+
         assert_equal "layouts/application.html.erb", events.first.payload[:within]
       end
 
       it "omits within when there is no layout" do
         events = instrument("render_partial", identifier: view_path("articles/_form.html.erb"))
+
         refute events.first.payload.key?(:within), events.first.payload
       end
     end
@@ -71,9 +78,11 @@ class ActionViewTest < ActionDispatch::IntegrationTest
                             identifier: view_path("articles/_article.html.erb"),
                             count:      3,
                             cache_hits: 2)
+
         assert_equal 1, events.count, events
 
         rendered = events.first
+
         assert_equal "Rendered", rendered.message
         assert_equal :debug, rendered.level
         assert_equal "articles/_article.html.erb", rendered.payload[:template]
@@ -87,11 +96,13 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         events = instrument("render_collection",
                             identifier: view_path("articles/_article.html.erb"),
                             count:      3)
+
         refute events.first.payload.key?(:cache_hits), events.first.payload
       end
 
       it "falls back to 'templates' when the identifier is nil" do
         events = instrument("render_collection", identifier: nil, count: 0)
+
         assert_equal "templates", events.first.payload[:template]
       end
     end
@@ -105,6 +116,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
                             layout:     view_path("layouts/application.html.erb"))
 
         rendered = events.find { |m| m.message == "Rendered" }
+
         assert rendered, events
         assert_equal "welcome/index.html.erb", rendered.payload[:template]
         assert_equal "layouts/application.html.erb", rendered.payload[:within]
@@ -126,19 +138,23 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         av = action_view_events(messages)
 
         rendering_layout = av.find { |m| m.message == "Rendering layout" }
+
         assert rendering_layout, av
         assert_equal "layouts/application.html.erb", rendering_layout.payload[:template]
 
         rendering = av.find { |m| m.message == "Rendering" }
+
         assert rendering, av
         assert_equal "welcome/index.html.erb", rendering.payload[:template]
 
         rendered = av.find { |m| m.message == "Rendered" }
+
         assert rendered, av
         assert_equal "welcome/index.html.erb", rendered.payload[:template]
         assert_equal "layouts/application", rendered.payload[:within]
 
         rendered_layout = av.find { |m| m.message == "Rendered layout" }
+
         assert rendered_layout, av
         assert_equal "layouts/application.html.erb", rendered_layout.payload[:template]
       end
@@ -150,12 +166,14 @@ class ActionViewTest < ActionDispatch::IntegrationTest
 
         %w[Rendered].each do |message|
           event = action_view_events(messages).find { |m| m.message == message }
+
           assert event, messages
           assert event.payload.key?(:allocations), event.payload
           assert event.payload.key?(:gc_time), event.payload
         end
 
         rendered_layout = action_view_events(messages).find { |m| m.message == "Rendered layout" }
+
         assert rendered_layout, messages
         assert rendered_layout.payload.key?(:allocations), rendered_layout.payload
         assert rendered_layout.payload.key?(:gc_time), rendered_layout.payload

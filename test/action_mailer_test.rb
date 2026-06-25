@@ -21,6 +21,7 @@ class ActionMailerTest < Minitest::Test
         messages = semantic_logger_events do
           MyMailer.some_email(to: "test@test.com", from: "test@test.com", subject: "test").deliver_now
         end
+
         assert_equal 2, messages.count, messages
 
         assert_semantic_logger_event(
@@ -195,9 +196,9 @@ class ActionMailerTest < Minitest::Test
 
         describe "#payload" do
           specify do
-            assert_equal(formatter.payload[:event_name], "deliver.action_mailer")
-            assert_equal(formatter.payload[:mailer], "MyMailer")
-            assert_equal(formatter.payload[:action], :some_email)
+            assert_equal("deliver.action_mailer", formatter.payload[:event_name])
+            assert_equal("MyMailer", formatter.payload[:mailer])
+            assert_equal(:some_email, formatter.payload[:action])
             assert_kind_of(Float, formatter.payload[:duration])
           end
         end
@@ -253,6 +254,7 @@ class ActionMailerTest < Minitest::Test
               # Sample.new has no id, so to_global_id raises and the record is returned as-is
               # rather than being converted to a "gid://" string.
               parsed = JSON.parse(formatter.payload[:args]).first
+
               assert_includes parsed.to_s, "Sample"
               refute_includes parsed.to_s, "gid://"
             end

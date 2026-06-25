@@ -1,3 +1,11 @@
+inherit_from: .rubocop_todo.yml
+
+# inherit_from: .rubocop_todo.yml
+
+plugins:
+  - rubocop-minitest
+  - rubocop-rake
+
 AllCops:
   Exclude:
     - ".git/**/*"

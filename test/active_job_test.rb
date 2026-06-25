@@ -100,6 +100,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.perform(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -116,7 +117,8 @@ class ActiveJobTest < Minitest::Test
           assert_includes messages[0].payload, :job_id
 
           exception = messages[0].exception
-          assert exception.is_a?(ArgumentError)
+
+          assert_kind_of ArgumentError, exception
           assert_equal "error", exception.message
         end
       end
@@ -136,6 +138,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -152,7 +155,8 @@ class ActiveJobTest < Minitest::Test
           assert_includes messages[0].payload, :job_id
 
           exception = messages[0].exception
-          assert exception.is_a?(ArgumentError)
+
+          assert_kind_of ArgumentError, exception
           assert_equal "error", exception.message
         end
       end
@@ -172,6 +176,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -205,6 +210,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_at(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -221,7 +227,8 @@ class ActiveJobTest < Minitest::Test
           assert_includes messages[0].payload, :job_id
 
           exception = messages[0].exception
-          assert exception.is_a?(ArgumentError)
+
+          assert_kind_of ArgumentError, exception
           assert_equal "error", exception.message
         end
       end
@@ -241,6 +248,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_at(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -284,6 +292,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_all(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -313,6 +322,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.enqueue_all(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Failed enqueuing 1 job/, messages[0].message)
@@ -332,6 +342,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.enqueue_all(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/\AFailed enqueuing 2 jobs to Inline/, messages[0].message)
@@ -356,6 +367,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_retry(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -365,7 +377,7 @@ class ActiveJobTest < Minitest::Test
             message_includes: "Retrying ActiveJobTest::MyJob"
           )
           assert_match(/in 5 seconds, due to a StandardError \(boom\)\./, messages[0].message)
-          assert_equal StandardError, messages[0].exception.class
+          assert_instance_of StandardError, messages[0].exception
           assert_equal 5, messages[0].payload[:wait]
           assert_includes messages[0].payload, :executions
         end
@@ -386,6 +398,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.retry_stopped(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -394,7 +407,7 @@ class ActiveJobTest < Minitest::Test
             name:             "Rails",
             message_includes: "Stopped retrying ActiveJobTest::MyJob"
           )
-          assert_equal StandardError, messages[0].exception.class
+          assert_instance_of StandardError, messages[0].exception
           assert_includes messages[0].payload, :executions
         end
       end
@@ -414,6 +427,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.discard(event)
           end
+
           assert_equal 1, messages.count, messages
 
           assert_semantic_logger_event(
@@ -422,7 +436,7 @@ class ActiveJobTest < Minitest::Test
             name:             "Rails",
             message_includes: "Discarded ActiveJobTest::MyJob"
           )
-          assert_equal StandardError, messages[0].exception.class
+          assert_instance_of StandardError, messages[0].exception
         end
       end
 
@@ -441,6 +455,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.enqueue_retry(event)
           end
+
           assert_equal 1, messages.count, messages
           assert_equal :info, messages[0].level
           assert_match(/Retrying ActiveJobTest::MyJob.* in 3 seconds\.\z/, messages[0].message)
@@ -465,6 +480,7 @@ class ActiveJobTest < Minitest::Test
           messages = semantic_logger_events do
             subscriber.perform(event)
           end
+
           assert_equal 1, messages.count, messages
           assert_equal :error, messages[0].level
           assert_match(/a before_perform callback halted the job execution/, messages[0].message)
@@ -480,10 +496,11 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.enqueue(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :error, messages[0].level
             assert_match(/Failed enqueuing ActiveJobTest::MyJob/, messages[0].message)
-            assert_equal StandardError, messages[0].exception.class
+            assert_instance_of StandardError, messages[0].exception
             assert_equal "could not enqueue", messages[0].exception.message
           end
         end
@@ -518,6 +535,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.interrupt(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Interrupted ActiveJobTest::MyJob/, messages[0].message)
@@ -540,6 +558,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.resume(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Resuming ActiveJobTest::MyJob/, messages[0].message)
@@ -561,6 +580,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.step_started(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Step 'one' started/, messages[0].message)
@@ -583,6 +603,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.step_skipped(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Step 'one' skipped/, messages[0].message)
@@ -605,6 +626,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.step_started(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Step 'one' resumed from cursor '5'/, messages[0].message)
@@ -628,11 +650,12 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.step(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :error, messages[0].level
             assert_match(/Error during step 'one' at cursor '5'/, messages[0].message)
             assert_equal "5", messages[0].payload[:step_cursor]
-            assert_equal StandardError, messages[0].exception.class
+            assert_instance_of StandardError, messages[0].exception
           end
         end
 
@@ -652,6 +675,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.step(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Step 'one' interrupted at cursor '5'/, messages[0].message)
@@ -674,6 +698,7 @@ class ActiveJobTest < Minitest::Test
             messages = semantic_logger_events do
               subscriber.step(event)
             end
+
             assert_equal 1, messages.count, messages
             assert_equal :info, messages[0].level
             assert_match(/Step 'one' completed/, messages[0].message)
@@ -691,9 +716,9 @@ class ActiveJobTest < Minitest::Test
 
         describe "#payload" do
           specify do
-            assert_equal(formatter.payload[:event_name], "perform.active_job")
-            assert_equal(formatter.payload[:adapter], "Inline")
-            assert_equal(formatter.payload[:queue], "my_jobs")
+            assert_equal("perform.active_job", formatter.payload[:event_name])
+            assert_equal("Inline", formatter.payload[:adapter])
+            assert_equal("my_jobs", formatter.payload[:queue])
             assert_kind_of(String, formatter.payload[:job_id])
             assert_kind_of(Float, formatter.payload[:duration])
           end
@@ -728,7 +753,7 @@ class ActiveJobTest < Minitest::Test
             end
 
             specify do
-              assert_equal(formatter.payload[:job_class], "ActiveJobTest::MyJob")
+              assert_equal("ActiveJobTest::MyJob", formatter.payload[:job_class])
               arguments = <<~ARGS.chomp
                 [
                   "gid://dummy/ActiveJobTest::TestModel/15",
@@ -749,8 +774,8 @@ class ActiveJobTest < Minitest::Test
             end
 
             specify do
-              assert_equal(formatter.payload[:job_class], "ActiveJobTest::SensitiveJob")
-              assert_equal(formatter.payload[:arguments], "")
+              assert_equal("ActiveJobTest::SensitiveJob", formatter.payload[:job_class])
+              assert_equal("", formatter.payload[:arguments])
             end
           end
         end
@@ -763,7 +788,7 @@ class ActiveJobTest < Minitest::Test
 
         describe "#queue_name" do
           specify do
-            assert_equal(formatter.queue_name, "Inline(my_jobs)")
+            assert_equal("Inline(my_jobs)", formatter.queue_name)
           end
         end
       end

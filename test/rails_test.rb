@@ -14,6 +14,7 @@ class RailsTest < Minitest::Test
       it "is compatible with Rails logger" do
         assert_nil Rails.logger.formatter
         Rails.logger.formatter = "blah"
+
         assert_equal "blah", Rails.logger.formatter
       end
     end

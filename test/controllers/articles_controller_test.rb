@@ -23,6 +23,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         messages = semantic_logger_events do
           post articles_url(params: params)
         end
+
         assert_equal 5, messages.count, messages
 
         assert_semantic_logger_event(
@@ -93,6 +94,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         messages = semantic_logger_events do
           post articles_url(params: params)
         end
+
         assert_equal 5, messages.count, messages
 
         assert_semantic_logger_event(
@@ -131,6 +133,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         assert completed.payload.key?(:allocations), completed.payload
         assert completed.payload.key?(:gc_time), completed.payload
@@ -142,6 +145,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         refute completed.payload.key?(:params), completed.payload
       end
@@ -152,6 +156,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         assert_equal "/articles/filtered", completed.payload[:path]
       end
@@ -162,6 +167,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         assert_kind_of Float, completed.payload[:view_runtime]
         assert_equal completed.payload[:view_runtime].round(2), completed.payload[:view_runtime]
@@ -173,6 +179,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         refute completed.payload.key?(:headers), completed.payload
         refute completed.payload.key?(:request), completed.payload
@@ -189,6 +196,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         assert_kind_of String, completed.payload[:params]["file"]
       end
@@ -207,6 +215,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         completed = messages.find { |m| m.message&.start_with?("Completed") }
+
         assert completed, messages
         assert_equal 404, completed.payload[:status]
         assert_equal "Not Found", completed.payload[:status_message]
@@ -224,11 +233,13 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
 
       it "falls back to ActionController::Base.logger when no controller is present" do
         event = build_event(controller: nil)
+
         assert_equal ActionController::Base.logger, subscriber.send(:controller_logger, event)
       end
 
       it "falls back to ActionController::Base.logger when the controller cannot be resolved" do
         event = build_event(controller: "NoSuchController")
+
         assert_equal ActionController::Base.logger, subscriber.send(:controller_logger, event)
       end
     end
@@ -240,6 +251,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         halted = messages.find { |m| m.message&.start_with?("Filter chain halted") }
+
         assert halted, messages
         assert_equal :info, halted.level
       end
@@ -252,6 +264,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         sent = messages.find { |m| m.message == "Sent data" }
+
         assert sent, messages
         assert_equal "greeting.txt", sent.payload[:file_name]
       end
@@ -264,6 +277,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         sent = messages.find { |m| m.message == "Sent file" }
+
         assert sent, messages
         assert sent.payload[:path].to_s.end_with?("favicon.ico"), sent.payload
       end
@@ -276,6 +290,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         redirect = messages.find { |m| m.message == "Redirected to" }
+
         assert redirect, messages
         assert_equal article_url(:new), redirect.payload[:location]
       end
@@ -291,6 +306,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           end
 
           redirect = messages.find { |m| m.message == "Redirected to" }
+
           assert redirect, messages
           assert redirect.payload.key?(:source), redirect.payload
         ensure
@@ -308,6 +324,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         end
 
         rescued = messages.find { |m| m.message&.start_with?("rescue_from handled") }
+
         assert rescued, messages
         assert_equal "ArticlesController::Handled", rescued.payload[:exception]
         assert_equal "boom", rescued.payload[:exception_message]
@@ -324,6 +341,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           end
 
           unpermitted = messages.find { |m| m.message&.start_with?("Unpermitted parameter") }
+
           assert unpermitted, messages
           assert_equal :debug, unpermitted.level
           assert_includes unpermitted.payload[:keys], "bogus"
@@ -348,6 +366,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
             Rails.application.env_config["action_dispatch.show_exceptions"] = old_show
           end
         end
+
         assert_equal 4, messages.count, messages
         assert_kind_of ActiveRecord::RecordNotFound, messages[3].exception
       end
@@ -370,6 +389,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
             Rails.application.env_config["action_dispatch.log_rescued_responses"] = old_log_rescued_responses
           end
         end
+
         assert_equal 3, messages.count, messages
       end
     end

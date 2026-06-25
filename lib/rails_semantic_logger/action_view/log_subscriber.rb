@@ -1,5 +1,14 @@
 require "active_support/log_subscriber"
 
+# This subscriber is a reimplementation of Rails' own ActionView::LogSubscriber that emits
+# structured (message + payload) log entries instead of formatted text. When Rails changes its
+# subscriber, those changes must be brought across here. Compare against the upstream source for
+# each supported Rails version:
+#
+#   Rails 8.1: https://github.com/rails/rails/blob/8-1-stable/actionview/lib/action_view/log_subscriber.rb
+#   Rails 8.0: https://github.com/rails/rails/blob/8-0-stable/actionview/lib/action_view/log_subscriber.rb
+#   Rails 7.2: https://github.com/rails/rails/blob/7-2-stable/actionview/lib/action_view/log_subscriber.rb
+#
 module RailsSemanticLogger
   module ActionView
     # Output Semantic logs from Action View.

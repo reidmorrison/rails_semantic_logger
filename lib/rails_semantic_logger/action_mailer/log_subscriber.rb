@@ -1,6 +1,15 @@
 require "active_support/log_subscriber"
 require "action_mailer"
 
+# This subscriber is a reimplementation of Rails' own ActionMailer::LogSubscriber that emits
+# structured (message + payload) log entries instead of formatted text. When Rails changes its
+# subscriber, those changes must be brought across here. Compare against the upstream source for
+# each supported Rails version:
+#
+#   Rails 8.1: https://github.com/rails/rails/blob/8-1-stable/actionmailer/lib/action_mailer/log_subscriber.rb
+#   Rails 8.0: https://github.com/rails/rails/blob/8-0-stable/actionmailer/lib/action_mailer/log_subscriber.rb
+#   Rails 7.2: https://github.com/rails/rails/blob/7-2-stable/actionmailer/lib/action_mailer/log_subscriber.rb
+#
 module RailsSemanticLogger
   module ActionMailer
     class LogSubscriber < ::ActiveSupport::LogSubscriber
@@ -45,10 +54,6 @@ module RailsSemanticLogger
         def initialize(event:, log_duration: false)
           @event = event
           @log_duration = log_duration
-        end
-
-        def mailer
-          event.payload[:mailer]
         end
 
         def payload

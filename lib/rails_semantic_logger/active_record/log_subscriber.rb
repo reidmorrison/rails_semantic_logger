@@ -1,3 +1,12 @@
+# This subscriber is a reimplementation of Rails' own ActiveRecord::LogSubscriber that emits
+# structured (message + payload) log entries instead of formatted text. When Rails changes its
+# subscriber, those changes must be brought across here. Compare against the upstream source for
+# each supported Rails version:
+#
+#   Rails 8.1: https://github.com/rails/rails/blob/8-1-stable/activerecord/lib/active_record/log_subscriber.rb
+#   Rails 8.0: https://github.com/rails/rails/blob/8-0-stable/activerecord/lib/active_record/log_subscriber.rb
+#   Rails 7.2: https://github.com/rails/rails/blob/7-2-stable/activerecord/lib/active_record/log_subscriber.rb
+#
 module RailsSemanticLogger
   module ActiveRecord
     class LogSubscriber < ActiveSupport::LogSubscriber

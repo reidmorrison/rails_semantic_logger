@@ -27,10 +27,6 @@ module RailsSemanticLogger
     autoload :Logger, "rails_semantic_logger/rack/logger"
   end
 
-  module DelayedJob
-    autoload :Plugin, "rails_semantic_logger/delayed_job/plugin"
-  end
-
   module Sidekiq
     autoload :Defaults, "rails_semantic_logger/sidekiq/defaults"
     autoload :JobLogger, "rails_semantic_logger/sidekiq/job_logger"
@@ -134,14 +130,3 @@ end
 
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)
 require("rails_semantic_logger/extensions/active_support/logger") if defined?(ActiveSupport::Logger)
-
-begin
-  require "rackup"
-rescue LoadError
-  # No need to do anything, will fall back to Rack
-end
-if defined?(Rackup::Server)
-  require("rails_semantic_logger/extensions/rackup/server")
-elsif defined?(Rack::Server)
-  require("rails_semantic_logger/extensions/rack/server")
-end

@@ -60,6 +60,26 @@ These are the files most affected by the "track Rails' log subscribers" maintena
 ### Options (`lib/rails_semantic_logger/options.rb`)
 `RailsSemanticLogger::Options` is the public configuration surface, set via `config.rails_semantic_logger.*` in `application.rb`. Key flags: `semantic`, `started`, `processing`, `rendered`, `quiet_assets`, `add_file_appender`, `format` (`:default`/`:color`/`:json`/class/Proc), `filter`, `ap_options`, `action_message_format`, `replace_sidekiq_logger`, `replace_solid_queue_logger`, `console_logger`. The long comment block at the top of that file is the authoritative docs for each option, keep it in sync when changing defaults or behavior.
 
+**Deprecated in favor of the appenders DSL (below):** `format`, `ap_options`, `filter`, and `console_logger`. Their setters warn via `RailsSemanticLogger.deprecator` (horizon `"6.0"`, set in `lib/rails_semantic_logger.rb`) through `Options#deprecate_appender_option(option, via:)` (the `via:` arg customizes the suggested replacement call, e.g. `appenders.add_console(...)`). The readers remain so the engine can still honor them on the legacy path. When adding another deprecation, reuse `deprecate_appender_option`.
+
+### Appenders configuration (`lib/rails_semantic_logger/appenders.rb`)
+The current way to configure log destinations. Instead of the single default `log/<env>.log` file appender plus the `format`/`filter`/`ap_options` options, an app declares appenders directly:
+
+```ruby
+config.rails_semantic_logger.appenders do |appenders|
+  appenders.add(file_name: "log/#{Rails.env}.log", formatter: :json)  # always created, at init
+  appenders.add_server(io: $stdout, formatter: :color)                # only when serving requests
+  appenders.add_console(io: $stderr, formatter: :color)               # only inside `rails console`
+end
+```
+
+Key points for maintainers:
+- **The method names the *context* (when), the args are the *destination* (where).** `add` = always; `add_server` = serving contexts (defaults `$stdout`); `add_console` = the Rails console REPL (defaults `$stderr`). Both `add_server`/`add_console` accept any `SemanticLogger.add_appender` args; the default stream is applied only when no destination (`io`/`file_name`/`appender`/`logger`/`metric`, see `Appenders::DESTINATIONS`) is given, so a context can hold several appenders (e.g. server-only stdout *and* file).
+- `Options#appenders?` is true once anything is declared (incl. `add_server`/`add_console`). When true, the engine **skips the default file appender** and the deprecated options no longer apply.
+- **Materialization:** `add` appenders are created at init by `RailsSemanticLogger.add_appenders`. `add_server` appenders by `RailsSemanticLogger.add_server_appenders` (public), auto-called from the `rails server` patch (`extensions/rails/server.rb`) and the Sidekiq server block in the engine. `add_console` appenders by `RailsSemanticLogger.add_console_appenders`, called from the engine's `console do` hook. All route through the internal `add_console_appender(io:, formatter:, declared:)`, idempotent via `SemanticLogger.appenders.console_output?`.
+- **No heuristic server detection.** App servers without a first-party hook (bare `puma`, `rackup`, Passenger, Unicorn) are deliberately *not* auto-detected — no `$PROGRAM_NAME` matching, no `Puma::Launcher` patch ("sometimes works" is unsupportable). Those users call `RailsSemanticLogger.add_server_appenders` from the server's own definitive boot hook, e.g. `on_booted { RailsSemanticLogger.add_server_appenders }` in `config/puma.rb`.
+- Tests live in `test/appenders_test.rb`.
+
 ### Extensions (`lib/rails_semantic_logger/extensions/`)
 Monkey-patches / overrides of third-party and Rails internals, each loaded conditionally on the relevant constant being defined (e.g. `extensions/mongoid/config.rb`, `extensions/sidekiq/sidekiq.rb`, `extensions/active_support/tagged_logging.rb`, `extensions/action_dispatch/debug_exceptions.rb`). These keep integrations isolated and only activated when the host app uses that library.
 

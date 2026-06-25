@@ -42,7 +42,10 @@ module RailsSemanticLogger
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger = config.logger =
         begin
-          if config.rails_semantic_logger.add_file_appender
+          if config.rails_semantic_logger.appenders?
+            # The application declared its own appenders; create those and skip the default file appender.
+            RailsSemanticLogger.add_appenders(config.rails_semantic_logger.appenders)
+          elsif config.rails_semantic_logger.add_file_appender
             path = config.paths["log"].first
             FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
 
@@ -121,8 +124,8 @@ module RailsSemanticLogger
             config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
           end
 
-          # Add back the default console logger unless already added
-          SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
+          # Add back the default console logger (unless the app declared its own appenders, or one exists)
+          RailsSemanticLogger.add_server_appenders
 
           # Replace default error handler when present
           existing = RailsSemanticLogger::Sidekiq::Defaults.delete_default_error_handler(config.error_handlers)
@@ -293,9 +296,7 @@ module RailsSemanticLogger
         # Don't use a background thread for logging
         SemanticLogger.sync!
         # Add a stderr logger when running inside a Rails console unless one has already been added.
-        if config.rails_semantic_logger.console_logger && !SemanticLogger.appenders.console_output?
-          SemanticLogger.add_appender(io: STDERR, formatter: :color)
-        end
+        RailsSemanticLogger.add_console_appenders
 
         # Include method names on log entries in the console
         SemanticLogger.backtrace_level = SemanticLogger.default_level

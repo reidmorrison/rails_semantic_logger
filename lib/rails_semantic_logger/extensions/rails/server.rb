@@ -9,7 +9,7 @@ module Rails
     def log_to_stdout
       wrapped_app # touch the app so the logger is set up
 
-      SemanticLogger.add_appender(io: $stdout, formatter: :color) unless SemanticLogger.appenders.console_output?
+      RailsSemanticLogger.add_server_appenders
     end
   end
 end

@@ -1,7 +1,5 @@
 inherit_from: .rubocop_todo.yml
 
-# inherit_from: .rubocop_todo.yml
-
 plugins:
   - rubocop-minitest
   - rubocop-rake
@@ -11,8 +9,10 @@ AllCops:
     - ".git/**/*"
     - "docs/**/*"
     - "gemfiles/*"
+    - "vendor/**/*"
   NewCops: enable
   TargetRubyVersion: 3.2
+  SuggestExtensions: false
 
 #
 # RuboCop built-in settings.

@@ -238,8 +238,11 @@ class ActiveRecordTest < Minitest::Test
         end
         refute messages[0].payload.key?(:async)
 
-        # TODO: This test is flaky and needs to be fixed.
-        # assert_equal true, messages[1].payload[:async]
+        # messages[1] comes from async_count, but Rails only sets payload[:async]
+        # when the background thread runs the query before .value is requested; otherwise
+        # it falls back to running synchronously in the foreground. That race makes any
+        # assertion on messages[1].payload[:async] flaky here. The subscriber's async
+        # branch is covered deterministically by the "async metadata" tests below.
       end
     end
 

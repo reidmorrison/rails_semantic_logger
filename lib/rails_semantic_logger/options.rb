@@ -4,7 +4,9 @@ module RailsSemanticLogger
   # * Convert Action Controller and Active Record text messages to semantic data
   #
   #     Rails -- Started -- { :ip => "127.0.0.1", :method => "GET", :path => "/dashboards/inquiry_recent_activity" }
+  # rubocop:disable Layout/LineLength
   #     UserController -- Completed #index -- { :action => "index", :db_runtime => 54.64, :format => "HTML", :method => "GET", :mongo_runtime => 0.0, :path => "/users", :status => 200, :status_message => "OK", :view_runtime => 709.88 }
+  # rubocop:enable Layout/LineLength
   #
   #     config.rails_semantic_logger.semantic = true
   #

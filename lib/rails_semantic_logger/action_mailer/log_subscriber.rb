@@ -14,6 +14,10 @@ module RailsSemanticLogger
   module ActionMailer
     class LogSubscriber < ::ActiveSupport::LogSubscriber
       def deliver(event)
+        # Rails gates this event with `subscribe_log_level :deliver, :debug`, so the upstream
+        # subscriber only runs when the logger is at debug level (or lower). Match that here.
+        return unless logger.debug?
+
         ex = event.payload[:exception_object]
         message_id = event.payload[:message_id]
         duration = event.duration.round(1)
@@ -40,10 +44,14 @@ module RailsSemanticLogger
 
       # An email was generated.
       def process(event)
+        # Rails gates this event with `subscribe_log_level :process, :debug` and emits the message
+        # at debug level. Match both the gating and the level here.
+        return unless logger.debug?
+
         mailer   = event.payload[:mailer]
         action   = event.payload[:action]
         duration = event.duration.round(1)
-        log_with_formatter event: event do |_fmt|
+        log_with_formatter event: event, level: :debug do |_fmt|
           {message: "#{mailer}##{action}: processed outbound mail in #{duration}ms"}
         end
       end
@@ -57,29 +65,29 @@ module RailsSemanticLogger
         end
 
         def payload
+          p = event.payload
           {}.tap do |h|
             h[:event_name]         = event.name
             h[:mailer]             = mailer
             h[:action]             = action
-            h[:message_id]         = event.payload[:message_id]
-            h[:perform_deliveries] = event.payload[:perform_deliveries]
-            h[:subject]            = event.payload[:subject]
-            h[:to]                 = event.payload[:to]
-            h[:from]               = event.payload[:from]
-            h[:bcc]                = event.payload[:bcc]
-            h[:cc]                 = event.payload[:cc]
+            h[:message_id]         = p[:message_id]
+            h[:perform_deliveries] = p[:perform_deliveries]
+            h[:subject]            = p[:subject]
+            h[:to]                 = p[:to]
+            h[:from]               = p[:from]
+            h[:bcc]                = p[:bcc]
+            h[:cc]                 = p[:cc]
             h[:date]               = date
+            # Rails dumps the full encoded message at debug level via `debug { event.payload[:mail] }`.
+            # The `deliver` event is debug-gated, so include it here whenever it is present.
+            h[:mail]               = p[:mail] if p[:mail]
             h[:duration]           = event.duration.round(2) if log_duration?
             h[:args]               = formatted_args
           end
         end
 
         def date
-          if event.payload[:date].respond_to?(:to_time)
-            event.payload[:date].to_time.utc
-          elsif event.payload[:date].is_a?(String)
-            Time.parse(date).utc
-          end
+          event.payload[:date].to_time.utc if event.payload[:date].respond_to?(:to_time)
         end
 
         private
@@ -95,11 +103,9 @@ module RailsSemanticLogger
         end
 
         def formatted_args
-          if defined?(mailer.constantize.log_arguments?) && !mailer.constantize.log_arguments?
-            ""
-          elsif event.payload[:args].present?
-            JSON.pretty_generate(event.payload[:args].map { |arg| format(arg) })
-          end
+          return unless event.payload[:args].present?
+
+          JSON.pretty_generate(event.payload[:args].map { |arg| format(arg) })
         end
 
         def format(arg)

@@ -28,6 +28,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   error to match upstream.
 - ActiveJob: add `enqueued_at` and `scheduled_at` to the event payload (when applicable), plus
   `executions`/`wait` on retry events and `step_name`/`step_cursor` on Continuation step events.
+- ActiveRecord: handle the `strict_loading_violation` event (previously dropped entirely when our
+  subscriber replaced Rails'), emitting the violation message plus a structured payload (`owner`,
+  `association`, and `class` for non-polymorphic reflections).
+- ActiveRecord: add `lock_wait` to the `sql` payload for async queries, matching Rails.
+- ActiveRecord: only set `cached` in the `sql` payload when the result was served from the query
+  cache, instead of writing `cached: nil` on every query.
+- ActiveRecord: filter sensitive bind values via Rails' own `ActiveRecord::Base.inspection_filter`
+  (derived from `config.filter_parameters`), replacing the previous partial filter that only
+  handled a single leading Regexp. The upstream subscriber is identical across Rails 7.2 / 8.0 /
+  8.1, so no version-specific behavior is required.
 
 ## [4.20.0] - 2026-04-10
 

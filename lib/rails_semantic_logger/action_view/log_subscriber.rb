@@ -23,7 +23,7 @@ module RailsSemanticLogger
           template: from_rails_root(event.payload[:identifier])
         }
         payload[:within]      = from_rails_root(event.payload[:layout]) if event.payload[:layout]
-        payload[:allocations] = event.allocations if event.respond_to?(:allocations)
+        payload[:allocations] = event.allocations
 
         logger.measure(
           self.class.rendered_log_level,
@@ -41,7 +41,7 @@ module RailsSemanticLogger
         }
         payload[:within]      = from_rails_root(event.payload[:layout]) if event.payload[:layout]
         payload[:cache]       = event.payload[:cache_hit] unless event.payload[:cache_hit].nil?
-        payload[:allocations] = event.allocations if event.respond_to?(:allocations)
+        payload[:allocations] = event.allocations
 
         logger.measure(
           self.class.rendered_log_level,
@@ -61,7 +61,7 @@ module RailsSemanticLogger
           count:    event.payload[:count]
         }
         payload[:cache_hits]  = event.payload[:cache_hits] if event.payload[:cache_hits]
-        payload[:allocations] = event.allocations if event.respond_to?(:allocations)
+        payload[:allocations] = event.allocations
 
         logger.measure(
           self.class.rendered_log_level,
@@ -83,48 +83,46 @@ module RailsSemanticLogger
         super
       end
 
-      if (Rails::VERSION::MAJOR == 7 && Rails::VERSION::MINOR >= 1) || Rails::VERSION::MAJOR > 7
-        class Start
-          def start(name, _id, payload)
-            return unless %w[render_template.action_view render_layout.action_view].include?(name)
+      class Start
+        def start(name, _id, payload)
+          return unless %w[render_template.action_view render_layout.action_view].include?(name)
 
-            qualifier        = " layout" if name == "render_layout.action_view"
-            payload          = {template: from_rails_root(payload[:identifier])}
-            payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
+          qualifier        = " layout" if name == "render_layout.action_view"
+          payload          = {template: from_rails_root(payload[:identifier])}
+          payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
-            logger.debug(message: "Rendering#{qualifier}", payload: payload)
-          end
-
-          def finish(name, id, payload)
-          end
-
-          private
-
-          def from_rails_root(string)
-            string = string.sub(rails_root, "")
-            string.sub!(VIEWS_PATTERN, "")
-            string
-          end
-
-          def rails_root
-            @root ||= "#{Rails.root}/"
-          end
-
-          def logger
-            @logger ||= SemanticLogger["ActionView"]
-          end
+          logger.debug(message: "Rendering#{qualifier}", payload: payload)
         end
 
-        def self.attach_to(*)
-          ActiveSupport::Notifications.unsubscribe("render_template.action_view")
-          ActiveSupport::Notifications.unsubscribe("render_layout.action_view")
-          ActiveSupport::Notifications.subscribe("render_template.action_view",
-                                                 RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
-          ActiveSupport::Notifications.subscribe("render_layout.action_view",
-                                                 RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
-
-          super
+        def finish(name, id, payload)
         end
+
+        private
+
+        def from_rails_root(string)
+          string = string.sub(rails_root, "")
+          string.sub!(VIEWS_PATTERN, "")
+          string
+        end
+
+        def rails_root
+          @root ||= "#{Rails.root}/"
+        end
+
+        def logger
+          @logger ||= SemanticLogger["ActionView"]
+        end
+      end
+
+      def self.attach_to(*)
+        ActiveSupport::Notifications.unsubscribe("render_template.action_view")
+        ActiveSupport::Notifications.unsubscribe("render_layout.action_view")
+        ActiveSupport::Notifications.subscribe("render_template.action_view",
+                                               RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
+        ActiveSupport::Notifications.subscribe("render_layout.action_view",
+                                               RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
+
+        super
       end
 
       private

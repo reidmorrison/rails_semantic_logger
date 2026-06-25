@@ -51,14 +51,11 @@ module RailsSemanticLogger
             payload[key] = payload[key].to_f.round(2) if key.to_s =~ /(.*)_runtime/
           end
 
-          # Rails 6+ includes allocation count
-          payload[:allocations] = event.allocations if event.respond_to?(:allocations)
+          payload[:allocations] = event.allocations
 
           payload[:status_message] = ::Rack::Utils::HTTP_STATUS_CODES[payload[:status]] if payload[:status].present?
 
-          # Causes excessive log output with Rails 5 RC1
           payload.delete(:headers)
-          # Causes recursion in Rails 6.1.rc1
           payload.delete(:request)
           payload.delete(:response)
 
@@ -99,8 +96,7 @@ module RailsSemanticLogger
          expire_fragment expire_page write_page].each do |method|
         class_eval <<-METHOD, __FILE__, __LINE__ + 1
           def #{method}(event)
-            # enable_fragment_cache_logging as of Rails 5
-            return if ::ActionController::Base.respond_to?(:enable_fragment_cache_logging) && !::ActionController::Base.enable_fragment_cache_logging
+            return unless ::ActionController::Base.enable_fragment_cache_logging
             controller_logger(event).info do
               key_or_path = event.payload[:key] || event.payload[:path]
               {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration}

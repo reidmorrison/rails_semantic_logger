@@ -239,8 +239,9 @@ module RailsSemanticLogger
         if defined?(::ActionController)
           require "action_controller/log_subscriber"
 
-          RailsSemanticLogger::ActionController::LogSubscriber.action_message_format =
-            config.rails_semantic_logger.action_message_format
+          subscriber                       = RailsSemanticLogger::ActionController::LogSubscriber
+          subscriber.action_message_format = config.rails_semantic_logger.action_message_format
+          subscriber.processing_log_level  = :info if config.rails_semantic_logger.processing
           RailsSemanticLogger.swap_subscriber(
             ::ActionController::LogSubscriber,
             RailsSemanticLogger::ActionController::LogSubscriber,

@@ -45,6 +45,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   Settings consumed at the end of initialization (`started`, `processing`, `rendered`,
   `quiet_assets`, `action_message_format`) warn when changed after the application has booted.
   Configure logging in `config/application.rb` or `config/environments/<env>.rb`. Addresses #245.
+- ActionController: restore the `processing` option, which had stopped taking effect. The
+  `Processing` message was hardcoded to `:debug`; it is now logged at `:info` again when
+  `config.rails_semantic_logger.processing` is true, matching the `started` and `rendered` options.
 - Remove the long-deprecated and unused `named_tags` option. Supply a Hash to `config.log_tags`
   instead.
 

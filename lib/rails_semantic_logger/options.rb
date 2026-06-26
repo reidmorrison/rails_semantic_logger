@@ -107,10 +107,6 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.filter = nil
   #
-  # * named_tags: *DEPRECATED*
-  #   Instead, supply a Hash to config.log_tags
-  #   config.rails_semantic_logger.named_tags = nil
-  #
   # * Change the message format of Action Controller action.
   #   A block that will be called to format the message.
   #   It is supplied with the `message` and `payload` and should return the formatted data.
@@ -127,12 +123,34 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.replace_solid_queue_logger = false
   class Options
-    attr_accessor :semantic, :started, :processing, :rendered,
-                  :quiet_assets, :named_tags, :action_message_format,
-                  :replace_sidekiq_logger, :replace_solid_queue_logger
+    # Settings consumed while the logger itself is built, during Rails'
+    # `:initialize_logger` initializer. Changing them after that (e.g. from
+    # `config/initializers/*`, which Rails loads later) has no effect.
+    LOGGER_INIT_SETTINGS = %i[semantic replace_sidekiq_logger replace_solid_queue_logger].freeze
+
+    # Settings consumed as Rails finishes initializing (`config.after_initialize`),
+    # which runs *after* `config/initializers/*`. They may still be set there, but
+    # changing them after the application has booted has no effect.
+    POST_INIT_SETTINGS = %i[started processing rendered quiet_assets action_message_format].freeze
+
+    attr_reader(*LOGGER_INIT_SETTINGS, *POST_INIT_SETTINGS)
 
     # DEPRECATED: configure these on the appender instead, via #appenders.
     attr_reader :ap_options, :format, :filter, :console_logger, :add_file_appender
+
+    LOGGER_INIT_SETTINGS.each do |setting|
+      define_method("#{setting}=") do |value|
+        warn_if_logger_initialized(setting)
+        instance_variable_set(:"@#{setting}", value)
+      end
+    end
+
+    POST_INIT_SETTINGS.each do |setting|
+      define_method("#{setting}=") do |value|
+        warn_if_fully_initialized(setting)
+        instance_variable_set(:"@#{setting}", value)
+      end
+    end
 
     # Setup default values
     def initialize
@@ -144,7 +162,6 @@ module RailsSemanticLogger
       @add_file_appender          = true
       @quiet_assets               = false
       @format                     = :default
-      @named_tags                 = nil
       @filter                     = nil
       @console_logger             = true
       @action_message_format      = nil
@@ -182,7 +199,10 @@ module RailsSemanticLogger
     # longer used.
     def appenders
       @appenders ||= RailsSemanticLogger::Appenders.new
-      yield @appenders if block_given?
+      if block_given?
+        warn_if_logger_initialized(:appenders)
+        yield @appenders
+      end
       @appenders
     end
 
@@ -191,18 +211,37 @@ module RailsSemanticLogger
       defined?(@appenders) && @appenders.any?
     end
 
+    # Marks that Rails Semantic Logger has already built its logger and the
+    # init-time appenders. Called by the engine at the end of the
+    # `:initialize_logger` initializer. After this point, settings that are only
+    # read while building those appenders no longer have any effect, so changing
+    # them emits a warning (see #warn_if_logger_initialized).
+    def logger_initialized!
+      @logger_initialized = true
+    end
+
+    # Marks that Rails has finished initializing the application (the engine's
+    # `config.after_initialize` has run). Called by the engine. After this point,
+    # the POST_INIT_SETTINGS have already been consumed, so changing them warns.
+    def fully_initialized!
+      @fully_initialized = true
+    end
+
     def ap_options=(value)
       deprecate_appender_option(:ap_options)
+      warn_if_logger_initialized(:ap_options)
       @ap_options = value
     end
 
     def format=(value)
       deprecate_appender_option(:format)
+      warn_if_logger_initialized(:format)
       @format = value
     end
 
     def filter=(value)
       deprecate_appender_option(:filter)
+      warn_if_logger_initialized(:filter)
       @filter = value
     end
 
@@ -213,6 +252,7 @@ module RailsSemanticLogger
 
     def add_file_appender=(value)
       deprecate_appender_option(:add_file_appender)
+      warn_if_logger_initialized(:add_file_appender)
       @add_file_appender = value
     end
 
@@ -224,6 +264,25 @@ module RailsSemanticLogger
         "Declare the destination and formatting directly instead, via " \
         "`config.rails_semantic_logger.appenders { |appenders| #{via} }`."
       )
+    end
+
+    # Warn when an init-time setting is changed after the logger and its
+    # appenders have already been built. This is the classic footgun of putting
+    # logger configuration in `config/initializers/*`, which Rails loads *after*
+    # the logger is initialized, so the change silently has no effect.
+    def warn_if_logger_initialized(setting)
+      return unless defined?(@logger_initialized) && @logger_initialized
+
+      RailsSemanticLogger.warn_initialized_too_late(setting)
+    end
+
+    # Warn when a setting consumed at the end of Rails initialization is changed
+    # after the application has already booted. Unlike #warn_if_logger_initialized,
+    # `config/initializers/*` is *not* too late for these, so it is not suggested.
+    def warn_if_fully_initialized(setting)
+      return unless defined?(@fully_initialized) && @fully_initialized
+
+      RailsSemanticLogger.warn_initialized_too_late(setting, config_initializers_too_late: false)
     end
   end
 end

@@ -38,6 +38,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   (derived from `config.filter_parameters`), replacing the previous partial filter that only
   handled a single leading Regexp. The upstream subscriber is identical across Rails 7.2 / 8.0 /
   8.1, so no version-specific behavior is required.
+- Warn when a logger setting is configured too late to take effect. Settings consumed while the
+  logger is built (the appenders block, `filter`, `format`, `ap_options`, `add_file_appender`,
+  `semantic`, `replace_sidekiq_logger`, `replace_solid_queue_logger`) now print a warning when
+  changed from `config/initializers/*`, which Rails loads *after* the logger is initialized.
+  Settings consumed at the end of initialization (`started`, `processing`, `rendered`,
+  `quiet_assets`, `action_message_format`) warn when changed after the application has booted.
+  Configure logging in `config/application.rb` or `config/environments/<env>.rb`. Addresses #245.
+- Remove the long-deprecated and unused `named_tags` option. Supply a Hash to `config.log_tags`
+  instead.
 
 ## [4.20.0] - 2026-04-10
 

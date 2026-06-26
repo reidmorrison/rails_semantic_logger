@@ -157,7 +157,7 @@ class SidekiqTest < Minitest::Test
 
           assert_semantic_logger_event(
             messages[2],
-            level:            :warn,
+            level:            :info,
             name:             "BadJob",
             message:          "Job raised exception",
             payload_includes: {context: "Job raised exception"},

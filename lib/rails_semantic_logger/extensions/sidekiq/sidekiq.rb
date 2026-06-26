@@ -17,7 +17,7 @@ module Sidekiq
       end
 
       def self.job_hash_context(job_hash)
-        h         = {jid: job_hash["jid"]}
+        h         = {jid: job_hash["jid"], class: job_hash["wrapped"] || job_hash["class"]}
         h[:bid]   = job_hash["bid"] if job_hash["bid"]
         h[:queue] = job_hash["queue"] if job_hash["queue"]
         h
@@ -30,7 +30,7 @@ module Sidekiq
     # Convert string to machine readable format
     class Processor
       def log_context(job_hash)
-        h         = {jid: job_hash["jid"]}
+        h         = {jid: job_hash["jid"], class: job_hash["wrapped"] || job_hash["class"]}
         h[:bid]   = job_hash["bid"] if job_hash["bid"]
         h[:queue] = job_hash["queue"] if job_hash["queue"]
         h

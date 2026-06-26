@@ -108,6 +108,18 @@ class SidekiqTest < Minitest::Test
         assert_kind_of Float, messages[1].duration
       end
 
+      it "does not emit perform messages when disabled" do
+        RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false
+
+        messages = semantic_logger_events do
+          processor.send(:process, uow)
+        end
+
+        assert_equal 0, messages.count, -> { messages.collect(&:to_h).ai }
+      ensure
+        RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
+      end
+
       describe "with Bad Job" do
         let(:job) { BadJob }
 

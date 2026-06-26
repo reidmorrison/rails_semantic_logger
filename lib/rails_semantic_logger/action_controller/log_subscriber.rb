@@ -15,12 +15,15 @@ module RailsSemanticLogger
       class_attribute :backtrace_cleaner, default: ActiveSupport::BacktraceCleaner.new
 
       class << self
-        attr_accessor :action_message_format
+        attr_accessor :action_message_format, :processing_log_level
       end
 
-      # Log as debug to hide Processing messages in production
+      # Defaults to :debug so the Processing message is hidden in production. The engine raises it
+      # to :info when `config.rails_semantic_logger.processing` is true.
+      @processing_log_level = :debug
+
       def start_processing(event)
-        controller_logger(event).debug { action_message("Processing", event.payload) }
+        controller_logger(event).send(self.class.processing_log_level) { action_message("Processing", event.payload) }
       end
 
       def process_action(event)

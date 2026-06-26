@@ -2,6 +2,8 @@ module RailsSemanticLogger
   module Sidekiq
     module Defaults
       # Prevent exception logging during standard error handling since the Job Logger below already logs the exception.
+      # Logs the remaining Sidekiq context at :info (matching upstream Sidekiq's default handler) rather than :warn,
+      # since the exception itself is already logged at :error by the Job Logger.
       ERROR_HANDLER =
         if ::Sidekiq::VERSION.to_f < 7.1 ||
            (::Sidekiq::VERSION.to_f == 7.1 && ::Sidekiq::VERSION.split(".").last.to_i < 6)
@@ -10,7 +12,7 @@ module RailsSemanticLogger
               job_hash = ctx[:job] || {}
               klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
               logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
-              ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+              ctx[:context] ? logger.info(ctx[:context], ctx) : logger.info(ctx)
             end
           end
         else
@@ -19,7 +21,7 @@ module RailsSemanticLogger
               job_hash = ctx[:job] || {}
               klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
               logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
-              ctx[:context] ? logger.warn(ctx[:context], ctx) : logger.warn(ctx)
+              ctx[:context] ? logger.info(ctx[:context], ctx) : logger.info(ctx)
             end
           end
         end

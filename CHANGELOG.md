@@ -43,6 +43,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Add a toggle to prevent replacement of the Sidekiq logger (`replace_sidekiq_logger`).
 - Add configuration to toggle off Sidekiq "perform" messages.
+- Sidekiq: log the replacement error handler's context at `:info` instead of `:warn`, matching
+  upstream Sidekiq's default handler and removing duplicate noise (the exception itself is already
+  logged at `:error` by the Job Logger). Fixes #271.
 - Handle binary strings in `EventFormatter#format`. Fixes #284.
 - Fix `Started` log line under Rails 7.1, with backward compatibility back to Rails 7.2. Fixes #281.
 - Fix #282. Thanks @navidemad.

@@ -177,6 +177,82 @@ class AppendersTest < Minitest::Test
         refute options.add_file_appender
       end
     end
+
+    describe "configured after the logger is initialized" do
+      it "does not warn before the logger is initialized" do
+        _out, err = capture_io do
+          options.appenders { |appenders| appenders.add(file_name: "log/test.log") }
+        end
+
+        refute_match(/too late|no effect/, err)
+      end
+
+      it "warns when an appender is declared too late but still records it" do
+        options.logger_initialized!
+
+        _out, err = capture_io do
+          options.appenders { |appenders| appenders.add(file_name: "log/test.log") }
+        end
+
+        assert_match(/no effect/, err)
+        assert_match(%r{config/initializers}, err)
+        assert_predicate options, :appenders?
+      end
+
+      it "does not warn when reading appenders without a block after initialization" do
+        options.logger_initialized!
+
+        _out, err = capture_io { options.appenders }
+
+        assert_empty err
+      end
+
+      it "warns when filter is set too late" do
+        options.logger_initialized!
+
+        _out, err = capture_io do
+          AppendersTest.capture_deprecations { options.filter = /MyClass/ }
+        end
+
+        assert_match(/filter.*no effect/m, err)
+      end
+
+      it "warns when a logger-init setting (semantic) is set after logger initialization" do
+        options.logger_initialized!
+
+        _out, err = capture_io { options.semantic = false }
+
+        assert_match(/semantic.*no effect/m, err)
+        assert_match(%r{config/initializers}, err)
+        refute options.semantic
+      end
+
+      it "does not warn for a post-init setting (started) merely after logger initialization" do
+        options.logger_initialized!
+
+        _out, err = capture_io { options.started = true }
+
+        assert_empty err
+        assert options.started
+      end
+
+      it "warns for a post-init setting (started) once the app is fully initialized" do
+        options.fully_initialized!
+
+        _out, err = capture_io { options.started = true }
+
+        assert_match(/started.*no effect/m, err)
+        assert options.started
+      end
+
+      it "does not tell post-init settings to avoid config/initializers" do
+        options.fully_initialized!
+
+        _out, err = capture_io { options.rendered = true }
+
+        refute_match(%r{`config/initializers/\*` is loaded too late}, err)
+      end
+    end
   end
 
   describe ".add_server_appenders" do

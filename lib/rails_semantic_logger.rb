@@ -50,6 +50,23 @@ module RailsSemanticLogger
     @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
   end
 
+  # Warn that a setting was changed too late to take effect, so the change has no
+  # effect. When `config_initializers_too_late` is true (the default), the setting
+  # is consumed while the logger is built, *before* `config/initializers/*` is
+  # loaded, so that location is called out as too late. When false, the setting is
+  # consumed at the end of initialization (`config/initializers/*` still works) and
+  # only a change after the application has booted is too late.
+  def self.warn_initialized_too_late(setting, config_initializers_too_late: true)
+    env       = defined?(Rails) && Rails.respond_to?(:env) ? Rails.env : "<env>"
+    locations = "`config/application.rb` or `config/environments/#{env}.rb`"
+    locations += " (or a `config/initializers/*` file)" unless config_initializers_too_late
+    suffix    = config_initializers_too_late ? "; `config/initializers/*` is loaded too late." : "."
+    warn(
+      "[rails_semantic_logger] `config.rails_semantic_logger.#{setting}` was set too late to take " \
+      "effect, so it has no effect. Set it in #{locations}#{suffix}"
+    )
+  end
+
   # Create the appenders declared via `config.rails_semantic_logger.appenders` with
   # `add_server` (or the default console appender when the application declared no
   # appenders of its own).

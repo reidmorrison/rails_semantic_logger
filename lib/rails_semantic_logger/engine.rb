@@ -87,6 +87,10 @@ module RailsSemanticLogger
           logger
         end
 
+      # Logger and init-time appenders are now built; settings read above no
+      # longer take effect, so flag late changes (e.g. from config/initializers).
+      config.rails_semantic_logger.logger_initialized!
+
       # Replace Rails loggers
       %i[active_record action_controller action_mailer action_view].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
@@ -302,6 +306,10 @@ module RailsSemanticLogger
         # Include method names on log entries in the console
         SemanticLogger.backtrace_level = SemanticLogger.default_level
       end
+
+      # Initialization is complete; the post-init settings have been consumed, so
+      # flag changes made after this point (e.g. at runtime) as having no effect.
+      config.rails_semantic_logger.fully_initialized!
     end
   end
 end

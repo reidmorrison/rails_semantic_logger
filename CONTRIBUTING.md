@@ -159,6 +159,54 @@ in `application.rb`. Key flags include `semantic`, `started`, `processing`, `ren
 long comment block at the top of that file is the authoritative documentation for each option, so keep it in
 sync when changing defaults or behavior.
 
+The `format`, `ap_options`, `filter`, `console_logger`, and `add_file_appender` options are **deprecated** in
+favor of declaring appenders directly (see below). Their setters warn through `RailsSemanticLogger.deprecator` (whose removal
+horizon, `"6.0"`, is set in `lib/rails_semantic_logger.rb`) via the shared `deprecate_appender_option(option,
+via:)` helper; the `via:` argument customizes the suggested replacement call. The readers remain so the engine
+can still honor them on the legacy path. Reuse `deprecate_appender_option` when deprecating another option.
+
+### Appenders configuration (`lib/rails_semantic_logger/appenders.rb`)
+
+This is the current way to configure where logs go. Rather than relying on the single default
+`log/<env>.log` file appender plus the `format` / `filter` / `ap_options` options, an application declares its
+appenders directly in a block:
+
+```ruby
+config.rails_semantic_logger.appenders do |appenders|
+  appenders.add(file_name: "log/#{Rails.env}.log", formatter: :json)  # always created, during init
+  appenders.add_server(io: $stdout, formatter: :color)                # only when serving requests
+  appenders.add_console(io: $stderr, formatter: :color)               # only inside `rails console`
+end
+```
+
+The design and the points to keep in mind when changing it:
+
+- **Each method names the _context_ in which the appender is created; the destination is an ordinary
+  `SemanticLogger.add_appender` argument.** `add` is always created; `add_server` is created only in serving
+  contexts (`rails server`, a rack server, Sidekiq in server mode) and defaults to `$stdout`; `add_console` is
+  created only inside a `rails console` session and defaults to `$stderr`. `add_server` and `add_console`
+  accept any appender arguments, and the context's default stream is applied only when no destination
+  (`io` / `file_name` / `appender` / `logger` / `metric`, listed in `Appenders::DESTINATIONS`) was supplied.
+  A context may therefore declare several appenders (for example a server-only stdout *and* a server-only
+  file).
+- Once anything is declared, `Options#appenders?` is true, the engine **skips the default file appender**, and
+  the deprecated options above no longer apply.
+- **Materialization.** `add` appenders are created at init by `RailsSemanticLogger.add_appenders`.
+  `add_server` appenders are created by the public `RailsSemanticLogger.add_server_appenders`, called
+  automatically from the `rails server` patch (`extensions/rails/server.rb`) and the Sidekiq server block in
+  the engine. `add_console` appenders are created by `RailsSemanticLogger.add_console_appenders`, called from
+  the engine's `console do` hook. Both are idempotent via `SemanticLogger.appenders.console_output?`, and
+  both fall back to a default screen appender (stdout for server, stderr for console) for backward
+  compatibility when the app declared no appenders of its own (the console fallback is additionally gated
+  by the deprecated `console_logger` toggle).
+- **No heuristic server detection, by design.** App servers without a first-party hook (bare `puma`, `rackup`,
+  Passenger, Unicorn) are deliberately not auto-detected: there is no `$PROGRAM_NAME` matching and no
+  `Puma::Launcher` monkey-patch, because a detection that only "sometimes works" is a support burden. Users of
+  those servers call `RailsSemanticLogger.add_server_appenders` from the server's own definitive boot hook,
+  for example `on_booted { RailsSemanticLogger.add_server_appenders }` in `config/puma.rb`. Do not reintroduce
+  heuristic detection without a definitive hook.
+- Tests live in `test/appenders_test.rb`.
+
 ### Extensions (`lib/rails_semantic_logger/extensions/`)
 
 Monkey-patches and overrides of third-party and Rails internals, each loaded conditionally on the relevant

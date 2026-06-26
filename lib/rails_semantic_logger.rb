@@ -41,7 +41,65 @@ module RailsSemanticLogger
     autoload :LogSubscriber, "rails_semantic_logger/solid_queue/log_subscriber"
   end
 
+  autoload :Appenders, "rails_semantic_logger/appenders"
   autoload :Options, "rails_semantic_logger/options"
+
+  # Deprecator used for options that are being phased out in favor of declaring
+  # appenders directly (see RailsSemanticLogger::Appenders).
+  def self.deprecator
+    @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
+  end
+
+  # Create the appenders declared via `config.rails_semantic_logger.appenders` with
+  # `add_server` (or the default console appender when the application declared no
+  # appenders of its own).
+  #
+  # Called automatically for the server contexts that have a first-party hook
+  # (`rails server`, Sidekiq in server mode). App servers without such a hook (bare
+  # puma, rackup, Passenger, Unicorn) cannot be detected reliably, so call this from
+  # the server's own definitive boot hook instead of relying on a guess. Example,
+  # in `config/puma.rb`:
+  #
+  #   on_booted { RailsSemanticLogger.add_server_appenders }
+  def self.add_server_appenders
+    options = Rails.application.config.rails_semantic_logger
+    # Backward compatibility
+    if !options.appenders? && options.console_logger && !SemanticLogger.appenders.console_output?
+      SemanticLogger.add_appender(io: $stdout, formatter: :color)
+    end
+
+    options.appenders.server.each do |args, block|
+      SemanticLogger.add_appender(**args, &block)
+    end
+  end
+
+  # Console (REPL) counterpart of .add_server_appenders, used by the `rails console`
+  # hook. When the application declared its own appenders, its `add_console`
+  # declarations apply; otherwise the deprecated `console_logger` toggle decides
+  # whether the default stderr console appender is added.
+  def self.add_console_appenders
+    options = Rails.application.config.rails_semantic_logger
+    # Backward compatibility: honor the deprecated console_logger toggle.
+    if !options.appenders? && options.console_logger && !SemanticLogger.appenders.console_output?
+      SemanticLogger.add_appender(io: $stderr, formatter: :color)
+    end
+
+    options.appenders.console.each do |args, block|
+      SemanticLogger.add_appender(**args, &block)
+    end
+  end
+
+  # Create each appender declared via `config.rails_semantic_logger.appenders`.
+  # The first file appender (if any) becomes the internal logger, so that any
+  # failures writing to other appenders are still recorded somewhere durable.
+  def self.add_appenders(appenders)
+    internal_logger = nil
+    appenders.each do |args, block|
+      appender = SemanticLogger.add_appender(**args, &block)
+      internal_logger ||= appender if appender.is_a?(SemanticLogger::Appender::File)
+    end
+    SemanticLogger::Processor.logger = internal_logger if internal_logger
+  end
 
   # Swap an existing subscriber with a new one
   def self.swap_subscriber(old_class, new_class, notifier)

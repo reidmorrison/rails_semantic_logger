@@ -46,6 +46,10 @@ module RailsSemanticLogger
   #
   #       config.rails_semantic_logger.add_file_appender = true
   #
+  #   DEPRECATED: declare appenders via #appenders instead. Declaring any appender there already
+  #   replaces the default file appender, so this flag is no longer needed:
+  #     config.rails_semantic_logger.appenders { |appenders| appenders.add(file_name: ...) }
+  #
   # * Silence asset logging
   #
   #     config.rails_semantic_logger.quiet_assets = false
@@ -53,6 +57,10 @@ module RailsSemanticLogger
   # * Disable automatic logging to stderr when running a Rails console.
   #
   #     config.rails_semantic_logger.console_logger = false
+  #
+  #   DEPRECATED: declare a console appender explicitly via #appenders instead, or
+  #   declare none to disable it:
+  #     config.rails_semantic_logger.appenders { |appenders| appenders.add_console(...) }
   #
   # * Override the output format for the primary Rails log file.
   #
@@ -119,9 +127,12 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.replace_solid_queue_logger = false
   class Options
-    attr_accessor :semantic, :started, :processing, :rendered, :ap_options, :add_file_appender,
-                  :quiet_assets, :format, :named_tags, :filter, :console_logger, :action_message_format,
+    attr_accessor :semantic, :started, :processing, :rendered,
+                  :quiet_assets, :named_tags, :action_message_format,
                   :replace_sidekiq_logger, :replace_solid_queue_logger
+
+    # DEPRECATED: configure these on the appender instead, via #appenders.
+    attr_reader :ap_options, :format, :filter, :console_logger, :add_file_appender
 
     # Setup default values
     def initialize
@@ -139,6 +150,80 @@ module RailsSemanticLogger
       @action_message_format      = nil
       @replace_sidekiq_logger     = true
       @replace_solid_queue_logger = true
+    end
+
+    # Declare the appenders for Rails Semantic Logger to create, replacing the
+    # default file appender:
+    #
+    #   config.rails_semantic_logger.appenders do |appenders|
+    #     appenders.add(file_name: "log/#{Rails.env}.log", formatter: :json)
+    #     appenders.add_server(io: $stdout, formatter: :color)
+    #     appenders.add_console(io: $stderr, formatter: :color)
+    #   end
+    #
+    # The method names the context in which the appender is created; the destination
+    # is an ordinary `SemanticLogger.add_appender` argument. Use `add` for an
+    # appender that is always created, `add_server` for one created only when serving
+    # requests (`rails server`, a rack server, Sidekiq in server mode; defaults to
+    # `$stdout`), and `add_console` for one created only inside a `rails console`
+    # session (defaults to `$stderr`). Any appender works in any context, so a
+    # context may declare several (e.g. a server-only stdout and file appender).
+    #
+    # `add_server` appenders are created automatically under `rails server` and
+    # Sidekiq in server mode. App servers without a first-party hook (bare puma,
+    # rackup, Passenger, Unicorn) are not detected; create them from the server's
+    # own boot hook instead, e.g. in `config/puma.rb`:
+    #
+    #   on_booted { RailsSemanticLogger.add_server_appenders }
+    #
+    # Returns the underlying RailsSemanticLogger::Appenders collection. When at
+    # least one appender has been declared, the default file appender (and the
+    # `format`, `ap_options`, `filter`, and `add_file_appender` options) is no
+    # longer used.
+    def appenders
+      @appenders ||= RailsSemanticLogger::Appenders.new
+      yield @appenders if block_given?
+      @appenders
+    end
+
+    # Whether the application declared its own appenders via #appenders.
+    def appenders?
+      defined?(@appenders) && @appenders.any?
+    end
+
+    def ap_options=(value)
+      deprecate_appender_option(:ap_options)
+      @ap_options = value
+    end
+
+    def format=(value)
+      deprecate_appender_option(:format)
+      @format = value
+    end
+
+    def filter=(value)
+      deprecate_appender_option(:filter)
+      @filter = value
+    end
+
+    def console_logger=(value)
+      deprecate_appender_option(:console_logger, via: "appenders.add_console(...)")
+      @console_logger = value
+    end
+
+    def add_file_appender=(value)
+      deprecate_appender_option(:add_file_appender)
+      @add_file_appender = value
+    end
+
+    private
+
+    def deprecate_appender_option(option, via: "appenders.add(...)")
+      RailsSemanticLogger.deprecator.warn(
+        "`config.rails_semantic_logger.#{option}=` is deprecated and will be removed in a future release. " \
+        "Declare the destination and formatting directly instead, via " \
+        "`config.rails_semantic_logger.appenders { |appenders| #{via} }`."
+      )
     end
   end
 end

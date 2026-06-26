@@ -8,6 +8,10 @@ if defined?(Sidekiq::DEFAULT_ERROR_HANDLER)
 end
 require_relative "dummy/config/environment"
 
+# The dummy app still exercises some deprecated options on purpose; the deprecation
+# behavior itself is covered in test/appenders_test.rb, so keep the rest of the suite quiet.
+RailsSemanticLogger.deprecator.behavior = :silence
+
 require "rails/test_help"
 require "minitest/autorun"
 require "minitest/rails"

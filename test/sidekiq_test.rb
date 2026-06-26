@@ -59,7 +59,7 @@ class SidekiqTest < Minitest::Test
           name:       "SimpleJob",
           message:    "Start #perform",
           metric:     "sidekiq.queue.latency",
-          named_tags: {jid: nil, queue: "default"}
+          named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[0].metric_amount
 
@@ -69,7 +69,7 @@ class SidekiqTest < Minitest::Test
           name:       "SimpleJob",
           message:    "Completed #perform",
           metric:     "sidekiq.job.perform",
-          named_tags: {jid: nil, queue: "default"}
+          named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[1].duration
       end
@@ -92,7 +92,7 @@ class SidekiqTest < Minitest::Test
           name:       "SimpleJob",
           message:    "Start #perform",
           metric:     "sidekiq.queue.latency",
-          named_tags: {jid: nil, queue: "default"}
+          named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         # Sidekiq 8+ returns Integer latency, whereas earlier versions return Float
         assert_kind_of Numeric, messages[0].metric_amount
@@ -103,7 +103,7 @@ class SidekiqTest < Minitest::Test
           name:       "SimpleJob",
           message:    "Completed #perform",
           metric:     "sidekiq.job.perform",
-          named_tags: {jid: nil, queue: "default"}
+          named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[1].duration
       end
@@ -127,7 +127,7 @@ class SidekiqTest < Minitest::Test
             name:       "BadJob",
             message:    "Start #perform",
             metric:     "sidekiq.queue.latency",
-            named_tags: {jid: nil, queue: "default"},
+            named_tags: {jid: nil, class: "BadJob", queue: "default"},
             exception:  :nil
           )
           assert_kind_of Float, messages[0].metric_amount
@@ -138,7 +138,7 @@ class SidekiqTest < Minitest::Test
             name:       "BadJob",
             message:    "Completed #perform",
             metric:     "sidekiq.job.perform",
-            named_tags: {jid: nil, queue: "default"},
+            named_tags: {jid: nil, class: "BadJob", queue: "default"},
             exception:  ArgumentError
           )
           assert_kind_of Float, messages[1].duration

@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.platform              = Gem::Platform::RUBY
   s.authors               = ["Reid Morrison"]
   s.homepage              = "https://logger.rocketjob.io"
-  s.summary               = "Feature rich logging framework that replaces the Rails logger."
+  s.summary               = "High-performance, asynchronous structured logging that replaces the Rails logger."
   s.files                 = Dir["lib/**/*", "LICENSE.txt", "Rakefile", "README.md"]
   s.license               = "Apache-2.0"
   s.required_ruby_version = ">= 3.2"

@@ -95,7 +95,7 @@ module RailsSemanticLogger
       %i[active_record action_controller action_mailer action_view].each do |name|
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
-      ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger["ActionCable"] }
+      ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger[::ActionCable] }
     end
 
     # Before any initializers run, but after the gems have been loaded

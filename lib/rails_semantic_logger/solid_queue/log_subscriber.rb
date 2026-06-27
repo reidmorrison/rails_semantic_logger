@@ -172,7 +172,7 @@ module RailsSemanticLogger
       end
 
       def logger
-        @logger ||= SemanticLogger["SolidQueue"]
+        @logger ||= SemanticLogger[::SolidQueue]
       end
     end
   end

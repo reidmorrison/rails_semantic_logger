@@ -159,7 +159,14 @@ module RailsSemanticLogger
       Bugsnag.configure(false) { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
 
       # Set the IOStreams PGP logger
-      IOStreams::Pgp.logger = SemanticLogger["IOStreams::Pgp"] if defined?(IOStreams)
+      if defined?(IOStreams)
+        if IOStreams.respond_to?(:logger=)
+          IOStreams.logger = SemanticLogger[IOStreams] 
+        else
+          # Older IOStreams versions
+          IOStreams::Pgp.logger = SemanticLogger[IOStreams::Pgp]
+        end
+      end
     end
 
     # After any initializers run, but after the gems have been loaded

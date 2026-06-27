@@ -161,7 +161,7 @@ module RailsSemanticLogger
       # Set the IOStreams PGP logger
       if defined?(IOStreams)
         if IOStreams.respond_to?(:logger=)
-          IOStreams.logger = SemanticLogger[IOStreams] 
+          IOStreams.logger = SemanticLogger[IOStreams]
         else
           # Older IOStreams versions
           IOStreams::Pgp.logger = SemanticLogger[IOStreams::Pgp]

@@ -42,7 +42,8 @@ module RailsSemanticLogger
           self.class.rendered_log_level,
           "Rendered",
           payload:  payload,
-          duration: event.duration
+          duration: event.duration,
+          metric:   "rails.view.render.template"
         )
       end
 
@@ -61,7 +62,8 @@ module RailsSemanticLogger
           self.class.rendered_log_level,
           "Rendered",
           payload:  payload,
-          duration: event.duration
+          duration: event.duration,
+          metric:   "rails.view.render.partial"
         )
       end
 
@@ -78,7 +80,8 @@ module RailsSemanticLogger
           self.class.rendered_log_level,
           "Rendered layout",
           payload:  payload,
-          duration: event.duration
+          duration: event.duration,
+          metric:   "rails.view.render.layout"
         )
       end
 
@@ -99,7 +102,8 @@ module RailsSemanticLogger
           self.class.rendered_log_level,
           "Rendered",
           payload:  payload,
-          duration: event.duration
+          duration: event.duration,
+          metric:   "rails.view.render.collection"
         )
       end
 

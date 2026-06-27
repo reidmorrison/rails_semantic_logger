@@ -46,6 +46,51 @@ class ActionControllerTest < Minitest::Test
         assert_instance_of Float, payload[:cpu_time]
         assert_instance_of Float, payload[:idle_time]
       end
+
+      it "emits the rails.controller.process_action metric" do
+        event = ActiveSupport::Notifications::Event.new(
+          "process_action.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {
+            controller: "ArticlesController",
+            action:     "index",
+            status:     200
+          }
+        )
+
+        messages = semantic_logger_events do
+          subscriber.process_action(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_equal "rails.controller.process_action", messages[0].metric
+      end
+    end
+
+    describe "#redirect_to" do
+      it "emits the rails.controller.redirect_to metric" do
+        event = ActiveSupport::Notifications::Event.new(
+          "redirect_to.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://example.com/", request: nil}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.redirect_to(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :info,
+          message: "Redirected to",
+          metric:  "rails.controller.redirect_to"
+        )
+      end
     end
 
     describe "#start_processing" do

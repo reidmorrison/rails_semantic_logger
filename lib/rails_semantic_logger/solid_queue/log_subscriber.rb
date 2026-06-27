@@ -164,6 +164,9 @@ module RailsSemanticLogger
         logger.public_send(level) do
           msg = {message: action, payload: attributes, duration: event.duration}
           msg[:exception] = exception if exception
+          # Emit a metric for every info/warn/error entry, named after the notification
+          # (e.g. "start_process.solid_queue" -> "rails.solid_queue.start_process"). Debug entries are excluded.
+          msg[:metric] = "rails.solid_queue.#{event.name.split('.').first}" unless level == :debug
           msg
         end
       end

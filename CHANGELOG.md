@@ -5,7 +5,22 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [5.0.0]
 
-- Bump the major version to keep it in lock step with Semantic Logger v5.
+- Bump the major version to keep it in lock step with Semantic Logger v5, and require
+  `semantic_logger >= 5.0`.
+- Appenders: add a `config.rails_semantic_logger.appenders do |appenders| ... end` block to declare
+  log destinations by context. The method names the context (when) and the args name the
+  destination (where): `add` is always created at init, `add_server` applies when serving requests
+  (defaults to `$stdout`), and `add_console` applies inside the Rails console (defaults to
+  `$stderr`). This replaces the single default `log/<env>.log` file appender plus the
+  `format`/`filter`/`ap_options` options.
+- Appenders: deprecate the `format`, `ap_options`, `filter`, `console_logger`, and
+  `add_file_appender` options in favor of the appenders block. They still work but warn via the
+  deprecator and will be removed in v6.
+- Forking: rely on Semantic Logger v5's automatic reopen-after-fork (the `Process._fork` /
+  `Process.daemon` hook reopens appenders in the child, once per process). Remove the now-redundant
+  manual reopen hooks for Passenger, Resque, Spring, and SolidQueue, the rack/rackup `daemonize_app`
+  overrides, and the DelayedJob plugin. Apps that opt out with `SemanticLogger.reopen_on_fork =
+  false` are responsible for reopening themselves.
 - ActionMailer: match Rails' `subscribe_log_level` gating so the `deliver` and `process` events are
   only emitted when the logger is at debug level, and log `process` at debug to match upstream.
 - ActionMailer: include the full encoded message (`mail`) in the `deliver` payload, mirroring Rails'

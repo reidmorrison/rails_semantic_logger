@@ -153,10 +153,7 @@ module RailsSemanticLogger
       Sidetiq.logger = SemanticLogger[Sidetiq] if defined?(Sidetiq) && Sidetiq.respond_to?(:logger=)
 
       # Replace the DelayedJob logger
-      if defined?(Delayed::Worker)
-        Delayed::Worker.logger = SemanticLogger[Delayed::Worker]
-        Delayed::Worker.plugins << RailsSemanticLogger::DelayedJob::Plugin
-      end
+      Delayed::Worker.logger = SemanticLogger[Delayed::Worker] if defined?(Delayed::Worker)
 
       # Replace the Bugsnag logger
       Bugsnag.configure(false) { |config| config.logger = SemanticLogger[Bugsnag] } if defined?(Bugsnag)
@@ -274,29 +271,10 @@ module RailsSemanticLogger
         end
       end
 
-      #
-      # Forking Frameworks
-      #
-
-      # Passenger provides the :starting_worker_process event for executing
-      # code after it has forked, so we use that and reconnect immediately.
-      if defined?(PhusionPassenger)
-        PhusionPassenger.on_event(:starting_worker_process) do |forked|
-          SemanticLogger.reopen if forked
-        end
-      end
-
-      # Re-open appenders after Resque has forked a worker
-      Resque.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Resque.after_fork)
-
-      # Re-open appenders after Spring has forked a process
-      Spring.after_fork { |_job| ::SemanticLogger.reopen } if defined?(Spring.after_fork)
-
-      # Re-open appenders after SolidQueue worker/dispatcher/scheduler has finished booting
-      SolidQueue.on_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_start)
-      SolidQueue.on_worker_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_worker_start)
-      SolidQueue.on_dispatcher_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_dispatcher_start)
-      SolidQueue.on_scheduler_start { ::SemanticLogger.reopen } if defined?(SolidQueue.on_scheduler_start)
+      # Forking frameworks (Passenger, Resque, Spring, SolidQueue, etc.) no longer
+      # need explicit reopen hooks: Semantic Logger v5 reopens appenders automatically
+      # in the child via a Process._fork / Process.daemon hook. Apps that opt out with
+      # `SemanticLogger.reopen_on_fork = false` are responsible for reopening themselves.
 
       console do |_app|
         # Don't use a background thread for logging

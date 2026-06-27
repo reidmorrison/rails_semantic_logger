@@ -2,6 +2,9 @@ source "https://rubygems.org"
 
 gemspec
 
+# TODO: revert to rubygems once semantic_logger 5.0 is released
+gem "semantic_logger", github: "reidmorrison/semantic_logger", branch: "main"
+
 gem "appraisal"
 gem "puma"
 

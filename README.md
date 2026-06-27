@@ -135,7 +135,7 @@ Below are the metrics that are now available when the JSON logging format is use
 
 Rails Semantic Logger introduces direct support for Sidekiq v4, v5, v6, and v7. 
 Please remove any previous custom patches or configurations to make Sidekiq work with Semantic Logger.
-To see the complete list of patches being made, and to contribute your own changes, see: [Sidekiq Patches](https://github.com/reidmorrison/rails_semantic_logger/blob/master/lib/rails_semantic_logger/extensions/sidekiq/sidekiq.rb)
+To see the complete list of patches being made, and to contribute your own changes, see: [Sidekiq Patches](https://github.com/reidmorrison/rails_semantic_logger/blob/main/lib/rails_semantic_logger/extensions/sidekiq/sidekiq.rb)
 
 ## Upgrading to Semantic Logger v4.4
 
@@ -160,7 +160,7 @@ Additionally, when new popular gems come out, we rely only the community to supp
 
 ## Supported Platforms
 
-For the complete list of supported Ruby and Rails versions, see the [Testing file](https://github.com/reidmorrison/rails_semantic_logger/blob/master/.github/workflows/ci.yml).
+For the complete list of supported Ruby and Rails versions, see the [Testing file](https://github.com/reidmorrison/rails_semantic_logger/blob/main/.github/workflows/ci.yml).
 
 ## Author
 

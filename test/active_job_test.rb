@@ -108,6 +108,7 @@ class ActiveJobTest < Minitest::Test
             level:            :error,
             name:             "Rails",
             message_includes: "Error performing ActiveJobTest::MyJob",
+            metric:           "rails.job.perform",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
               queue:      "my_jobs",
@@ -146,6 +147,7 @@ class ActiveJobTest < Minitest::Test
             level:            :error,
             name:             "Rails",
             message_includes: "Failed enqueuing ActiveJobTest::MyJob",
+            metric:           "rails.job.enqueue",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
               queue:      "my_jobs",
@@ -218,6 +220,7 @@ class ActiveJobTest < Minitest::Test
             level:            :error,
             name:             "Rails",
             message_includes: "Failed enqueuing ActiveJobTest::MyJob",
+            metric:           "rails.job.enqueue",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
               queue:      "my_jobs",
@@ -300,6 +303,7 @@ class ActiveJobTest < Minitest::Test
             level:            :info,
             name:             "Rails",
             message_includes: "Enqueued 2 jobs to Inline",
+            metric:           "rails.job.enqueue_all",
             payload_includes: {
               adapter:        "Inline",
               enqueued_count: 2,

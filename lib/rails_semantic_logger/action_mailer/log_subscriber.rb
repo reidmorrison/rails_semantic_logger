@@ -133,6 +133,9 @@ module RailsSemanticLogger
       def log_with_formatter(level: :info, **kw_args)
         fmt = EventFormatter.new(**kw_args)
         msg = yield fmt
+        # Emit a metric for every info/warn/error entry, named after the notification
+        # (e.g. "deliver.action_mailer" -> "rails.mailer.deliver"). Debug entries (process) are excluded.
+        msg[:metric] ||= "rails.mailer.#{kw_args[:event].name.split('.').first}" unless level == :debug
         logger.public_send(level, **msg, payload: fmt.payload)
       end
 

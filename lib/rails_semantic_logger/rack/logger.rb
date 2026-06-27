@@ -31,7 +31,7 @@ module RailsSemanticLogger
 
       private
 
-      @logger                    = SemanticLogger["Rack"]
+      @logger                    = SemanticLogger[::Rack]
       @started_request_log_level = :debug
 
       def call_app(request, env)

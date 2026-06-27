@@ -36,6 +36,8 @@ class SolidQueueTest < Minitest::Test
             size:            3
           }
         )
+        # Debug events carry no metric.
+        assert_nil messages[0].metric
       end
     end
 
@@ -55,6 +57,7 @@ class SolidQueueTest < Minitest::Test
           level:            :info,
           name:             "SolidQueue",
           message:          "Release claimed jobs",
+          metric:           "rails.solid_queue.release_many_claimed",
           payload_includes: {size: 5}
         )
       end
@@ -75,7 +78,8 @@ class SolidQueueTest < Minitest::Test
           messages[0],
           level:   :warn,
           name:    "SolidQueue",
-          message: "Fail claimed jobs"
+          message: "Fail claimed jobs",
+          metric:  "rails.solid_queue.fail_many_claimed"
         )
       end
     end
@@ -95,7 +99,8 @@ class SolidQueueTest < Minitest::Test
           messages[0],
           level:   :error,
           name:    "SolidQueue",
-          message: "Error in thread"
+          message: "Error in thread",
+          metric:  "rails.solid_queue.thread_error"
         )
 
         exception = messages[0].exception
@@ -157,6 +162,8 @@ class SolidQueueTest < Minitest::Test
             message:          "Enqueued recurring task",
             payload_includes: {task: "my_task", active_job_id: "job-1"}
           )
+          # The debug success branch carries no metric, unlike the error branch.
+          assert_nil messages[0].metric
         end
       end
 
@@ -175,6 +182,7 @@ class SolidQueueTest < Minitest::Test
             level:            :error,
             name:             "SolidQueue",
             message:          "Error enqueuing recurring task",
+            metric:           "rails.solid_queue.enqueue_recurring_task",
             payload_includes: {task: "my_task", enqueue_error: "boom"}
           )
         end

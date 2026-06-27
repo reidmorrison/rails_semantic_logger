@@ -85,13 +85,19 @@ module RailsSemanticLogger
           {
             message:  action_message("Completed", event.payload),
             duration: event.duration,
-            payload:  payload
+            payload:  payload,
+            metric:   "rails.controller.process_action"
           }
         end
       end
 
       def halted_callback(event)
-        controller_logger(event).info { "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected" }
+        controller_logger(event).info do
+          {
+            message: "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected",
+            metric:  "rails.controller.halted_callback"
+          }
+        end
       end
 
       # Rails 8.1+ emits this event when an exception is handled by a `rescue_from` callback.
@@ -108,13 +114,17 @@ module RailsSemanticLogger
               exception:         exception.class.name,
               exception_message: exception.message,
               backtrace:         backtrace
-            }
+            },
+            metric:  "rails.controller.rescue_from_callback"
           }
         end
       end
 
       def send_file(event)
-        controller_logger(event).info(message: "Sent file", payload: {path: event.payload[:path]}, duration: event.duration)
+        controller_logger(event).info(message:  "Sent file",
+                                      payload:  {path: event.payload[:path]},
+                                      duration: event.duration,
+                                      metric:   "rails.controller.send_file")
       end
 
       def redirect_to(event)
@@ -127,13 +137,14 @@ module RailsSemanticLogger
           payload[:source] = source if source
         end
 
-        controller_logger(event).info(message: "Redirected to", payload: payload)
+        controller_logger(event).info(message: "Redirected to", payload: payload, metric: "rails.controller.redirect_to")
       end
 
       def send_data(event)
         controller_logger(event).info(message:  "Sent data",
                                       payload:  {file_name: event.payload[:filename]},
-                                      duration: event.duration)
+                                      duration: event.duration,
+                                      metric:   "rails.controller.send_data")
       end
 
       def unpermitted_parameters(event)
@@ -157,7 +168,7 @@ module RailsSemanticLogger
             return unless ::ActionController::Base.enable_fragment_cache_logging
             controller_logger(event).info do
               key_or_path = event.payload[:key] || event.payload[:path]
-              {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration}
+              {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration, metric: "rails.controller.#{method.delete('?')}"}
             end
           end
         METHOD

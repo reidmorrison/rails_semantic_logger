@@ -233,6 +233,7 @@ module RailsSemanticLogger
 
         logger.info(
           message: message,
+          metric:  "rails.job.enqueue_all",
           payload: {
             event_name:     event.name,
             adapter:        adapter_name,
@@ -352,6 +353,9 @@ module RailsSemanticLogger
         fmt   = EventFormatter.new(**kw_args)
         msg   = yield fmt
         extra = msg.delete(:payload) || {}
+        # Emit a metric for every info/warn/error entry, named after the notification
+        # (e.g. "enqueue.active_job" -> "rails.job.enqueue"). Debug entries are excluded.
+        msg[:metric] ||= "rails.job.#{kw_args[:event].name.split('.').first}" unless level == :debug
         logger.public_send(level, **msg, payload: fmt.payload.merge(extra))
       end
 

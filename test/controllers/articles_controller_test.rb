@@ -48,7 +48,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         assert_semantic_logger_event(
           messages[2],
           message: "Rendering",
-          name:    "ActionView",
+          name:    "ActionView::Base",
           level:   :debug,
           payload: {
             template: "text template"
@@ -58,7 +58,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         assert_semantic_logger_event(
           messages[3],
           message: "Rendered",
-          name:    "ActionView",
+          name:    "ActionView::Base",
           level:   :debug
         )
 

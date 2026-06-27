@@ -146,7 +146,7 @@ module RailsSemanticLogger
         end
 
         def logger
-          @logger ||= SemanticLogger["ActionView"]
+          @logger ||= ::ActionView::Base.logger
         end
       end
 
@@ -163,7 +163,7 @@ module RailsSemanticLogger
 
       private
 
-      @logger             = SemanticLogger["ActionView"]
+      @logger             = ::ActionView::Base.logger
       @rendered_log_level = :debug
 
       EMPTY = "".freeze

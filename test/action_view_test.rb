@@ -13,7 +13,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         # The block stands in for the actual view render the notification wraps.
         ActiveSupport::Notifications.instrument("#{name}.action_view", payload) { :rendered }
       end
-      events.select { |m| m.name == "ActionView" }
+      events.select { |m| m.name == "ActionView::Base" }
     end
 
     def view_path(relative)
@@ -144,7 +144,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
 
     describe "rendering a template within a layout (integration)" do
       def action_view_events(messages)
-        messages.select { |m| m.name == "ActionView" }
+        messages.select { |m| m.name == "ActionView::Base" }
       end
 
       it "logs the layout and template render" do

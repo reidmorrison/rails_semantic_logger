@@ -2,7 +2,6 @@
 
 source "https://rubygems.org"
 
-gem "semantic_logger", github: "reidmorrison/semantic_logger", branch: "main"
 gem "appraisal"
 gem "puma"
 gem "active_model_serializers"

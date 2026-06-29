@@ -57,25 +57,17 @@ config.rails_semantic_logger.appenders do |appenders|
 end
 ~~~
 
-When running on a container platform (Docker, Kubernetes, Heroku), log JSON to standard out and let the platform collect it. Adding these lines to `config/application.rb` and removing other log overrides switches to structured logging automatically when running inside Kubernetes:
+On a container platform (Docker, Kubernetes, Heroku), log JSON to standard out and let the platform collect it:
 
 ~~~ruby
-config.semantic_logger.application = "my_application"
-config.semantic_logger.environment = ENV["STACK_NAME"] || Rails.env
-config.log_level = ENV["LOG_LEVEL"] || :info
-
-if ENV["LOG_TO_CONSOLE"] || ENV["KUBERNETES_SERVICE_HOST"]
-  config.rails_semantic_logger.appenders do |appenders|
-    appenders.add(io: $stdout, formatter: :json)
-  end
+config.rails_semantic_logger.appenders do |appenders|
+  appenders.add(io: $stdout, formatter: :json)
 end
 ~~~
 
-Because declaring an appender replaces the default file appender, JSON to stdout becomes the only destination, exactly what a container platform wants.
+Because declaring an appender replaces the default file appender, JSON to stdout becomes the only destination, exactly what a container platform wants. Once logs are emitted as structured JSON, a centralized logging system can parse each field, including the nested `payload` and any `metric` data, into a searchable hierarchy, so you can build searches, alerts, and dashboards against well-defined fields instead of brittle text matching.
 
-Once logs are emitted as structured JSON, a centralized logging system can parse them into a searchable hierarchy. Each field, including the nested `payload` and any `metric` data, becomes directly queryable, so you can build searches, alerts, and dashboards against well-defined fields instead of brittle text matching.
-
-See [Configuring appenders](https://logger.rocketjob.io/rails#configuring-where-logs-go-the-appenders-block) for the full guide, including formatters, third-party destinations, tuning what Rails logs, and worked examples of querying the JSON.
+See [Configuring appenders](https://logger.rocketjob.io/rails#configuring-where-logs-go-the-appenders-block) for the full guide, including formatters, third-party destinations, the [container platform recipe](https://logger.rocketjob.io/rails#production-on-a-container-platform-docker-kubernetes-heroku), tuning what Rails logs, and worked examples of querying the JSON.
 
 ## Documentation
 

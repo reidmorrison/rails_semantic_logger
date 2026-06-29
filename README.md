@@ -1,7 +1,7 @@
 # Rails Semantic Logger
 [![Gem Version](https://img.shields.io/gem/v/rails_semantic_logger.svg)](https://rubygems.org/gems/rails_semantic_logger) [![Build Status](https://github.com/reidmorrison/rails_semantic_logger/workflows/build/badge.svg)](https://github.com/reidmorrison/rails_semantic_logger/actions?query=workflow%3Abuild) [![Downloads](https://img.shields.io/gem/dt/rails_semantic_logger.svg)](https://rubygems.org/gems/rails_semantic_logger) [![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen.svg)](http://opensource.org/licenses/Apache-2.0) ![](https://img.shields.io/badge/status-Production%20Ready-blue.svg)
 
-Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](https://logger.rocketjob.io/)
+Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](https://logger.rocketjob.io/).
 
 When any large Rails application is deployed to production one of the first steps is to move to centralized logging, so that logs can be viewed and searched from a central location.
 
@@ -28,124 +28,20 @@ For example, adding these lines to `config/application.rb` and removing any othe
     end
 ~~~
 
-Declaring an appender this way automatically replaces the default `log/<env>.log` file appender, so
-JSON to stdout becomes the only destination. See [Configuring appenders](https://logger.rocketjob.io/rails)
-for the full guide.
+Declaring an appender this way automatically replaces the default `log/<env>.log` file appender, so JSON to stdout becomes the only destination. See [Configuring appenders](https://logger.rocketjob.io/rails) for the full guide.
 
-Then configure the centralized logging system to tell it that the data is in JSON format, so that it will parse it for you into a hierarchy.
-
-For example, the following will instruct [Observe](https://www.observeinc.com/) to parse the JSON data and create machine readable data from it:
-~~~ruby
-interface "log", "log":log
-
-make_col event:parse_json(log)
-
-make_col
-   time:parse_isotime(event.timestamp),
-   application:string(event.application),
-   environment:string(event.environment),
-   duration:duration_ms(event.duration_ms),
-   level:string(event.level),
-   name:string(event.name),
-   message:string(event.message),
-   named_tags:event.named_tags,
-   payload:event.payload,
-   metric:string(event.metric),
-   metric_amount:float64(event.metric_amount),
-   tags:array(event.tags),
-   exception:event.exception,
-   host:string(event.host),
-   pid:int64(event.pid),
-   thread:string(event.thread),
-   file:string(event.file),
-   line:int64(event.line),
-   dimensions:event.dimensions,
-   backtrace:array(event.backtrace),
-   level_index:int64(event.level_index)
-
-set_valid_from(time)
-drop_col timestamp, log, event, stream
-rename_col timestamp:time
-~~~
-
-Now queries can be built to drill down into each of these fields, including `payload` which is a nested object.
-
-For example to find all failed Sidekiq job calls where the causing exception class name is `NoMethodError`:
-~~~ruby
-filter environment = "uat2"
-filter level = "error"
-filter metric = "sidekiq.job.perform"
-filter (string(exception.cause.name) = "NoMethodError")
-~~~
-
-Example: create a dashboard showing the duration of all successful Sidekiq jobs:
-~~~ruby
-filter environment = "production"
-filter level = "info"
-filter metric = "sidekiq.job.perform"
-timechart duration:avg(duration), group_by(name)
-~~~
-
-Example: create a dashboard showing the queue latency of all Sidekiq jobs. 
-The queue latency is the time between when the job was enqueued and when it was started:
-~~~ruby
-filter environment = "production"
-filter level = "info"
-filter metric = "sidekiq.queue.latency"
-timechart latency:avg(metric_amount/1000), group_by(string(named_tags.queue))
-~~~
-
-* http://github.com/reidmorrison/rails_semantic_logger
+Once logs are emitted as structured JSON, a centralized logging system can parse them into a searchable hierarchy. Each field, including the nested `payload` and any `metric` data, becomes directly queryable, so you can build searches, alerts, and dashboards against well-defined fields instead of brittle text matching. See the [documentation](https://logger.rocketjob.io/rails) for worked examples of parsing the JSON and building queries and dashboards.
 
 ## Documentation
 
 For complete documentation see: https://logger.rocketjob.io/rails
 
-## Upgrading to Semantic Logger v5 - Configuring appenders
+## Upgrading
 
-Appenders (log destinations) are now configured in a single block, where the method names the
-context in which the appender is created:
-
-~~~ruby
-config.rails_semantic_logger.appenders do |appenders|
-  appenders.add(file_name: "log/#{Rails.env}.log", formatter: :color) # always created
-  appenders.add_server(formatter: :color)                             # only while serving requests
-  appenders.add_console(formatter: :color)                            # only inside `rails console`
-end
-~~~
-
-Declaring any appender replaces the default file appender. The previous options
-(`format`, `add_file_appender`, `ap_options`, `filter`, `console_logger`) still work but are now
-deprecated and will be removed in v6. See the
+The way appenders (log destinations) are configured changed in v5. See the
 [v4 to v5 migration guide](https://logger.rocketjob.io/rails#migrating-from-v4-to-v5) for the
-before/after mapping.
-
-## Upgrading to Semantic Logger V4.16 - Sidekiq Metrics Support
-
-Rails Semantic Logger now supports Sidekiq metrics. 
-Below are the metrics that are now available when the JSON logging format is used:
-- `sidekiq.job.perform`
-  - The duration of each Sidekiq job.
-  - `duration` contains the time in milliseconds that the job took to run.
-- `sidekiq.queue.latency` 
-  - The time between when a Sidekiq job was enqueued and when it was started.
-  - `metric_amount` contains the time in milliseconds that the job was waiting in the queue.
-
-## Upgrading to Semantic Logger v4.15 & V4.16 - Sidekiq Support
-
-Rails Semantic Logger introduces direct support for Sidekiq v4, v5, v6, and v7. 
-Please remove any previous custom patches or configurations to make Sidekiq work with Semantic Logger.
-To see the complete list of patches being made, and to contribute your own changes, see: [Sidekiq Patches](https://github.com/reidmorrison/rails_semantic_logger/blob/main/lib/rails_semantic_logger/extensions/sidekiq/sidekiq.rb)
-
-## Upgrading to Semantic Logger v4.4
-
-With some forking frameworks it is necessary to call `reopen` after the fork. With v4.4 the
-workaround for Ruby 2.5 crashes is no longer needed. 
-I.e. Please remove the following line if being called anywhere:
-
-~~~ruby
-SemanticLogger::Processor.instance.instance_variable_set(:@queue, Queue.new)
-~~~
+before/after mapping, and [Upgrading from earlier versions](https://logger.rocketjob.io/rails#migrating-from-earlier-versions)
+for older releases.
 
 ## New Versions of Rails, etc.
 

@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [5.0.0]
+## [5.0.0] - 2026-06-29
 
 - Bump the major version to keep it in lock step with Semantic Logger v5, and require
   `semantic_logger >= 5.0`.

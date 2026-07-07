@@ -16,7 +16,7 @@ Rails' own log subscribers change between Rails versions, sometimes even in mino
 2. Bring any upstream changes across into this gem's corresponding subscriber under `lib/rails_semantic_logger/<component>/log_subscriber.rb`.
 3. Replace the upstream **text** output with **hash / structured** logging (message + payload) while preserving the new behavior.
 
-When touching a subscriber, diff it against the matching Rails version's subscriber to confirm parity. To make this easier, some subscriber files carry a comment block at the top listing the upstream Rails source URLs for each supported version (one per `*-stable` branch), so a maintainer can jump straight to the canonical source to compare. See `lib/rails_semantic_logger/active_record/log_subscriber.rb` for the pattern; add or update the same links in the other subscribers as their upstream sources are reviewed.
+When touching a subscriber, diff it against the matching Rails version's subscriber to confirm parity. To make this easier, every Rails component subscriber (action_controller, action_view, active_record, active_job, action_mailer) carries a comment block at the top listing the upstream Rails source URLs for each supported version (one per `*-stable` branch), so a maintainer can jump straight to the canonical source to compare. Keep those links current when the supported Rails versions change; `lib/rails_semantic_logger/active_record/log_subscriber.rb` shows the pattern. (`solid_queue/log_subscriber.rb` has no such block because SolidQueue is not a Rails component.)
 
 As of Rails 8.1 there is a **second** source to cross-reference: each component now also ships a `*/structured_event_subscriber.rb` (e.g. `active_record/structured_event_subscriber.rb`), subclassing `ActiveSupport::StructuredEventSubscriber`. These are Rails' own structured-event emitters (message + hash, via `Rails.event` / the `ActiveSupport::EventReporter`), so they are the authoritative, Rails-maintained source for **field names and payload shape** when adding structured fields here. They are a *reference only*, not something this gem currently uses: Rails feeds two parallel pipelines from the same `ActiveSupport::Notifications` events, the classic `LogSubscriber` (text -> `Rails.logger`, which this gem swaps) and the new `StructuredEventSubscriber` (structured -> `Rails.event`). `Rails.event` ships with **no subscribers** by default, so the structured subscribers are dormant and do not conflict with our swapped subscribers. Note also that some structured events are emitted via `emit_debug_event` (only when `Rails.event.debug_mode?`, default development-only), so they are not a production-complete substitute. When syncing a subscriber, diff against **both** the classic `log_subscriber.rb` (for parity/behavior across 7.2/8.0/8.1) and, on 8.1, the `structured_event_subscriber.rb` (for the canonical field names).
 
@@ -50,7 +50,7 @@ This is the heart of the gem and the most important file to understand. The `Eng
 - Exposes two config namespaces on the Rails app: `config.semantic_logger` (the `SemanticLogger` module itself) and `config.rails_semantic_logger` (a `RailsSemanticLogger::Options` instance).
 - **Deletes** Rails' built-in `:initialize_logger` initializer and replaces it with its own. The replacement sets `SemanticLogger.default_level` from `config.log_level`, swaps `Rails::Rack::Logger` middleware for `RailsSemanticLogger::Rack::Logger`, builds the file appender (`log/<env>.log`), and assigns `Rails.logger`. If the log file can't be opened, it degrades gracefully to STDERR at `:warn`.
 - Uses `ActiveSupport.on_load(...)` hooks to mix `SemanticLogger::Loggable` into `active_record`, `action_controller`, `action_mailer`, `action_view`, and sets the ActionCable logger.
-- In `config.before_initialize` / `config.after_initialize`, replaces loggers for optional integrations when their constants are defined: Mongoid/Moped/Mongo, Resque, Sidekiq, SolidQueue, Delayed Job, ActiveModelSerializers.
+- In `config.before_initialize` / `config.after_initialize`, replaces loggers for optional integrations when their constants are defined: Mongoid/Moped/Mongo, Resque, Sidekiq, SolidQueue, Sidetiq, Delayed Job, Bugsnag, IOStreams, ActiveModelSerializers.
 
 ### Log subscribers (`lib/rails_semantic_logger/<component>/log_subscriber.rb`)
 Each Rails component subscriber (action_controller, action_view, active_record, active_job, action_mailer, solid_queue) is a custom `ActiveSupport::LogSubscriber` that translates ActiveSupport::Notifications events into semantic log entries with payloads instead of formatted strings. The engine installs these via `RailsSemanticLogger.swap_subscriber(old_class, new_class, notifier)` in `lib/rails_semantic_logger.rb`, which detaches Rails' default subscribers (handling the Rails-version differences in the notifier listener API) before attaching ours.
@@ -83,12 +83,18 @@ Key points for maintainers:
 ### Extensions (`lib/rails_semantic_logger/extensions/`)
 Monkey-patches / overrides of third-party and Rails internals, each loaded conditionally on the relevant constant being defined (e.g. `extensions/mongoid/config.rb`, `extensions/sidekiq/sidekiq.rb`, `extensions/active_support/tagged_logging.rb`, `extensions/action_dispatch/debug_exceptions.rb`). These keep integrations isolated and only activated when the host app uses that library.
 
-### Integration loaders (Sidekiq, Delayed Job, SolidQueue)
-Background job integrations live under their own namespaces (`sidekiq/`, `delayed_job/`, `solid_queue/`) providing job loggers and `Loggable` mixins, wired up from the engine only when the corresponding gem is present.
+### Background job integrations (Sidekiq, SolidQueue, Delayed Job)
+Sidekiq has the deepest integration: `sidekiq/` provides a job logger, a `Loggable` mixin, and error-handler defaults, wired up from the engine (plus `extensions/sidekiq/sidekiq.rb`) only when the gem is present. SolidQueue gets a swapped log subscriber (`solid_queue/log_subscriber.rb`). Delayed Job has no namespace of its own; the engine simply assigns `Delayed::Worker.logger`.
 
 ## Tests
 
 Tests run against a full dummy Rails app in `test/dummy/` (controllers, models, jobs, mailers, sqlite3 DB). `test/test_helper.rb` boots that app, loads Sidekiq in server mode, and includes `SemanticLogger::Test::Minitest` helpers. `test/payload_collector.rb` captures emitted log entries so tests can assert on the structured payload rather than text output, this is the standard pattern for verifying subscriber behavior.
+
+## Known tech debt
+
+- **Sidekiq 5/6 compatibility is untested.** The engine still branches on Sidekiq 5.x / 6.x / 6.5+ (`engine.rb`, the `job_logger` wiring), but CI only exercises Sidekiq 7.2 (Gemfile pin), and Sidekiq 8 is not tested at all. Open question (parked as of July 2026): drop pre-7 support in a future release, or state and test the supported range.
+- **The `quiet_assets` code path is unexercised in tests.** The dummy app has no sprockets-rails, so `config.assets` does not exist in the test environment and the asset-silencing filter in the engine never runs under CI.
+- **The engine's boot-time rescue only catches synchronous appender-creation errors.** A file appender pointing at an uncreatable path does not raise when created; the failure surfaces asynchronously in semantic_logger's queue processor on first write, so the engine's rescue (degrade to STDERR at warn) never runs and the app boots with a silently broken appender. Catching this would need help from semantic_logger (e.g. an eager open/validate at creation time).
 
 ## Conventions
 

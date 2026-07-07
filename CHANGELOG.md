@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+- Sidekiq: officially support Sidekiq 7 and 8, and test both in CI (Sidekiq 7.x on the Rails 7.2
+  appraisal, Sidekiq 8.x on the Rails 8.0 and 8.1 appraisals).
+- Sidekiq: remove support for Sidekiq 4, 5, and 6. These versions predate the gem's Rails 7.2 /
+  Ruby 3.2 floor and were untested; the `Sidekiq::Logging` / server middleware patches and the
+  pre-6.5 `job_logger` wiring are gone.
+- Sidekiq: honor Sidekiq 8's `logged_job_attributes` setting, so additional job attributes can be
+  added to the logging context (defaults to `bid` and `tags`, matching Sidekiq).
+- Sidekiq: honor Sidekiq 8's `skip_default_job_logging` setting as an alternative to
+  `RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false` for suppressing the
+  `Start #perform` / `Completed #perform` messages.
+
 ## [5.0.0] - 2026-06-29
 
 - Bump the major version to keep it in lock step with Semantic Logger v5, and require

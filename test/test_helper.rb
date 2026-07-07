@@ -2,10 +2,6 @@ ENV["RAILS_ENV"] ||= "test"
 ENV["DISABLE_DATABASE_ENVIRONMENT_CHECK"] = "1"
 # Load first so Sidekiq thinks it is running as a server instance
 require "sidekiq/cli"
-if defined?(Sidekiq::DEFAULT_ERROR_HANDLER)
-  # Set by Sidekiq CLI at startup
-  Sidekiq.options[:error_handlers] << Sidekiq::DEFAULT_ERROR_HANDLER
-end
 require_relative "dummy/config/environment"
 
 # The dummy app still exercises some deprecated options on purpose; the deprecation

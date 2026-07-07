@@ -1,6 +1,10 @@
 module RailsSemanticLogger
   module Sidekiq
     class JobLogger
+      # Job attributes copied into the logging context, matching Sidekiq's own defaults.
+      # Sidekiq 8 makes this configurable via `config[:logged_job_attributes]`.
+      DEFAULT_LOGGED_JOB_ATTRIBUTES = %w[bid tags].freeze
+
       class << self
         attr_writer :perform_messages
 
@@ -9,8 +13,9 @@ module RailsSemanticLogger
         end
       end
 
-      # Sidekiq 6.5 does not take any arguments, whereas v7 is given a logger
-      def initialize(*_args)
+      # Sidekiq 7 passes its logger, whereas Sidekiq 8 passes its config.
+      def initialize(arg = nil)
+        @config = arg if arg.respond_to?(:[])
       end
 
       def call(item, queue, &block)
@@ -56,15 +61,22 @@ module RailsSemanticLogger
       private
 
       def perform_messages_enabled?
+        return false if @config && @config[:skip_default_job_logging]
+
         self.class.perform_messages != false
       end
 
       def job_hash_context(job_hash)
-        h         = {jid: job_hash["jid"], class: job_hash["wrapped"] || job_hash["class"]}
-        h[:bid]   = job_hash["bid"] if job_hash["bid"]
-        h[:tags]  = job_hash["tags"] if job_hash["tags"]
+        h = {jid: job_hash["jid"], class: job_hash["wrapped"] || job_hash["class"]}
+        logged_job_attributes.each do |attr|
+          h[attr.to_sym] = job_hash[attr] if job_hash.key?(attr)
+        end
         h[:queue] = job_hash["queue"] if job_hash["queue"]
         h
+      end
+
+      def logged_job_attributes
+        (@config && @config[:logged_job_attributes]) || DEFAULT_LOGGED_JOB_ATTRIBUTES
       end
 
       def job_latency_ms(job)

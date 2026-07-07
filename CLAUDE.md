@@ -81,10 +81,10 @@ Key points for maintainers:
 - Tests live in `test/appenders_test.rb`.
 
 ### Extensions (`lib/rails_semantic_logger/extensions/`)
-Monkey-patches / overrides of third-party and Rails internals, each loaded conditionally on the relevant constant being defined (e.g. `extensions/mongoid/config.rb`, `extensions/sidekiq/sidekiq.rb`, `extensions/active_support/tagged_logging.rb`, `extensions/action_dispatch/debug_exceptions.rb`). These keep integrations isolated and only activated when the host app uses that library.
+Monkey-patches / overrides of third-party and Rails internals, each loaded conditionally on the relevant constant being defined (e.g. `extensions/mongoid/config.rb`, `extensions/active_support/tagged_logging.rb`, `extensions/action_dispatch/debug_exceptions.rb`). These keep integrations isolated and only activated when the host app uses that library.
 
 ### Background job integrations (Sidekiq, SolidQueue, Delayed Job)
-Sidekiq has the deepest integration: `sidekiq/` provides a job logger, a `Loggable` mixin, and error-handler defaults, wired up from the engine (plus `extensions/sidekiq/sidekiq.rb`) only when the gem is present. SolidQueue gets a swapped log subscriber (`solid_queue/log_subscriber.rb`). Delayed Job has no namespace of its own; the engine simply assigns `Delayed::Worker.logger`.
+Sidekiq has the deepest integration: `sidekiq/` provides a job logger, a `Loggable` mixin, and error-handler defaults, wired up from the engine only when the gem is present. Sidekiq 7 and 8 are the supported range, both exercised in CI (Sidekiq 7.x on the `rails_7.2` appraisal, 8.x on `rails_8.0`/`rails_8.1`); pre-7 code paths were removed after v5.0.0. The job logger honors Sidekiq 8's `logged_job_attributes` and `skip_default_job_logging` settings. Note that Sidekiq 7 passes its *logger* to the job logger's initializer while Sidekiq 8 passes its *config*, hence the `respond_to?(:[])` guard in `JobLogger#initialize`: the Sidekiq 8 options are only readable there when running Sidekiq 8. SolidQueue gets a swapped log subscriber (`solid_queue/log_subscriber.rb`). Delayed Job has no namespace of its own; the engine simply assigns `Delayed::Worker.logger`.
 
 ## Tests
 
@@ -92,7 +92,6 @@ Tests run against a full dummy Rails app in `test/dummy/` (controllers, models, 
 
 ## Known tech debt
 
-- **Sidekiq 5/6 compatibility is untested.** The engine still branches on Sidekiq 5.x / 6.x / 6.5+ (`engine.rb`, the `job_logger` wiring), but CI only exercises Sidekiq 7.2 (Gemfile pin), and Sidekiq 8 is not tested at all. Open question (parked as of July 2026): drop pre-7 support in a future release, or state and test the supported range.
 - **The `quiet_assets` code path is unexercised in tests.** The dummy app has no sprockets-rails, so `config.assets` does not exist in the test environment and the asset-silencing filter in the engine never runs under CI.
 - **The engine's boot-time rescue only catches synchronous appender-creation errors.** A file appender pointing at an uncreatable path does not raise when created; the failure surfaces asynchronously in semantic_logger's queue processor on first write, so the engine's rescue (degrade to STDERR at warn) never runs and the app boots with a silently broken appender. Catching this would need help from semantic_logger (e.g. an eager open/validate at creation time).
 

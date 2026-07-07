@@ -92,6 +92,17 @@ class TaggedLoggerProxyTest < Minitest::Test
     assert_equal [[:warn, "Late message", nil, nil]], logger.calls
   end
 
+  # A standard Ruby Logger (e.g. wrapped by ActionCable::Connection::TestCase) only
+  # accepts a single `progname` argument and raises ArgumentError given more. See #317.
+  def test_plain_ruby_logger_does_not_raise
+    io     = StringIO.new
+    logger = Logger.new(io)
+
+    tagged_logger_proxy(logger).error("An unauthorized connection attempt was rejected")
+
+    assert_match(/An unauthorized connection attempt was rejected/, io.string)
+  end
+
   private
 
   def tagged_logger_proxy(logger = nil)

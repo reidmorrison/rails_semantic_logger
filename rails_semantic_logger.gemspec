@@ -21,6 +21,7 @@ Gem::Specification.new do |s|
     "bug_tracker_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/issues",
     "documentation_uri"     => "https://logger.rocketjob.io",
     "source_code_uri"       => "https://github.com/reidmorrison/rails_semantic_logger/tree/v#{RailsSemanticLogger::VERSION}",
+    "changelog_uri"         => "https://github.com/reidmorrison/rails_semantic_logger/blob/main/CHANGELOG.md",
     "rubygems_mfa_required" => "true"
   }
 end

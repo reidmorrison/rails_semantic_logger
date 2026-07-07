@@ -30,11 +30,28 @@ module ActionCable
       # wrapped logger, while still applying the connection's tags. See #220.
       %i[debug info warn error fatal unknown].each do |severity|
         define_method(severity) do |message = nil, payload = nil, exception = nil, &block|
-          tag(@logger) { @logger.public_send(severity, message, payload, exception, &block) }
+          tag(@logger) { forward(severity, message, payload, exception, &block) }
         end
       end
 
       private
+
+      # Only forward the extra payload/exception arguments when the wrapped logger's
+      # method can accept them. A standard Ruby Logger (e.g. the one wrapped by
+      # ActionCable::Connection::TestCase) only accepts a single `progname` argument
+      # and raises ArgumentError given more, so fall back to the single-arg call. See #317.
+      def forward(severity, message, payload, exception, &)
+        if extended_signature?(@logger, severity)
+          @logger.public_send(severity, message, payload, exception, &)
+        else
+          @logger.public_send(severity, message, &)
+        end
+      end
+
+      def extended_signature?(logger, severity)
+        params = logger.method(severity).parameters
+        params.any? { |type, _| type == :rest } || params.count { |type, _| %i[req opt].include?(type) } >= 3
+      end
 
       # Tags already applied to the target logger, so they are not duplicated.
       # Semantic Logger exposes them via `#tags`; ActiveSupport::TaggedLogging

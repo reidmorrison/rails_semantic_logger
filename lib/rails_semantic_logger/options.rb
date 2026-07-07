@@ -181,7 +181,7 @@ module RailsSemanticLogger
     # The method names the context in which the appender is created; the destination
     # is an ordinary `SemanticLogger.add_appender` argument. Use `add` for an
     # appender that is always created, `add_server` for one created only when serving
-    # requests (`rails server`, a rack server, Sidekiq in server mode; defaults to
+    # requests (`rails server`, Sidekiq in server mode; defaults to
     # `$stdout`), and `add_console` for one created only inside a `rails console`
     # session (defaults to `$stderr`). Any appender works in any context, so a
     # context may declare several (e.g. a server-only stdout and file appender).

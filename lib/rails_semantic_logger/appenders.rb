@@ -16,8 +16,8 @@ module RailsSemanticLogger
   # destination and formatting are ordinary `SemanticLogger.add_appender` arguments:
   #
   #   #add         - always created, during Rails initialization.
-  #   #add_server  - created only when serving requests (`rails server`, a rack
-  #                  server, Sidekiq in server mode). Defaults to `$stdout`.
+  #   #add_server  - created only when serving requests (`rails server`, Sidekiq
+  #                  in server mode). Defaults to `$stdout`.
   #   #add_console - created only inside a `rails console` session. Defaults to
   #                  `$stderr` so log output does not tangle with command results.
   #
@@ -44,9 +44,10 @@ module RailsSemanticLogger
     end
 
     # Declare an appender that is only created when the application is serving
-    # requests: `rails server`, a rack server started directly (puma, etc.), or
-    # Sidekiq in server mode. It is never created during a non-serving boot (rake
-    # tasks, runners, generators), so it only appears where it is useful.
+    # requests: `rails server`, Sidekiq in server mode, or when the app calls
+    # RailsSemanticLogger.add_server_appenders from its own server's boot hook.
+    # It is never created during a non-serving boot (rake tasks, runners,
+    # generators), so it only appears where it is useful.
     #
     # Accepts the same arguments (and optional block) as SemanticLogger.add_appender.
     # When no destination is given it defaults to `$stdout`; the formatter defaults

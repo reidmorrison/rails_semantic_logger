@@ -72,16 +72,22 @@ module RailsSemanticLogger
 
           SemanticLogger[Rails]
         rescue StandardError => e
-          # If not able to log to file, log to standard error with warning level only
+          # If unable to create the appenders, log to standard error with warning level only
           SemanticLogger.default_level = :warn
 
           SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stderr)
           SemanticLogger.add_appender(io: $stderr)
 
+          message =
+            if path
+              "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666."
+            else
+              "Rails Error: Unable to create the configured appenders."
+            end
           logger = SemanticLogger[Rails]
           logger.warn(
-            "Rails Error: Unable to access log file. Please ensure that #{path} exists and is chmod 0666. " \
-            "The log level has been raised to WARN and the output directed to STDERR until the problem is fixed.",
+            "#{message} The log level has been raised to WARN and the output directed to STDERR " \
+            "until the problem is fixed.",
             e
           )
           logger

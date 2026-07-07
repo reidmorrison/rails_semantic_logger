@@ -30,9 +30,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      # TODO: remove once semantic_logger 5.0 is released (git source no longer needed)
-      - name: Allow Bundler to use its bare git mirror
-        run: git config --global safe.bareRepository all
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -54,9 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # TODO: remove once semantic_logger 5.0 is released (git source no longer needed)
-      - name: Allow Bundler to use its bare git mirror
-        run: git config --global safe.bareRepository all
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:

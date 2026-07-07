@@ -12,7 +12,6 @@ gem "minitest-rails"
 gem "rake"
 gem "simplecov", require: false
 gem "solargraph", require: false, platform: :ruby
-gem "sprockets", "< 4.0"
 
 gem "rails", "~> 8.1.0"
 gem "sidekiq", "~> 7.2.4"

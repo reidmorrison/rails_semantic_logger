@@ -19,31 +19,7 @@ class SidekiqTest < Minitest::Test
       let(:config) { Sidekiq.default_configuration }
       let(:msg) { Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => (Time.now - 60).to_f}) }
       let(:uow) { Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg) }
-      if Sidekiq::VERSION.to_i == 6 && Sidekiq::VERSION.to_f < 6.5
-        let(:processor) do
-          mgr          = Minitest::Mock.new
-          opts         = Sidekiq.options
-          opts[:fetch] = Sidekiq::BasicFetch.new(opts)
-          Sidekiq::Processor.new(mgr, opts)
-        end
-      elsif Sidekiq::VERSION.to_i == 6
-        let(:processor) do
-          config         = Sidekiq
-          config[:fetch] = Sidekiq::BasicFetch.new(config)
-          Sidekiq::Processor.new(config) { |*args| }
-        end
-      elsif Sidekiq::VERSION.to_i < 7
-        let(:processor) do
-          opts = Sidekiq.options
-          mgr  = Minitest::Mock.new
-          mgr.expect(:options, opts)
-          mgr.expect(:options, opts)
-          mgr.expect(:options, opts)
-          Sidekiq::Processor.new(mgr)
-        end
-      else
-        let(:processor) { Sidekiq::Processor.new(config.default_capsule) { |*args| } }
-      end
+      let(:processor) { Sidekiq::Processor.new(config.default_capsule) { |*args| } }
 
       it "a simple job" do
         # SimpleJob.perform_async
@@ -120,6 +96,45 @@ class SidekiqTest < Minitest::Test
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
       end
 
+      # Sidekiq 8 passes its config to the job logger, making these options available.
+      if Sidekiq::VERSION.to_i >= 8
+        it "does not emit perform messages when skip_default_job_logging is set" do
+          config[:skip_default_job_logging] = true
+
+          messages = semantic_logger_events do
+            processor.send(:process, uow)
+          end
+
+          assert_equal 0, messages.count, -> { messages.collect(&:to_h).ai }
+        ensure
+          config[:skip_default_job_logging] = false
+        end
+
+        it "adds logged_job_attributes from the Sidekiq config to the logging context" do
+          config[:logged_job_attributes] = %w[bid tags priority]
+          msg_with_priority = Sidekiq.dump_json(
+            {"class" => job.to_s, "args" => args, "enqueued_at" => (Time.now - 60).to_f, "priority" => "high"}
+          )
+          uow_with_priority = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg_with_priority)
+
+          messages = semantic_logger_events do
+            processor.send(:process, uow_with_priority)
+          end
+
+          assert_equal 2, messages.count, -> { messages.collect(&:to_h).ai }
+
+          assert_semantic_logger_event(
+            messages[0],
+            level:      :info,
+            name:       "SimpleJob",
+            message:    "Start #perform",
+            named_tags: {jid: nil, class: "SimpleJob", priority: "high", queue: "default"}
+          )
+        ensure
+          config[:logged_job_attributes] = %w[bid tags]
+        end
+      end
+
       describe "with Bad Job" do
         let(:job) { BadJob }
 
@@ -165,6 +180,45 @@ class SidekiqTest < Minitest::Test
           )
           assert_equal "BadJob", messages[2].payload[:job]["class"]
           assert_equal [], messages[2].payload[:job]["args"]
+        end
+      end
+    end
+
+    # Unit tests for the job logger's Sidekiq 8 configuration options.
+    # These run on all Sidekiq versions since the config is passed in directly.
+    describe RailsSemanticLogger::Sidekiq::JobLogger do
+      let(:item) { {"jid" => "123", "class" => "SimpleJob", "queue" => "default", "priority" => "high"} }
+
+      describe "skip_default_job_logging" do
+        let(:job_logger) { RailsSemanticLogger::Sidekiq::JobLogger.new({skip_default_job_logging: true}) }
+
+        it "suppresses perform messages but still runs the job" do
+          performed = false
+          messages  = semantic_logger_events do
+            job_logger.call(item, "default") { performed = true }
+          end
+
+          assert performed
+          assert_equal 0, messages.count, -> { messages.collect(&:to_h).ai }
+        end
+      end
+
+      describe "logged_job_attributes" do
+        let(:job_logger) { RailsSemanticLogger::Sidekiq::JobLogger.new({logged_job_attributes: %w[bid tags priority]}) }
+
+        it "adds configured job attributes to the logging context" do
+          messages = semantic_logger_events do
+            job_logger.prepare(item) do
+              job_logger.call(item, "default") {}
+            end
+          end
+
+          assert_equal 2, messages.count, -> { messages.collect(&:to_h).ai }
+          assert_semantic_logger_event(
+            messages[0],
+            message:    "Start #perform",
+            named_tags: {jid: "123", class: "SimpleJob", priority: "high", queue: "default"}
+          )
         end
       end
     end

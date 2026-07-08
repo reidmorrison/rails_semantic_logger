@@ -12,7 +12,7 @@ gem "rake"
 gem "simplecov", require: false
 gem "solargraph", require: false, platform: :ruby
 gem "rails", "~> 8.0.0"
-gem "sidekiq", "~> 7.2.4"
+gem "sidekiq", "~> 8.0.0"
 gem "solid_queue", "~> 1.4"
 gem "sqlite3"
 gem "rubocop"

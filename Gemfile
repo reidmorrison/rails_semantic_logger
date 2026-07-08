@@ -14,7 +14,7 @@ gem "simplecov", require: false
 gem "solargraph", require: false, platform: :ruby
 
 gem "rails", "~> 8.1.0"
-gem "sidekiq", "~> 7.2.4"
+gem "sidekiq"
 gem "solid_queue", "~> 1.4"
 gem "sqlite3"
 

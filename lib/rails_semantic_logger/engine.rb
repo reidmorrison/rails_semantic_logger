@@ -128,12 +128,8 @@ module RailsSemanticLogger
         end
 
         ::Sidekiq.configure_server do |config|
-          config.logger = ::SemanticLogger[::Sidekiq]
-          if ::Sidekiq::VERSION.to_i < 6 || (::Sidekiq::VERSION.to_i == 6 && ::Sidekiq::VERSION.to_f < 6.5)
-            config.options[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
-          else
-            config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
-          end
+          config.logger       = ::SemanticLogger[::Sidekiq]
+          config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
 
           # Add back the default console logger (unless the app declared its own appenders, or one exists)
           RailsSemanticLogger.add_server_appenders
@@ -143,11 +139,7 @@ module RailsSemanticLogger
           config.error_handlers << RailsSemanticLogger::Sidekiq::Defaults::ERROR_HANDLER if existing
         end
 
-        if defined?(::Sidekiq::Job) && (::Sidekiq::VERSION.to_i != 5)
-          ::Sidekiq::Job.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
-        else
-          ::Sidekiq::Worker.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
-        end
+        ::Sidekiq::Job.singleton_class.prepend(RailsSemanticLogger::Sidekiq::Loggable)
       end
 
       # Replace the SolidQueue logger
@@ -268,10 +260,6 @@ module RailsSemanticLogger
             RailsSemanticLogger::ActionMailer::LogSubscriber,
             :action_mailer
           )
-        end
-
-        if config.rails_semantic_logger.replace_sidekiq_logger && defined?(::Sidekiq)
-          require("rails_semantic_logger/extensions/sidekiq/sidekiq")
         end
 
         # SolidQueue

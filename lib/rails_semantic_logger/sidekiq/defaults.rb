@@ -4,38 +4,21 @@ module RailsSemanticLogger
       # Prevent exception logging during standard error handling since the Job Logger below already logs the exception.
       # Logs the remaining Sidekiq context at :info (matching upstream Sidekiq's default handler) rather than :warn,
       # since the exception itself is already logged at :error by the Job Logger.
+      # Sidekiq 7.1.6+ calls error handlers with a third config argument; earlier 7.x versions pass only two.
       ERROR_HANDLER =
-        if ::Sidekiq::VERSION.to_f < 7.1 ||
-           (::Sidekiq::VERSION.to_f == 7.1 && ::Sidekiq::VERSION.split(".").last.to_i < 6)
-          lambda do |_ex, ctx|
-            unless ctx.empty?
-              job_hash = ctx[:job] || {}
-              klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-              logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
-              ctx[:context] ? logger.info(ctx[:context], ctx) : logger.info(ctx)
-            end
-          end
-        else
-          lambda do |_ex, ctx, _default_configuration|
-            unless ctx.empty?
-              job_hash = ctx[:job] || {}
-              klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
-              logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
-              ctx[:context] ? logger.info(ctx[:context], ctx) : logger.info(ctx)
-            end
+        lambda do |_ex, ctx, _config = nil|
+          unless ctx.empty?
+            job_hash = ctx[:job] || {}
+            klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
+            logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
+            ctx[:context] ? logger.info(ctx[:context], ctx) : logger.info(ctx)
           end
         end
 
-      # Returns the default logger after removing from the supplied list.
-      # Returns [nil] when the default logger was not present.
+      # Returns the default error handler after removing it from the supplied list.
+      # Returns [nil] when the default handler was not present.
       def self.delete_default_error_handler(error_handlers)
-        return error_handlers.delete(::Sidekiq::Config::ERROR_HANDLER) if defined?(::Sidekiq::Config::ERROR_HANDLER)
-        return error_handlers.delete(::Sidekiq::DEFAULT_ERROR_HANDLER) if defined?(::Sidekiq::DEFAULT_ERROR_HANDLER)
-
-        return unless defined?(::Sidekiq::ExceptionHandler)
-
-        existing = error_handlers.find { |handler| handler.is_a?(::Sidekiq::ExceptionHandler::Logger) }
-        error_handlers.delete(existing) if existing
+        error_handlers.delete(::Sidekiq::Config::ERROR_HANDLER)
       end
     end
   end

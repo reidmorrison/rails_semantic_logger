@@ -92,7 +92,6 @@ Tests run against a full dummy Rails app in `test/dummy/` (controllers, models, 
 
 ## Known tech debt
 
-- **The `quiet_assets` code path is unexercised in tests.** The dummy app has no sprockets-rails, so `config.assets` does not exist in the test environment and the asset-silencing filter in the engine never runs under CI.
 - **The engine's boot-time rescue only catches synchronous appender-creation errors.** A file appender pointing at an uncreatable path does not raise when created; the failure surfaces asynchronously in semantic_logger's queue processor on first write, so the engine's rescue (degrade to STDERR at warn) never runs and the app boots with a silently broken appender. Catching this would need help from semantic_logger (e.g. an eager open/validate at creation time).
 
 ## Conventions

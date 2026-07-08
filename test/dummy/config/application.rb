@@ -36,5 +36,13 @@ module Dummy
 
     # Test out Amazing Print
     config.rails_semantic_logger.ap_options = {multiline: false, ruby19_syntax: true}
+
+    # Simulate an asset pipeline gem (sprockets-rails/propshaft both expose config.assets
+    # with #quiet/#prefix) without adding the real gem, so the engine's quiet_assets
+    # detection and asset-silencing filter - otherwise dormant - run under CI.
+    config.assets            = ActiveSupport::OrderedOptions.new
+    config.assets.quiet      = true
+    config.assets.prefix     = "/assets"
+    config.assets.precompile = []
   end
 end

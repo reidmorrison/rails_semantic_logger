@@ -5,7 +5,7 @@ end
 
 appraise "rails_8.0" do
   gem "rails", "~> 8.0.0"
-  gem "sidekiq", "~> 8.1"
+  gem "sidekiq", "~> 8.0.0"
 end
 
 appraise "rails_8.1" do

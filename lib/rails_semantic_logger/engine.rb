@@ -42,6 +42,10 @@ module RailsSemanticLogger
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger = config.logger =
         begin
+          # Misconfigured appenders raise here so the rescue below can degrade to stderr.
+          # For file appenders this relies on semantic_logger >= 5.1, which opens the log
+          # file eagerly at creation instead of on the first write from the async processor
+          # thread (where the failure would escape this rescue).
           if config.rails_semantic_logger.appenders?
             # The application declared its own appenders; create those and skip the default file appender.
             RailsSemanticLogger.add_appenders(config.rails_semantic_logger.appenders)

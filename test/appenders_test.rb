@@ -393,5 +393,33 @@ class AppendersTest < Minitest::Test
       SemanticLogger::Processor.logger = original_internal
       FileUtils.remove_entry(dir) if dir
     end
+
+    it "opens file appenders eagerly instead of on the first write" do
+      dir  = Dir.mktmpdir
+      path = File.join(dir, "eager.log")
+
+      appenders = RailsSemanticLogger::Appenders.new
+      appenders.add(file_name: path)
+
+      original_internal = SemanticLogger::Processor.logger
+      RailsSemanticLogger.add_appenders(appenders)
+      added = SemanticLogger.appenders.to_a.last
+
+      assert_path_exists path, "expected the log file to be created during add_appenders, before any write"
+    ensure
+      SemanticLogger.remove_appender(added) if added
+      SemanticLogger::Processor.logger = original_internal if original_internal
+      FileUtils.remove_entry(dir) if dir
+    end
+
+    it "raises during initialization when a file appender path cannot be opened" do
+      original_count = SemanticLogger.appenders.size
+
+      appenders = RailsSemanticLogger::Appenders.new
+      appenders.add(file_name: "/nonexistent-dir/test.log")
+
+      assert_raises(Errno::ENOENT) { RailsSemanticLogger.add_appenders(appenders) }
+      assert_equal original_count, SemanticLogger.appenders.size, "expected the broken appender not to be registered"
+    end
   end
 end

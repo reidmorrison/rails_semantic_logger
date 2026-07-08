@@ -92,7 +92,7 @@ Tests run against a full dummy Rails app in `test/dummy/` (controllers, models, 
 
 ## Known tech debt
 
-- **The engine's boot-time rescue only catches synchronous appender-creation errors.** A file appender pointing at an uncreatable path does not raise when created; the failure surfaces asynchronously in semantic_logger's queue processor on first write, so the engine's rescue (degrade to STDERR at warn) never runs and the app boots with a silently broken appender. Catching this would need help from semantic_logger (e.g. an eager open/validate at creation time).
+- **The engine's boot-time rescue only catches appender errors that raise during creation.** File appenders are covered as of semantic_logger >= 5.1 (the gemspec minimum), which opens the log file eagerly in `Appender::File#initialize`, so an unwritable path raises inside the engine's rescue and degrades to STDERR at warn; `test/appenders_test.rb` pins this contract. Non-file appenders declared through the appenders DSL that fail asynchronously (e.g. network appenders that connect on first write from the queue-processor thread) still escape the rescue and only surface through semantic_logger's internal logger at runtime.
 
 ## Conventions
 

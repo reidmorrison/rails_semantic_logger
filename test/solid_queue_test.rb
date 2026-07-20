@@ -114,7 +114,8 @@ class SolidQueueTest < Minitest::Test
       let(:event_name) { "start_process.solid_queue" }
       let(:process_struct) { Struct.new(:pid, :hostname, :process_id, :name, :kind, :metadata) }
       let(:process) do
-        process_struct.new(1234, "host.local", "abc-123", "worker-1", "Worker", {polling_interval: 0.1, queues: "default"})
+        process_struct.new(1234, "host.local", "abc-123", "worker-1", "Worker",
+                           {polling_interval: 0.1, queues: "default"})
       end
       let(:payload) { {process: process} }
 
@@ -402,7 +403,8 @@ class SolidQueueTest < Minitest::Test
       let(:event_name) { "shutdown_process.solid_queue" }
       let(:process_struct) { Struct.new(:pid, :hostname, :process_id, :name, :kind, :metadata) }
       let(:process) do
-        process_struct.new(1234, "host.local", "abc-123", "worker-1", "Worker", {polling_interval: 0.1, queues: "default"})
+        process_struct.new(1234, "host.local", "abc-123", "worker-1", "Worker",
+                           {polling_interval: 0.1, queues: "default"})
       end
       let(:payload) { {process: process} }
 

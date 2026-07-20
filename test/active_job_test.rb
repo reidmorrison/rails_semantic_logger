@@ -192,7 +192,8 @@ class ActiveJobTest < Minitest::Test
               event_name: "enqueue.active_job"
             }
           )
-          assert_match(/Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/, messages[0].message)
+          assert_match(/Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/,
+                       messages[0].message)
           assert_includes messages[0].payload, :job_id
         end
       end
@@ -265,7 +266,8 @@ class ActiveJobTest < Minitest::Test
               event_name: "enqueue.active_job"
             }
           )
-          assert_match(/Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/, messages[0].message)
+          assert_match(/Failed enqueuing .*, a before_enqueue callback halted the enqueuing execution/,
+                       messages[0].message)
           assert_includes messages[0].payload, :job_id
         end
       end

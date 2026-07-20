@@ -142,7 +142,7 @@ module RailsSemanticLogger
         end
 
         def rails_root
-          @root ||= "#{Rails.root}/"
+          @rails_root ||= "#{Rails.root}/"
         end
 
         def logger
@@ -161,12 +161,12 @@ module RailsSemanticLogger
         super
       end
 
-      private
+      EMPTY = "".freeze
 
       @logger             = ::ActionView::Base.logger
       @rendered_log_level = :debug
 
-      EMPTY = "".freeze
+      private
 
       def should_log?
         logger.send("#{self.class.rendered_log_level}?")

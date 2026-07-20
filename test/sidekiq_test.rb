@@ -19,7 +19,10 @@ class SidekiqTest < Minitest::Test
       let(:config) { Sidekiq.default_configuration }
       let(:msg) { Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => (Time.now - 60).to_f}) }
       let(:uow) { Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg) }
-      let(:processor) { Sidekiq::Processor.new(config.default_capsule) { |*args| } }
+      # Sidekiq requires a callback block; the tests never exercise it.
+      let(:processor) do
+        Sidekiq::Processor.new(config.default_capsule) { |*_args| nil }
+      end
 
       it "a simple job" do
         # SimpleJob.perform_async
@@ -209,7 +212,8 @@ class SidekiqTest < Minitest::Test
         it "adds configured job attributes to the logging context" do
           messages = semantic_logger_events do
             job_logger.prepare(item) do
-              job_logger.call(item, "default") {}
+              # The block stands in for the job body; only the surrounding logging is asserted.
+              job_logger.call(item, "default") { nil }
             end
           end
 

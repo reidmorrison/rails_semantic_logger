@@ -14,6 +14,7 @@ class TaggedLoggerProxyTest < Minitest::Test
     attr_reader :tags
 
     def initialize(tags)
+      super()
       @tags = tags
     end
   end

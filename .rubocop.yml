@@ -36,11 +36,9 @@ Layout/HashAlignment:
   EnforcedHashRocketStyle: table
   EnforcedColonStyle: table
 
-# Soften limits
+# Standard 120 column limit
 Layout/LineLength:
-  Max: 128
-  Exclude:
-    - "**/test/**/*"
+  Max: 120
 
 # Match existing layout
 Layout/SpaceInsideHashLiteralBraces:
@@ -88,9 +86,27 @@ Metrics/PerceivedComplexity:
 Naming/MethodParameterName:
   AllowedNames: [ "iv", "_", "io", "ap", "id", "_id" ]
 
+# Rack::Logger mirrors Rails::Rack::Logger, which rescues Exception (not just
+# StandardError) so the instrumenter handle is always finished, then re-raises.
+Lint/RescueException:
+  Exclude:
+    - "lib/rails_semantic_logger/rack/logger.rb"
+
+# Rack::Logger mirrors Rails::Rack::Logger, whose initialize also skips super:
+# it is constructed as Rack middleware, not as a LogSubscriber.
+Lint/MissingSuper:
+  Exclude:
+    - "lib/rails_semantic_logger/rack/logger.rb"
+
 # Does not allow Symbols to load
 Security/YAMLLoad:
   AutoCorrect: false
+
+# The subscribers set these payload keys to exactly `true`, never to some other
+# truthy value, so the tests assert on the value rather than on truthiness.
+Minitest/AssertTruthy:
+  Exclude:
+    - "test/active_record_test.rb"
 
 # Needed for testing DateTime
 Style/DateTime:

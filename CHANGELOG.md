@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- Require `semantic_logger` v5.1 or greater. The file appender now opens its log file when it is
+  created, so a bad log path or insufficient permissions raises during boot and the engine's
+  fallback (log to STDERR at `:warn`) actually runs, instead of the app booting with a silently
+  broken appender.
+
 - Sidekiq: officially support Sidekiq 7 and 8, and test both in CI (Sidekiq 7.x on the Rails 7.2
   appraisal, Sidekiq 8.x on the Rails 8.0 and 8.1 appraisals).
 - Sidekiq: remove support for Sidekiq 4, 5, and 6. These versions predate the gem's Rails 7.2 /

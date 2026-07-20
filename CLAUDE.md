@@ -90,10 +90,6 @@ Sidekiq has the deepest integration: `sidekiq/` provides a job logger, a `Loggab
 
 Tests run against a full dummy Rails app in `test/dummy/` (controllers, models, jobs, mailers, sqlite3 DB). `test/test_helper.rb` boots that app, loads Sidekiq in server mode, and includes `SemanticLogger::Test::Minitest` helpers. `test/payload_collector.rb` captures emitted log entries so tests can assert on the structured payload rather than text output, this is the standard pattern for verifying subscriber behavior.
 
-## Known tech debt
-
-- **The engine's boot-time rescue only catches synchronous appender-creation errors.** A file appender pointing at an uncreatable path does not raise when created; the failure surfaces asynchronously in semantic_logger's queue processor on first write, so the engine's rescue (degrade to STDERR at warn) never runs and the app boots with a silently broken appender. Catching this would need help from semantic_logger (e.g. an eager open/validate at creation time).
-
 ## Conventions
 
 - RuboCop enforced (`.rubocop.yml`); run `rubocop` before finishing changes.

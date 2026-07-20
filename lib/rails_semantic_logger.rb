@@ -116,7 +116,7 @@ module RailsSemanticLogger
 
   # Swap an existing subscriber with a new one
   def self.swap_subscriber(old_class, new_class, notifier)
-    subscribers = ActiveSupport::LogSubscriber.subscribers.select { |s| s.is_a?(old_class) }
+    subscribers = ActiveSupport::LogSubscriber.subscribers.grep(old_class)
     subscribers.each { |subscriber| unattach(subscriber) }
 
     new_class.attach_to(notifier)

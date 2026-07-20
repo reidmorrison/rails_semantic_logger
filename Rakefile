@@ -5,10 +5,12 @@ require "bundler/setup"
 require "rake/testtask"
 require_relative "lib/rails_semantic_logger/version"
 
+desc "Build the gem"
 task :gem do
   system "gem build rails_semantic_logger.gemspec"
 end
 
+desc "Build and publish the gem, and tag the release"
 task publish: :gem do
   system "git tag -a v#{RailsSemanticLogger::VERSION} -m 'Tagging #{RailsSemanticLogger::VERSION}'"
   system "git push --tags"

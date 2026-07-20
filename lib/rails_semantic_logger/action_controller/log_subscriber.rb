@@ -137,7 +137,8 @@ module RailsSemanticLogger
           payload[:source] = source if source
         end
 
-        controller_logger(event).info(message: "Redirected to", payload: payload, metric: "rails.controller.redirect_to")
+        controller_logger(event).info(message: "Redirected to", payload: payload,
+                                      metric: "rails.controller.redirect_to")
       end
 
       def send_data(event)

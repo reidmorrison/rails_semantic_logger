@@ -54,7 +54,11 @@ module RailsSemanticLogger
         elsif event.payload[:other_adapter]
           log_event(event, :debug, "Enqueued recurring task outside Solid Queue", **attributes)
         else
-          action = event.payload[:skipped].present? ? "Skipped recurring task – already dispatched" : "Enqueued recurring task"
+          action = if event.payload[:skipped].present?
+                     "Skipped recurring task – already dispatched"
+                   else
+                     "Enqueued recurring task"
+                   end
           log_event(event, :debug, action, **attributes)
         end
       end

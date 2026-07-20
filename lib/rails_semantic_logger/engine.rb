@@ -48,7 +48,7 @@ module RailsSemanticLogger
           elsif config.rails_semantic_logger.add_file_appender
             # DEPRECATED: This option is deprecated and will be removed in a future version.
             path = config.paths["log"].first
-            FileUtils.mkdir_p(File.dirname(path)) unless File.exist?(File.dirname(path))
+            FileUtils.mkdir_p(File.dirname(path))
 
             # Add the log file to the list of appenders
             # Use the colorized formatter if Rails colorized logs are enabled
@@ -67,7 +67,8 @@ module RailsSemanticLogger
 
               app.formatter = formatter
             end
-            SemanticLogger.add_appender(file_name: path, formatter: formatter, filter: config.rails_semantic_logger.filter)
+            SemanticLogger.add_appender(file_name: path, formatter: formatter,
+                                        filter: config.rails_semantic_logger.filter)
           end
 
           SemanticLogger[Rails]
@@ -143,7 +144,8 @@ module RailsSemanticLogger
       end
 
       # Replace the SolidQueue logger
-      if config.rails_semantic_logger.replace_solid_queue_logger && defined?(::SolidQueue) && ::SolidQueue.respond_to?(:logger=)
+      if config.rails_semantic_logger.replace_solid_queue_logger &&
+         defined?(::SolidQueue) && ::SolidQueue.respond_to?(:logger=)
         ::SolidQueue.logger = SemanticLogger[::SolidQueue]
       end
 
@@ -222,14 +224,18 @@ module RailsSemanticLogger
         if config.rails_semantic_logger.quiet_assets && config.respond_to?(:assets) && config.assets.prefix
           assets_root                                     = config.relative_url_root.to_s + config.assets.prefix
           assets_regex                                    = %r(\A/{0,2}#{assets_root})
-          RailsSemanticLogger::Rack::Logger.logger.filter = ->(log) { log.payload[:path] !~ assets_regex if log.payload }
+          RailsSemanticLogger::Rack::Logger.logger.filter = lambda do |log|
+            log.payload[:path] !~ assets_regex if log.payload
+          end
         end
 
         # Action View
         if defined?(::ActionView)
           require "action_view/log_subscriber"
 
-          RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info if config.rails_semantic_logger.rendered
+          if config.rails_semantic_logger.rendered
+            RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info
+          end
           RailsSemanticLogger.swap_subscriber(
             ::ActionView::LogSubscriber,
             RailsSemanticLogger::ActionView::LogSubscriber,

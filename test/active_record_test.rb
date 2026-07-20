@@ -2,8 +2,9 @@ require_relative "test_helper"
 
 class ActiveRecordTest < Minitest::Test
   describe "ActiveRecord" do
-    # Rails 5 has an extra space
-    let(:extra_space) { Rails::VERSION::MAJOR >= 6 ? "" : " " }
+    let(:name_query_sql) do
+      'SELECT "samples".* FROM "samples" WHERE "samples"."name" = ? ORDER BY "samples"."id" ASC LIMIT ?'
+    end
 
     # Emit a sql.active_record event with a controlled payload so the metadata branches
     # (async / lock_wait / cached) can be asserted deterministically.
@@ -18,7 +19,7 @@ class ActiveRecordTest < Minitest::Test
 
     describe "logs" do
       it "sql" do
-        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+        expected_sql = 'SELECT "samples".* FROM "samples" ORDER BY "samples"."id" ASC LIMIT ?'
 
         messages = semantic_logger_events do
           Sample.first
@@ -36,12 +37,10 @@ class ActiveRecordTest < Minitest::Test
             binds: {limit: 1}
           }
         )
-        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+        assert_instance_of Integer, messages[0].payload[:allocations]
       end
 
       it "sql with query cache" do
-        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-
         messages = semantic_logger_events do
           Sample.cache { 2.times { Sample.where(name: "foo").first } }
         end
@@ -54,11 +53,11 @@ class ActiveRecordTest < Minitest::Test
           name:             "ActiveRecord::Base",
           message:          "Sample Load",
           payload_includes: {
-            sql:   expected_sql,
+            sql:   name_query_sql,
             binds: {name: "foo", limit: 1}
           }
         )
-        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+        assert_instance_of Integer, messages[0].payload[:allocations]
 
         assert_semantic_logger_event(
           messages[1],
@@ -66,22 +65,15 @@ class ActiveRecordTest < Minitest::Test
           name:             "ActiveRecord::Base",
           message:          "Sample Load",
           payload_includes: {
-            sql:    expected_sql,
+            sql:    name_query_sql,
             binds:  {name: "foo", limit: 1},
             cached: true
           }
         )
-        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+        assert_instance_of Integer, messages[0].payload[:allocations]
       end
 
       it "single bind value" do
-        expected_sql =
-          if Rails.version.to_f >= 5.2
-            "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-          else
-            "SELECT  \"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-          end
-
         messages = semantic_logger_events do
           Sample.where(name: "Jack").first
         end
@@ -94,22 +86,15 @@ class ActiveRecordTest < Minitest::Test
           name:             "ActiveRecord::Base",
           message:          "Sample Load",
           payload_includes: {
-            sql:   expected_sql,
+            sql:   name_query_sql,
             binds: {name: "Jack", limit: 1}
           }
         )
-        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+        assert_instance_of Integer, messages[0].payload[:allocations]
       end
 
       it "filtered bind value" do
         filter_params_setting %i[name] do
-          expected_sql =
-            if Rails.version.to_f >= 5.2
-              "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-            else
-              "SELECT  \"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-            end
-
           messages = semantic_logger_events do
             Sample.where(name: "Jack").first
           end
@@ -122,23 +107,16 @@ class ActiveRecordTest < Minitest::Test
             name:             "ActiveRecord::Base",
             message:          "Sample Load",
             payload_includes: {
-              sql:   expected_sql,
+              sql:   name_query_sql,
               binds: {name: "[FILTERED]", limit: 1}
             }
           )
-          assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+          assert_instance_of Integer, messages[0].payload[:allocations]
         end
       end
 
       it "filtered bind value when filter_parameters set as regex" do
         filter_params_regex_setting %i[name] do
-          expected_sql =
-            if Rails.version.to_f >= 5.2
-              "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-            else
-              "SELECT  \"samples\".* FROM \"samples\" WHERE \"samples\".\"name\" = ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
-            end
-
           messages = semantic_logger_events do
             Sample.where(name: "Jack").first
           end
@@ -151,18 +129,17 @@ class ActiveRecordTest < Minitest::Test
             name:             "ActiveRecord::Base",
             message:          "Sample Load",
             payload_includes: {
-              sql:   expected_sql,
+              sql:   name_query_sql,
               binds: {name: "[FILTERED]", limit: 1}
             }
           )
-          assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+          assert_instance_of Integer, messages[0].payload[:allocations]
         end
       end
 
       it "multiple bind values" do
-        skip "Not applicable to older rails" if Rails.version.to_f <= 5.1
-
-        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"age\" BETWEEN ? AND ? ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+        expected_sql =
+          'SELECT "samples".* FROM "samples" WHERE "samples"."age" BETWEEN ? AND ? ORDER BY "samples"."id" ASC LIMIT ?'
 
         messages = semantic_logger_events do
           Sample.where(age: 2..21).first
@@ -180,13 +157,12 @@ class ActiveRecordTest < Minitest::Test
             binds: {age: [2, 21], limit: 1}
           }
         )
-        assert_instance_of Integer, messages[0].payload[:allocations] if Rails.version.to_i >= 6
+        assert_instance_of Integer, messages[0].payload[:allocations]
       end
 
       it "works with an IN clause" do
-        skip "Not applicable to older rails" if Rails.version.to_f <= 5.1
-
-        expected_sql = "SELECT #{extra_space}\"samples\".* FROM \"samples\" WHERE \"samples\".\"age\" IN (?, ?) ORDER BY \"samples\".\"id\" ASC LIMIT ?"
+        expected_sql =
+          'SELECT "samples".* FROM "samples" WHERE "samples"."age" IN (?, ?) ORDER BY "samples"."id" ASC LIMIT ?'
 
         messages = semantic_logger_events do
           Sample.where(age: [2, 3]).first
@@ -209,7 +185,6 @@ class ActiveRecordTest < Minitest::Test
 
     describe "async queries" do
       before do
-        skip "Not applicable to older rails" if Rails.version.to_f < 7.1
         ActiveRecord::Base.asynchronous_queries_tracker.start_session
       end
 

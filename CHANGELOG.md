@@ -3,23 +3,37 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## [5.1.0] - 2026-07-20
 
-- Require `semantic_logger` v5.1 or greater. The file appender now opens its log file when it is
-  created, so a bad log path or insufficient permissions raises during boot and the engine's
-  fallback (log to STDERR at `:warn`) actually runs, instead of the app booting with a silently
-  broken appender.
-
+- Require `semantic_logger` v5.1 or greater, keeping the two gems in lock step.
+- Boot: a log file that cannot be opened is now caught during boot. Semantic Logger v5.1 opens the
+  file appender's log file when it is created, so a bad path or insufficient permissions raises from
+  `SemanticLogger.add_appender` and the engine's fallback (log to STDERR at `:warn`) runs as
+  intended. Previously the failure surfaced asynchronously on the appender thread and the app booted
+  against a silently broken appender. As a side effect the log file is now created as soon as the
+  appender is added, even if nothing has been logged yet, matching the standard Rails logger.
+- Boot: the rescue no longer reports a log file path problem when the failure came from the
+  appenders block, where no path is involved. It now emits an accurate message per branch.
+- ActionCable: fix an `ArgumentError` from `TaggedLoggerProxy` when the wrapped logger is a plain
+  Ruby `Logger`, which accepts only a single progname argument. The v4.9 change always forwarded the
+  full `(message, payload, exception)` signature, breaking `ActionCable::Connection::TestCase` tests
+  such as `have_rejected_connection`. The extra arguments are now only forwarded to a logger method
+  that can accept them. Fixes #317.
 - Sidekiq: officially support Sidekiq 7 and 8, and test both in CI (Sidekiq 7.x on the Rails 7.2
   appraisal, Sidekiq 8.x on the Rails 8.0 and 8.1 appraisals).
 - Sidekiq: remove support for Sidekiq 4, 5, and 6. These versions predate the gem's Rails 7.2 /
-  Ruby 3.2 floor and were untested; the `Sidekiq::Logging` / server middleware patches and the
-  pre-6.5 `job_logger` wiring are gone.
+  Ruby 3.2 floor and were untested; the `Sidekiq::Logging` / server middleware patches, the pre-6.5
+  `job_logger` wiring, the Sidekiq 5 `Worker` fallback, and the pre-7.1.6 error-handler branches
+  are gone.
 - Sidekiq: honor Sidekiq 8's `logged_job_attributes` setting, so additional job attributes can be
   added to the logging context (defaults to `bid` and `tags`, matching Sidekiq).
 - Sidekiq: honor Sidekiq 8's `skip_default_job_logging` setting as an alternative to
   `RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false` for suppressing the
   `Start #perform` / `Completed #perform` messages.
+- Add a `changelog_uri` to the gem metadata, so RubyGems links to this file. Thanks to
+  [Philip Hallstrom](https://github.com/phallstrom).
+- Remove the vestigial `sprockets < 4.0` development pin, which resolved to sprockets 1.0.2 with no
+  `sprockets-rails` and therefore provided no Rails integration.
 
 ## [5.0.0] - 2026-06-29
 

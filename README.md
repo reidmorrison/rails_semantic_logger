@@ -1,7 +1,7 @@
 # Rails Semantic Logger
 [![Gem Version](https://img.shields.io/gem/v/rails_semantic_logger.svg)](https://rubygems.org/gems/rails_semantic_logger) [![Build Status](https://github.com/reidmorrison/rails_semantic_logger/workflows/build/badge.svg)](https://github.com/reidmorrison/rails_semantic_logger/actions?query=workflow%3Abuild) [![Downloads](https://img.shields.io/gem/dt/rails_semantic_logger.svg)](https://rubygems.org/gems/rails_semantic_logger) [![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen.svg)](http://opensource.org/licenses/Apache-2.0) ![](https://img.shields.io/badge/status-Production%20Ready-blue.svg)
 
-Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](https://logger.rocketjob.io/), so that Rails, your application code, and many common gems all log through structured logging instead of plain text.
+Rails Semantic Logger replaces the Rails default logger with [Semantic Logger](https://logger.reidmorrison.com/), so that Rails, your application code, and many common gems all log through structured logging instead of plain text.
 
 When any large Rails application is deployed to production one of the first steps is to move to centralized logging, so that logs can be viewed and searched from a central location. That quickly falls apart when consuming human readable text logs:
 
@@ -67,17 +67,17 @@ end
 
 Because declaring an appender replaces the default file appender, JSON to stdout becomes the only destination, exactly what a container platform wants. Once logs are emitted as structured JSON, a centralized logging system can parse each field, including the nested `payload` and any `metric` data, into a searchable hierarchy, so you can build searches, alerts, and dashboards against well-defined fields instead of brittle text matching.
 
-See [Configuring appenders](https://logger.rocketjob.io/rails#configuring-where-logs-go-the-appenders-block) for the full guide, including formatters, third-party destinations, the [container platform recipe](https://logger.rocketjob.io/rails#production-on-a-container-platform-docker-kubernetes-heroku), tuning what Rails logs, and worked examples of querying the JSON.
+See [Configuring appenders](https://logger.reidmorrison.com/rails#configuring-where-logs-go-the-appenders-block) for the full guide, including formatters, third-party destinations, the [container platform recipe](https://logger.reidmorrison.com/rails#production-on-a-container-platform-docker-kubernetes-heroku), tuning what Rails logs, and worked examples of querying the JSON.
 
 ## Documentation
 
-For complete documentation see: https://logger.rocketjob.io/rails
+For complete documentation see: https://logger.reidmorrison.com/rails
 
 ## Upgrading
 
 The way appenders (log destinations) are configured changed in v5. See the
-[v4 to v5 migration guide](https://logger.rocketjob.io/rails#migrating-from-v4-to-v5) for the
-before/after mapping, and [Migrating from earlier versions](https://logger.rocketjob.io/rails#migrating-from-earlier-versions)
+[v4 to v5 migration guide](https://logger.reidmorrison.com/rails#migrating-from-v4-to-v5) for the
+before/after mapping, and [Migrating from earlier versions](https://logger.reidmorrison.com/rails#migrating-from-earlier-versions)
 for older releases.
 
 ## New Versions of Rails, etc.

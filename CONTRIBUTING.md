@@ -26,7 +26,7 @@ Documentation updates are welcome and appreciated by all users of Rails Semantic
 
 The user-facing documentation for this gem does **not** live in this repository. It lives in the companion
 [Semantic Logger](https://github.com/reidmorrison/semantic_logger) repository, as a Jekyll site under its
-`docs` subdirectory, published to [logger.rocketjob.io](https://logger.rocketjob.io). The Rails specific page
+`docs` subdirectory, published to [logger.reidmorrison.com](https://logger.reidmorrison.com). The Rails specific page
 is `docs/rails.md`.
 
 To change the documentation, follow the documentation instructions in the `CONTRIBUTING.md` of the
@@ -90,7 +90,7 @@ Github.
 
 ## Philosophy
 
-Rails Semantic Logger adapts Rails to [Semantic Logger](https://logger.rocketjob.io/). It
+Rails Semantic Logger adapts Rails to [Semantic Logger](https://logger.reidmorrison.com/). It
 **monkey-patches Rails to replace its loggers and log subscribers with Semantic Logger**, so that Rails
 produces structured logs directly instead of human-readable text that downstream systems have to parse.
 

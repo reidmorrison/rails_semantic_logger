@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Rails Semantic Logger is a Rails engine gem that **monkey-patches Rails to replace its loggers and log subscribers with [Semantic Logger](https://logger.rocketjob.io/)**, so that Rails produces structured logs directly instead of human-readable text that downstream systems have to parse. Rather than parsing Rails' text output (Started, Processing, Completed, Rendered, SQL, etc.), it replaces the built-in `ActiveSupport::LogSubscriber`s (and other loggers) wherever possible, emitting a message plus a structured payload that can be rendered as text, color, or JSON for centralized logging.
+Rails Semantic Logger is a Rails engine gem that **monkey-patches Rails to replace its loggers and log subscribers with [Semantic Logger](https://logger.reidmorrison.com/)**, so that Rails produces structured logs directly instead of human-readable text that downstream systems have to parse. Rather than parsing Rails' text output (Started, Processing, Completed, Rendered, SQL, etc.), it replaces the built-in `ActiveSupport::LogSubscriber`s (and other loggers) wherever possible, emitting a message plus a structured payload that can be rendered as text, color, or JSON for centralized logging.
 
 This gem only adapts Rails to Semantic Logger; the actual logging engine, appenders, and formatters live in the separate `semantic_logger` gem (a runtime dependency).
 

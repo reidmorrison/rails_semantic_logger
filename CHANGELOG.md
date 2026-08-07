@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+- ActionCable: resolve the `TaggedLoggerProxy` class at runtime instead of requiring it by path.
+  Rails 8.2 moves it from `ActionCable::Connection::TaggedLoggerProxy` to
+  `ActionCable::Server::TaggedLoggerProxy`, as part of the `ActionCable::Server::Socket` refactor,
+  and leaves no back-compat alias, so the unconditional
+  `require "action_cable/connection/tagged_logger_proxy"` raised `LoadError` during
+  `after_initialize` and failed the app's boot on Rails edge. Fixes #326.
+
 ## [5.1.0] - 2026-07-20
 
 - Require `semantic_logger` v5.1 or greater, keeping the two gems in lock step.

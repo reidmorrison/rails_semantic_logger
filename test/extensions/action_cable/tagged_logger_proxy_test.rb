@@ -104,10 +104,21 @@ class TaggedLoggerProxyTest < Minitest::Test
     assert_match(/An unauthorized connection attempt was rejected/, io.string)
   end
 
+  # Rails 8.2 moved the class to ActionCable::Server::TaggedLoggerProxy. Whichever
+  # namespace this Rails version ships, the patch must land on the class ActionCable
+  # itself uses, not on one we happened to define. See #326.
+  def test_patches_the_proxy_class_action_cable_actually_uses
+    assert_includes(
+      [defined?(ActionCable::Server::TaggedLoggerProxy) && ActionCable::Server::TaggedLoggerProxy,
+       defined?(ActionCable::Connection::TaggedLoggerProxy) && ActionCable::Connection::TaggedLoggerProxy],
+      RailsSemanticLogger::ActionCable::TaggedLoggerProxy
+    )
+  end
+
   private
 
   def tagged_logger_proxy(logger = nil)
-    proxy = ActionCable::Connection::TaggedLoggerProxy.allocate
+    proxy = RailsSemanticLogger::ActionCable::TaggedLoggerProxy.allocate
     proxy.singleton_class.define_method(:tags) { %i[request_id user_id] }
     proxy.instance_variable_set(:@logger, logger) if logger
     proxy

@@ -256,14 +256,56 @@ module RailsSemanticLogger
       @add_file_appender = value
     end
 
+    # Emit the deprecation warnings recorded by the deprecated appender option
+    # setters, and warn immediately from any later call. Called by the engine once
+    # Rails has applied the application's deprecation configuration.
+    #
+    # The deprecated options are documented to be set in `config/application.rb` or
+    # `config/environments/*.rb`, which Rails reads in `load_environment_config`,
+    # long before `active_support.deprecation_behavior` applies
+    # `config.active_support.report_deprecations`, `config.active_support.deprecation`,
+    # and any per-deprecator settings. Warning from the setter itself would therefore
+    # land in a window where nothing the application configures can reach it. The
+    # setters record instead, and this flushes once the settings are in place.
+    #
+    # Each option is reported once, attributed to the first place it was set, so an
+    # application setting several deprecated options gets one warning per option
+    # rather than one per assignment.
+    def flush_deprecations!
+      @deprecations_flushed = true
+      pending = pending_deprecations
+      @pending_deprecations = {}
+      pending.each_value { |message, callstack| RailsSemanticLogger.deprecator.warn(message, callstack) }
+      nil
+    end
+
     private
 
     def deprecate_appender_option(option, via: "appenders.add(...)")
-      RailsSemanticLogger.deprecator.warn(
+      message =
         "`config.rails_semantic_logger.#{option}=` is deprecated and will be removed in a future release. " \
         "Declare the destination and formatting directly instead, via " \
         "`config.rails_semantic_logger.appenders { |appenders| #{via} }`."
-      )
+
+      # Skip this method and the setter that called it, so the warning is attributed
+      # to the application code that set the option, whether it is emitted now or
+      # flushed later by #flush_deprecations!.
+      callstack = caller_locations(2)
+
+      return RailsSemanticLogger.deprecator.warn(message, callstack) if deprecations_flushed?
+
+      pending_deprecations[option] ||= [message, callstack]
+      nil
+    end
+
+    # Deprecations recorded before Rails applied its deprecation configuration,
+    # keyed by option so that each is reported only once. See #flush_deprecations!.
+    def pending_deprecations
+      @pending_deprecations ||= {}
+    end
+
+    def deprecations_flushed?
+      defined?(@deprecations_flushed) && @deprecations_flushed
     end
 
     # Warn when an init-time setting is changed after the logger and its

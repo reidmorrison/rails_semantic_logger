@@ -25,6 +25,27 @@ module RailsSemanticLogger
     # insert itself above the configured rails logger to add support for its
     # additional features
 
+    # Register this gem's deprecator with the application so that the standard Rails
+    # deprecation settings govern it: `config.active_support.report_deprecations`,
+    # `config.active_support.deprecation`, and
+    # `Rails.application.deprecators[:rails_semantic_logger]`. Rails' own
+    # `active_support.deprecation_behavior` initializer only reaches deprecators in
+    # that collection.
+    #
+    # Runs before the environment file is read so that an application can also reach
+    # the deprecator by name from `config/environments/*.rb`.
+    initializer "rails_semantic_logger.deprecator", before: :load_environment_config do |app|
+      app.deprecators[:rails_semantic_logger] = RailsSemanticLogger.deprecator
+    end
+
+    # The deprecated appender options are set from `config/application.rb` and
+    # `config/environments/*.rb`, which Rails reads before it applies the deprecation
+    # settings above, so their warnings are recorded rather than emitted. Now that
+    # the settings are in place, emit them.
+    initializer "rails_semantic_logger.flush_deprecations", after: "active_support.deprecation_behavior" do |app|
+      app.config.rails_semantic_logger.flush_deprecations!
+    end
+
     # Replace Rails logger initializer
     Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 

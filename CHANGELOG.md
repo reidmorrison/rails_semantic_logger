@@ -5,6 +5,23 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Deprecations: the gem's deprecator is now registered as
+  `Rails.application.deprecators[:rails_semantic_logger]`, so the application's own deprecation
+  settings govern it: `config.active_support.report_deprecations = false`,
+  `config.active_support.deprecation = :raise`, or silencing that one deprecator by name. Rails'
+  `active_support.deprecation_behavior` initializer only reaches deprecators in that collection, and
+  this one was never added to it, so nothing an application configured could reach the warnings.
+  Note that an application still setting deprecated options will now see them raise under
+  `config.active_support.deprecation = :raise`.
+- Deprecations: the warnings for the deprecated appender options (`format`, `ap_options`, `filter`,
+  `console_logger`, `add_file_appender`) are no longer emitted from the setter. Those options are
+  documented to be set in `config/application.rb` or `config/environments/*.rb`, which Rails reads in
+  `load_environment_config`, long before `active_support.deprecation_behavior` applies the settings
+  above, so warning from the setter landed in a window that no application configuration could
+  reach. The warnings are now recorded and emitted once Rails has applied that configuration. Each
+  option is reported once per boot, attributed to the first place it was set; options set later
+  (from `config/initializers/*`, or at runtime) still warn immediately at their call site. Fixes
+  #328.
 - ActionCable: resolve the `TaggedLoggerProxy` class at runtime instead of requiring it by path.
   Rails 8.2 moves it from `ActionCable::Connection::TaggedLoggerProxy` to
   `ActionCable::Server::TaggedLoggerProxy`, as part of the `ActionCable::Server::Socket` refactor,

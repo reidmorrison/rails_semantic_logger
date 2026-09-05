@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [5.2.0] - 2026-09-05
 
 - Deprecations: the gem's deprecator is now registered as
   `Rails.application.deprecators[:rails_semantic_logger]`, so the application's own deprecation
@@ -28,6 +28,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   and leaves no back-compat alias, so the unconditional
   `require "action_cable/connection/tagged_logger_proxy"` raised `LoadError` during
   `after_initialize` and failed the app's boot on Rails edge. Fixes #326.
+- Documentation: the Semantic Logger documentation site has moved from `logger.rocketjob.io` to
+  `logger.reidmorrison.com`. The gem's `homepage` and `documentation_uri` metadata now point there,
+  as do the links in the README.
 
 ## [5.1.0] - 2026-07-20
 

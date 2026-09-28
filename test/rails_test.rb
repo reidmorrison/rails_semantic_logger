@@ -19,6 +19,22 @@ class RailsTest < Minitest::Test
       end
     end
 
+    describe "config.semantic_logger.non_blocking" do
+      after do
+        SemanticLogger.non_blocking = false
+      end
+
+      it "defaults to blocking" do
+        refute_predicate Rails.application.config.semantic_logger, :non_blocking?
+      end
+
+      it "makes the main logging queue non-blocking" do
+        Rails.application.config.semantic_logger.non_blocking = true
+
+        assert_predicate SemanticLogger, :non_blocking?
+      end
+    end
+
     # Rails' own :initialize_logger wraps every Rails.logger in an
     # ActiveSupport::BroadcastLogger (railties application/bootstrap.rb). BroadcastLogger
     # has no #tagged of its own, so the call falls through to its #method_missing, which

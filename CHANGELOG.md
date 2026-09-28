@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [unreleased]
+
+- Requires Semantic Logger v5.2 or later, which adds `SemanticLogger.non_blocking=`. Set
+  `config.semantic_logger.non_blocking = true` in `config/application.rb` or
+  `config/environments/*.rb` to drop log messages instead of blocking requests, jobs, and shutdown
+  hooks when the main logging queue is full.
+
 ## [5.2.0] - 2026-09-05
 
 - Deprecations: the gem's deprecator is now registered as

@@ -118,8 +118,18 @@ module RailsSemanticLogger
   def self.swap_subscriber(old_class, new_class, notifier)
     subscribers = ActiveSupport::LogSubscriber.subscribers.grep(old_class)
     subscribers.each { |subscriber| unattach(subscriber) }
+    unsubscribe_event_reporter(old_class)
 
     new_class.attach_to(notifier)
+  end
+
+  # Rails 8.2 moved its text log subscribers onto ActiveSupport.event_reporter,
+  # so they are no longer attached to ActiveSupport::Notifications.
+  def self.unsubscribe_event_reporter(old_class)
+    return unless defined?(ActiveSupport::EventReporter::LogSubscriber)
+    return unless old_class < ActiveSupport::EventReporter::LogSubscriber
+
+    ActiveSupport.event_reporter.unsubscribe(old_class)
   end
 
   def self.unattach(subscriber)
@@ -142,7 +152,7 @@ module RailsSemanticLogger
     notifier.all_listeners_for(pattern)
   end
 
-  private_class_method :listeners_for, :subscriber_patterns, :unattach
+  private_class_method :listeners_for, :subscriber_patterns, :unattach, :unsubscribe_event_reporter
 end
 
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)

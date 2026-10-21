@@ -219,7 +219,8 @@ module RailsSemanticLogger
           )
         end
 
-        if defined?(::ActiveJob::LogSubscriber)
+        if defined?(::ActiveJob)
+          require "active_job/log_subscriber"
           RailsSemanticLogger.swap_subscriber(
             ::ActiveJob::LogSubscriber,
             RailsSemanticLogger::ActiveJob::LogSubscriber,

@@ -19,6 +19,26 @@ class RailsTest < Minitest::Test
       end
     end
 
+    describe ".swap_subscriber" do
+      it "detaches Rails' log subscribers from the event reporter" do
+        unless defined?(ActiveSupport::EventReporter::LogSubscriber)
+          skip "Rails' log subscribers use ActiveSupport::Notifications"
+        end
+
+        attached = ActiveSupport.event_reporter.subscribers.map { |subscriber| subscriber[:subscriber].class }
+
+        [
+          ActionController::LogSubscriber,
+          ActionMailer::LogSubscriber,
+          ActionView::LogSubscriber,
+          ActiveJob::LogSubscriber,
+          ActiveRecord::LogSubscriber
+        ].each do |rails_subscriber|
+          refute_includes attached, rails_subscriber
+        end
+      end
+    end
+
     # Rails' own :initialize_logger wraps every Rails.logger in an
     # ActiveSupport::BroadcastLogger (railties application/bootstrap.rb). BroadcastLogger
     # has no #tagged of its own, so the call falls through to its #method_missing, which

@@ -18,6 +18,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   directly, and only its own text log subscriber logged those events, so detaching it silenced the
   warnings. They are now logged at `:warn`, as Rails does, with `controller`, `action` and
   `sec_fetch_site` in the payload, while `log_warning_on_csrf_failure` is on.
+- Rails 8.2: stop loading `ActionView::Base` and `ActionDispatch::Response` while the application
+  boots. Rails 8.2 logs a "was loaded before application initialization" warning for each when eager
+  loading is off (development and test by default), and fails the boot when
+  `config.action_on_early_load_hook = :raise`. The `ActionController::Live` patch, which loaded
+  `ActionDispatch::Response`, is now applied once Action Controller loads, and the Action View
+  subscriber looks up its logger on first use instead of when its file loads.
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
 

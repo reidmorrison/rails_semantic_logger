@@ -14,6 +14,11 @@ Dummy::Application.configure do
   config.whiny_nils                                 = true
   config.eager_load                                 = false
 
+  # Rails 8.2+ reports a framework class (ActionView::Base, ActionController::Base, ...) loaded
+  # before the application has initialized, because it runs that framework's load hooks early.
+  # Raise instead of logging, so the suite fails to boot if this gem starts doing that.
+  config.action_on_early_load_hook = :raise if config.respond_to?(:action_on_early_load_hook=)
+
   # Show full error reports and disable caching
   config.consider_all_requests_local                = true
   config.action_controller.perform_caching          = false

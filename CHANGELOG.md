@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+- Rails 8.2: detach Rails' own log subscribers from `ActiveSupport.event_reporter`. Rails 8.2 moves
+  its framework log subscribers off `ActiveSupport::Notifications` and onto the event reporter, so
+  they kept running next to the semantic subscribers and every request, query, render, mail and job
+  was logged twice. Fixes #332, in #333. Thanks to [Raheel Khan](https://github.com/raheelkhan).
+- Active Job: replace Rails' log subscriber even when Active Job has not loaded by
+  `after_initialize`. With lazy loading (the default in development and test) the semantic
+  subscriber was never attached, so jobs were logged only as Rails' text lines. Eager-loaded
+  applications (the production default) were not affected. Fixed in #333.
+- Rails 8.2: log CSRF failures. Rails 8.2 reports them as `csrf_request_blocked`,
+  `csrf_javascript_blocked` and `csrf_token_fallback` events instead of calling `logger.warn`
+  directly, and only its own text log subscriber logged those events, so detaching it silenced the
+  warnings. They are now logged at `:warn`, as Rails does, with `controller`, `action` and
+  `sec_fetch_site` in the payload, while `log_warning_on_csrf_failure` is on.
+- CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
+  fail the build, and the default `rake` task still runs only the released Rails versions.
+
 ## [5.2.0] - 2026-09-05
 
 - Deprecations: the gem's deprecator is now registered as

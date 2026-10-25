@@ -19,8 +19,14 @@ module RailsSemanticLogger
       VIEWS_PATTERN = %r{^app/views/}
 
       class << self
-        attr_reader :logger
         attr_accessor :rendered_log_level
+
+        # Looked up on first use rather than when this file loads: referencing ActionView::Base
+        # loads it, and Rails 8.2+ reports that when it happens before the application has
+        # initialized.
+        def logger
+          @logger ||= ::ActionView::Base.logger
+        end
       end
 
       def initialize
@@ -163,7 +169,6 @@ module RailsSemanticLogger
 
       EMPTY = "".freeze
 
-      @logger             = ::ActionView::Base.logger
       @rendered_log_level = :debug
 
       private

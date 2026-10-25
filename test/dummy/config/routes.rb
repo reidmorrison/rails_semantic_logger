@@ -5,6 +5,7 @@ Dummy::Application.routes.draw do
     collection do
       get :redirector
       get :open_redirector
+      get :path_relative_redirector
       get :rescued
       get :filtered
       get :halted

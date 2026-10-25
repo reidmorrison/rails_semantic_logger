@@ -26,6 +26,11 @@ class ArticlesController < ApplicationController
     redirect_to "https://elsewhere.example.com/landing"
   end
 
+  def path_relative_redirector
+    # Rails appends a path relative URL straight onto the host, so it also fails the host check.
+    redirect_to "landing", allow_other_host: true
+  end
+
   def rescued
     raise Handled, "boom"
   end

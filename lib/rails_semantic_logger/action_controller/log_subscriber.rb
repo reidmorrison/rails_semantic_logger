@@ -23,11 +23,11 @@ module RailsSemanticLogger
       @processing_log_level = :debug
 
       def start_processing(event)
-        controller_logger(event).send(self.class.processing_log_level) { action_message("Processing", event.payload) }
+        controller_logger(event)&.send(self.class.processing_log_level) { action_message("Processing", event.payload) }
       end
 
       def process_action(event)
-        controller_logger(event).info do
+        controller_logger(event)&.info do
           # `event.payload` is shared with every other subscriber on this notification, so we work on
           # a copy. A shallow `dup` is sufficient: only mutate `payload` via top-level key reassignment
           # (e.g. `payload[:format] = ...`) or by writing into a freshly-created hash (e.g. the `.except`
@@ -92,7 +92,7 @@ module RailsSemanticLogger
       end
 
       def halted_callback(event)
-        controller_logger(event).info do
+        controller_logger(event)&.info do
           {
             message: "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected",
             metric:  "rails.controller.halted_callback"
@@ -103,7 +103,7 @@ module RailsSemanticLogger
       # Rails 8.1+ emits this event when an exception is handled by a `rescue_from` callback.
       # On earlier Rails versions the event is never instrumented, so this handler is dormant.
       def rescue_from_callback(event)
-        controller_logger(event).info do
+        controller_logger(event)&.info do
           exception = event.payload[:exception]
           backtrace = exception.backtrace&.first
           backtrace = backtrace&.delete_prefix("#{Rails.root}/") if defined?(Rails.root) && Rails.root
@@ -121,10 +121,10 @@ module RailsSemanticLogger
       end
 
       def send_file(event)
-        controller_logger(event).info(message:  "Sent file",
-                                      payload:  {path: event.payload[:path]},
-                                      duration: event.duration,
-                                      metric:   "rails.controller.send_file")
+        controller_logger(event)&.info(message:  "Sent file",
+                                       payload:  {path: event.payload[:path]},
+                                       duration: event.duration,
+                                       metric:   "rails.controller.send_file")
       end
 
       def redirect_to(event)
@@ -137,16 +137,17 @@ module RailsSemanticLogger
           payload[:source] = source if source
         end
 
-        controller_logger(event).info(message: "Redirected to", payload: payload,
-                                      metric: "rails.controller.redirect_to")
+        controller_logger(event)&.info(message: "Redirected to", payload: payload,
+                                       metric: "rails.controller.redirect_to")
       end
 
       # Rails 8.1+ emits this event for a redirect to another host when
-      # `config.action_controller.action_on_open_redirect = :notify`. Rails' own text subscriber does
-      # not log it (only its StructuredEventSubscriber reports it), so it is logged here at :warn,
-      # the level Rails uses for `action_on_open_redirect = :log`.
+      # `config.action_controller.action_on_open_redirect = :notify`. Rails' text subscriber never
+      # logs it: on Rails 8.1 nothing subscribes to it, and on Rails 8.2 only its
+      # StructuredEventSubscriber reports it, to `Rails.event`. So it is logged here at :warn, the
+      # level Rails uses for `action_on_open_redirect = :log`.
       def open_redirect(event)
-        controller_logger(event).warn do
+        controller_logger(event)&.warn do
           payload = event.payload
           request = payload[:request]
 
@@ -157,21 +158,37 @@ module RailsSemanticLogger
               request_method: request&.method,
               request_path:   request&.path
             }.compact,
-            backtrace: payload[:stack_trace],
+            backtrace: clean_backtrace(payload[:stack_trace]),
             metric:    "rails.controller.open_redirect"
           }
         end
       end
 
+      # Rails 8.1+ emits this event for a path relative redirect, such as `redirect_to "foo"`, when
+      # `config.action_controller.action_on_path_relative_redirect = :notify`. No Rails subscriber
+      # logs it, so it is logged here at :warn, the level Rails uses for `:log`.
+      def unsafe_redirect(event)
+        controller_logger(event)&.warn do
+          payload = event.payload
+
+          {
+            message:   payload[:message],
+            payload:   {url: payload[:url]},
+            backtrace: clean_backtrace(payload[:stack_trace]),
+            metric:    "rails.controller.unsafe_redirect"
+          }
+        end
+      end
+
       def send_data(event)
-        controller_logger(event).info(message:  "Sent data",
-                                      payload:  {file_name: event.payload[:filename]},
-                                      duration: event.duration,
-                                      metric:   "rails.controller.send_data")
+        controller_logger(event)&.info(message:  "Sent data",
+                                       payload:  {file_name: event.payload[:filename]},
+                                       duration: event.duration,
+                                       metric:   "rails.controller.send_data")
       end
 
       def unpermitted_parameters(event)
-        controller_logger(event).debug do
+        controller_logger(event)&.debug do
           unpermitted_keys = event.payload[:keys]
           payload          = {keys: unpermitted_keys}
           # Rails includes the controller/action context alongside the rejected keys.
@@ -204,7 +221,7 @@ module RailsSemanticLogger
         class_eval <<-METHOD, __FILE__, __LINE__ + 1
           def #{method}(event)
             return unless ::ActionController::Base.enable_fragment_cache_logging
-            controller_logger(event).info do
+            controller_logger(event)&.info do
               key_or_path = event.payload[:key] || event.payload[:path]
               {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration, metric: "rails.controller.#{method.delete('?')}"}
             end
@@ -214,22 +231,35 @@ module RailsSemanticLogger
 
       private
 
-      # Returns the logger for the supplied event.
-      # Returns ActionController::Base.logger if no controller is present
+      # Returns the logger of the controller that emitted the event, or ActionController::Base.logger
+      # when the event names no controller or it cannot be found. Like Rails, which skips logging
+      # when there is no logger, callers must allow for nil.
       def controller_logger(event)
-        controller = event.payload[:controller]
-        return ::ActionController::Base.logger unless controller
+        controller_class(event.payload)&.logger || ::ActionController::Base.logger
+      end
 
-        controller.constantize.logger || ::ActionController::Base.logger
+      # Most events name their controller. The redirect events carry only the request, which knows
+      # the controller handling it.
+      def controller_class(payload)
+        if payload[:controller]
+          payload[:controller].constantize
+        else
+          payload[:request]&.controller_instance&.class
+        end
       rescue NameError
-        ::ActionController::Base.logger
+        nil
+      end
+
+      # Removes framework and gem frames, leaving the application code that caused the event.
+      def clean_backtrace(backtrace)
+        backtrace_cleaner.clean(backtrace) if backtrace
       end
 
       # Rails logs every CSRF event at :warn, and only while log_warning_on_csrf_failure is on.
       def log_csrf_warning(event_name, event, message)
         return unless ::ActionController::Base.log_warning_on_csrf_failure
 
-        controller_logger(event).warn do
+        controller_logger(event)&.warn do
           payload = event.payload
           {
             message: message,

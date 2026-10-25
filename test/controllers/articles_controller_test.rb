@@ -352,6 +352,31 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
+    describe "CSRF failure" do
+      # Rails 8.2+ instruments the failure and this gem logs it; earlier Rails calls logger.warn
+      # directly. A cross-site Sec-Fetch-Site header fails verification on every version.
+      # Rails 8.2 raises InvalidCrossOriginRequest and deprecates the InvalidAuthenticityToken
+      # that earlier versions raise, so expect their common superclass.
+      it "logs one warning" do
+        original = ActionController::Base.allow_forgery_protection
+        ActionController::Base.allow_forgery_protection = true
+
+        messages = semantic_logger_events do
+          assert_raises(ActionController::ActionControllerError) do
+            post articles_url(params: params), headers: {"Sec-Fetch-Site" => "cross-site"}
+          end
+        end
+
+        warnings = messages.select { |m| m.level == :warn }
+
+        assert_equal 1, warnings.count, messages
+        assert_semantic_logger_event(warnings[0], name: "ArticlesController")
+        assert_match(/CSRF|cross-site/, warnings[0].message)
+      ensure
+        ActionController::Base.allow_forgery_protection = original
+      end
+    end
+
     describe "#show" do
       it "raises and logs exception" do
         # we're testing ActionDispatch::DebugExceptions in fact

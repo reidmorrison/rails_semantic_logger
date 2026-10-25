@@ -142,5 +142,99 @@ class ActionControllerTest < Minitest::Test
         )
       end
     end
+
+    # Rails 8.2+ instruments these events; earlier versions never do, so call the handlers directly.
+    describe "CSRF events" do
+      def csrf_event(name, sec_fetch_site: "cross-site", message: nil)
+        ActiveSupport::Notifications::Event.new(
+          "#{name}.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {
+            request:        nil,
+            controller:     "ArticlesController",
+            action:         "create",
+            sec_fetch_site: sec_fetch_site,
+            message:        message
+          }
+        )
+      end
+
+      describe "#csrf_request_blocked" do
+        it "logs Rails' message at :warn" do
+          event = csrf_event(:csrf_request_blocked, message: "Can't verify CSRF token authenticity.")
+
+          messages = semantic_logger_events do
+            subscriber.csrf_request_blocked(event)
+          end
+
+          assert_equal 1, messages.count, messages
+          assert_semantic_logger_event(
+            messages[0],
+            level:   :warn,
+            name:    "ArticlesController",
+            message: "Can't verify CSRF token authenticity.",
+            payload: {controller: "ArticlesController", action: "create", sec_fetch_site: "cross-site"},
+            metric:  "rails.controller.csrf_request_blocked"
+          )
+        end
+      end
+
+      describe "#csrf_javascript_blocked" do
+        it "logs Rails' message at :warn" do
+          event = csrf_event(:csrf_javascript_blocked, message: "Security warning: an embedded <script> tag")
+
+          messages = semantic_logger_events do
+            subscriber.csrf_javascript_blocked(event)
+          end
+
+          assert_equal 1, messages.count, messages
+          assert_semantic_logger_event(
+            messages[0],
+            level:   :warn,
+            name:    "ArticlesController",
+            message: "Security warning: an embedded <script> tag",
+            payload: {controller: "ArticlesController", action: "create", sec_fetch_site: "cross-site"},
+            metric:  "rails.controller.csrf_javascript_blocked"
+          )
+        end
+      end
+
+      describe "#csrf_token_fallback" do
+        it "logs at :warn and leaves a missing Sec-Fetch-Site out of the payload" do
+          event = csrf_event(:csrf_token_fallback, sec_fetch_site: nil)
+
+          messages = semantic_logger_events do
+            subscriber.csrf_token_fallback(event)
+          end
+
+          assert_equal 1, messages.count, messages
+          assert_semantic_logger_event(
+            messages[0],
+            level:   :warn,
+            name:    "ArticlesController",
+            message: "Falling back to CSRF token verification",
+            payload: {controller: "ArticlesController", action: "create"},
+            metric:  "rails.controller.csrf_token_fallback"
+          )
+        end
+      end
+
+      it "logs nothing when log_warning_on_csrf_failure is off" do
+        original = ActionController::Base.log_warning_on_csrf_failure
+        ActionController::Base.log_warning_on_csrf_failure = false
+
+        messages = semantic_logger_events do
+          subscriber.csrf_request_blocked(csrf_event(:csrf_request_blocked, message: "blocked"))
+          subscriber.csrf_javascript_blocked(csrf_event(:csrf_javascript_blocked, message: "blocked"))
+          subscriber.csrf_token_fallback(csrf_event(:csrf_token_fallback))
+        end
+
+        assert_empty messages
+      ensure
+        ActionController::Base.log_warning_on_csrf_failure = original
+      end
+    end
   end
 end

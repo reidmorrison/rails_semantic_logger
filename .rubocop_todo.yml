@@ -16,7 +16,7 @@ Metrics/AbcSize:
 # Configuration parameters: CountComments, CountAsOne, AllowedMethods, AllowedPatterns.
 # AllowedMethods: refine
 Metrics/BlockLength:
-  Max: 88
+  Max: 81
 
 # Offense count: 31
 Minitest/AssertWithExpectedArgument:

@@ -48,6 +48,30 @@ class ActiveJobTest < Minitest::Test
       it "runs the job" do
         MyJob.perform_now("hello")
       end
+
+      # Rails' own Active Job log subscriber logs text lines with no payload, so this fails if
+      # that subscriber is still attached, instead of or next to this gem's.
+      it "logs the start and the finish once each, with a structured payload" do
+        messages = semantic_logger_events do
+          MyJob.perform_now("hello")
+        end
+
+        assert_equal %w[perform_start.active_job perform.active_job],
+                     messages.map { |message| message.payload&.fetch(:event_name, nil) },
+                     messages
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :info,
+          message_includes: "Performing ActiveJobTest::MyJob",
+          payload_includes: {event_name: "perform_start.active_job", job_class: "ActiveJobTest::MyJob"}
+        )
+        assert_semantic_logger_event(
+          messages[1],
+          level:            :info,
+          message_includes: "Performed ActiveJobTest::MyJob",
+          payload_includes: {event_name: "perform.active_job", job_class: "ActiveJobTest::MyJob"}
+        )
+      end
     end
 
     describe "Logging::LogSubscriber" do

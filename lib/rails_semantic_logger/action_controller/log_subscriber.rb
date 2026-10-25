@@ -162,6 +162,21 @@ module RailsSemanticLogger
         end
       end
 
+      # Rails 8.2+ reports CSRF failures through these events instead of calling `logger.warn`
+      # directly from RequestForgeryProtection. On earlier Rails versions the events are never
+      # instrumented, so these handlers are dormant.
+      def csrf_token_fallback(event)
+        log_csrf_warning(__method__, event, "Falling back to CSRF token verification")
+      end
+
+      def csrf_request_blocked(event)
+        log_csrf_warning(__method__, event, event.payload[:message])
+      end
+
+      def csrf_javascript_blocked(event)
+        log_csrf_warning(__method__, event, event.payload[:message])
+      end
+
       %w[write_fragment read_fragment exist_fragment?
          expire_fragment expire_page write_page].each do |method|
         class_eval <<-METHOD, __FILE__, __LINE__ + 1
@@ -186,6 +201,24 @@ module RailsSemanticLogger
         controller.constantize.logger || ::ActionController::Base.logger
       rescue NameError
         ::ActionController::Base.logger
+      end
+
+      # Rails logs every CSRF event at :warn, and only while log_warning_on_csrf_failure is on.
+      def log_csrf_warning(event_name, event, message)
+        return unless ::ActionController::Base.log_warning_on_csrf_failure
+
+        controller_logger(event).warn do
+          payload = event.payload
+          {
+            message: message,
+            payload: {
+              controller:     payload[:controller],
+              action:         payload[:action],
+              sec_fetch_site: payload[:sec_fetch_site]
+            }.compact,
+            metric:  "rails.controller.#{event_name}"
+          }
+        end
       end
 
       def extract_path(path)

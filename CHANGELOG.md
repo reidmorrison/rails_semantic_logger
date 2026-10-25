@@ -29,10 +29,19 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   as those passed to `connection.select_all(sql, name, binds)`. All of them were previously logged
   under a single `nil` key, so a query with several such binds logged `binds: {nil: ["foo", 2]}`
   instead of `binds: {"$1": "foo", "$2": 2}`. Applies to every supported Rails version.
+  **Log output change:** the `nil` bind key is gone, so update any log query, dashboard or alert
+  that matches `payload.binds.nil` to match the positional keys instead. Binds that name their
+  column, including `[column, value]` pairs, are still keyed and filtered by that name.
 - Rails 8.1+: log open redirects reported by `config.action_controller.action_on_open_redirect =
-  :notify`. Rails only reports that `open_redirect.action_controller` event to its structured event
-  subscriber, so it was never logged. It is now logged at `:warn` with `location`, `request_method`
-  and `request_path` in the payload and the redirect's stack trace as the backtrace.
+  :notify`, and path relative redirects reported by
+  `config.action_controller.action_on_path_relative_redirect = :notify`. Rails' text log subscriber
+  never logs the `open_redirect.action_controller` and `unsafe_redirect.action_controller` events
+  (on Rails 8.2 only its structured event subscriber reports open redirects), so neither was
+  logged. Both are now logged at `:warn` with the redirect's stack trace, cleaned of gem frames, as
+  the backtrace: open redirects with `location`, `request_method` and `request_path` in the payload,
+  under the logger of the controller handling the request, and path relative redirects with `url`.
+- Action Controller: skip logging, as Rails does, when the controller has no logger and
+  `ActionController::Base.logger` is nil, instead of raising `NoMethodError` from the subscriber.
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
 

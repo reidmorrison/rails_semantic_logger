@@ -136,6 +136,83 @@ class ActionControllerTest < Minitest::Test
         assert_equal 1, messages.count, messages
         assert_equal({location: "https://elsewhere.example.com/"}, messages[0].payload)
       end
+
+      it "logs under the logger of the controller handling the request" do
+        request                     = ActionDispatch::TestRequest.create
+        request.controller_instance = ArticlesController.new
+        event                       = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: request, stack_trace: nil}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_equal "ArticlesController", messages[0].name
+      end
+
+      it "removes gem frames from the backtrace" do
+        gem_frame = "#{Gem.path.first}/gems/actionpack-8.1.4/lib/action_controller/metal/redirecting.rb:293"
+        event     = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: nil, stack_trace: [gem_frame, "app/x.rb:1"]}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal ["app/x.rb:1"], messages[0].backtrace
+      end
+
+      it "does not fail when ActionController::Base has no logger" do
+        event = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: nil, stack_trace: nil}
+        )
+
+        ActionController::Base.stub(:logger, nil) do
+          assert_nil subscriber.open_redirect(event)
+        end
+      end
+    end
+
+    # Rails 8.1+ instruments this event; earlier versions never do, so call the handler directly.
+    describe "#unsafe_redirect" do
+      it "logs the message and url at :warn with the redirect's stack trace" do
+        event = ActiveSupport::Notifications::Event.new(
+          "unsafe_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {url: "foo", message: 'Path relative URL redirect detected: "foo"', stack_trace: ["app/x.rb:1"]}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.unsafe_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :warn,
+          message: 'Path relative URL redirect detected: "foo"',
+          payload: {url: "foo"},
+          metric:  "rails.controller.unsafe_redirect"
+        )
+        assert_equal ["app/x.rb:1"], messages[0].backtrace
+      end
     end
 
     describe "#start_processing" do

@@ -334,6 +334,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           assert_semantic_logger_event(
             open_redirect,
             level:   :warn,
+            name:    "ArticlesController",
             payload: {
               location:       "https://elsewhere.example.com/landing",
               request_method: "GET",
@@ -345,6 +346,33 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         ensure
           ActionController::Base.action_on_open_redirect = original_action
           ActionController::Base.raise_on_open_redirects = original_raise
+        end
+      end
+    end
+
+    describe "#path_relative_redirector" do
+      it "logs a path relative redirect at :warn when action_on_path_relative_redirect is :notify" do
+        skip "unsafe_redirect.action_controller instrumented in Rails 8.1" if Rails.version.to_f < 8.1
+
+        original_action = ActionController::Base.action_on_path_relative_redirect
+        begin
+          ActionController::Base.action_on_path_relative_redirect = :notify
+          messages = semantic_logger_events do
+            get path_relative_redirector_articles_url
+          end
+
+          unsafe_redirect = messages.find { |m| m.metric == "rails.controller.unsafe_redirect" }
+
+          assert unsafe_redirect, messages
+          assert_semantic_logger_event(
+            unsafe_redirect,
+            level:   :warn,
+            message: 'Path relative URL redirect detected: "landing"',
+            payload: {url: "landing"}
+          )
+          refute_empty unsafe_redirect.backtrace.to_a, "expected the redirect's stack trace as the backtrace"
+        ensure
+          ActionController::Base.action_on_path_relative_redirect = original_action
         end
       end
     end

@@ -75,7 +75,7 @@ module RailsSemanticLogger
 
       # When multiple values are received for a single bound field, it is converted into an array
       def add_bind_value(binds, key, value)
-        key = key.downcase.to_sym unless key.nil?
+        key = key.downcase.to_sym
 
         value      = (Array(binds[key]) << value) if binds.key?(key)
         binds[key] = value
@@ -89,23 +89,32 @@ module RailsSemanticLogger
         binds         = {}
         casted_params = type_casted_binds(payload[:type_casted_binds])
         payload[:binds].each_with_index do |attr, i|
-          attribute_name   = attr.name if attr.is_a?(ActiveModel::Attribute)
-          filtered_value   = filter(attribute_name, casted_params[i])
-          attr_name, value = render_bind(attr, filtered_value, i)
-          add_bind_value(binds, attr_name, value)
+          name  = bind_name(attr)
+          value = render_bind(attr, filter(name, casted_params[i]))
+          # Binds without a column name (casted binds: plain values, as passed to `select_all`) are
+          # keyed by their parameter position, `$1`, `$2`, ..., as Rails 8.2 does.
+          add_bind_value(binds, name || "$#{i + 1}", value)
         end
         binds
       end
 
-      # Binds without a column name (casted binds: plain values, as passed to `select_all`) are
-      # keyed by their parameter position, `$1`, `$2`, ..., as Rails 8.2 does.
-      def render_bind(attr, value, index)
-        if attr.is_a?(ActiveModel::Attribute)
-          value = "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>" if attr.type.binary? && attr.value
-          [attr.name, value]
-        else
-          ["$#{index + 1}", value]
+      # The column name a bind is filtered and logged under, or nil when it has none.
+      # Rails 7.2 to 8.1 also filter by the name of any bind that responds to `name`, including
+      # `[column, value]` pairs, so those keep their name here and are filtered on every version.
+      # A Symbol responds to `name` too, but as a bind it is a plain value, not a column.
+      def bind_name(attr)
+        if attr.is_a?(Array)
+          column = attr.first
+          column.name if column.respond_to?(:name)
+        elsif attr.respond_to?(:name) && !attr.is_a?(Symbol)
+          attr.name
         end
+      end
+
+      def render_bind(attr, value)
+        return value unless attr.is_a?(ActiveModel::Attribute) && attr.type.binary? && attr.value
+
+        "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>"
       end
 
       # Filter sensitive bind values using the same parameter filter Rails uses for ActiveRecord,

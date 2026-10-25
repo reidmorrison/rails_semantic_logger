@@ -202,6 +202,38 @@ class ActiveRecordTest < Minitest::Test
           }
         )
       end
+
+      # Adapters and gems can still instrument binds as `[column, value]` pairs or as other objects
+      # that name their column, and Rails 7.2 to 8.1 filter those by that name.
+      describe "binds named by their column" do
+        let(:column) { Struct.new(:name) }
+
+        it "keys and filters a [column, value] pair by the column name" do
+          filter_params_setting %i[password] do
+            binds    = [[column.new("password"), "s3cret"], [column.new("age"), 2]]
+            messages = instrument_sql(binds: binds, type_casted_binds: ["s3cret", 2])
+
+            assert_equal 1, messages.count, messages
+            assert_equal({password: "[FILTERED]", age: 2}, messages[0].payload[:binds])
+          end
+        end
+
+        it "keys and filters a bind that responds to name by that name" do
+          filter_params_setting %i[password] do
+            messages = instrument_sql(binds: [column.new("password")], type_casted_binds: ["s3cret"])
+
+            assert_equal 1, messages.count, messages
+            assert_equal({password: "[FILTERED]"}, messages[0].payload[:binds])
+          end
+        end
+
+        it "keys a Symbol bind by its position" do
+          messages = instrument_sql(binds: [:active], type_casted_binds: ["active"])
+
+          assert_equal 1, messages.count, messages
+          assert_equal({"$1": "active"}, messages[0].payload[:binds])
+        end
+      end
     end
 
     describe "async queries" do

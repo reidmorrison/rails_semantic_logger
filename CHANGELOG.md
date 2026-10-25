@@ -24,6 +24,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `config.action_on_early_load_hook = :raise`. The `ActionController::Live` patch, which loaded
   `ActionDispatch::Response`, is now applied once Action Controller loads, and the Action View
   subscriber looks up its logger on first use instead of when its file loads.
+- Active Record: key SQL bind values that have no column name by their parameter position (`$1`,
+  `$2`, ...), as Rails 8.2 now does in its own SQL logs. These are casted binds, plain values such
+  as those passed to `connection.select_all(sql, name, binds)`. All of them were previously logged
+  under a single `nil` key, so a query with several such binds logged `binds: {nil: ["foo", 2]}`
+  instead of `binds: {"$1": "foo", "$2": 2}`. Applies to every supported Rails version.
+- Rails 8.1+: log open redirects reported by `config.action_controller.action_on_open_redirect =
+  :notify`. Rails only reports that `open_redirect.action_controller` event to its structured event
+  subscriber, so it was never logged. It is now logged at `:warn` with `location`, `request_method`
+  and `request_path` in the payload and the redirect's stack trace as the backtrace.
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
 

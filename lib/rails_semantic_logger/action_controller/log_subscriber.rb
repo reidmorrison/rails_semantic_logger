@@ -141,6 +141,28 @@ module RailsSemanticLogger
                                       metric: "rails.controller.redirect_to")
       end
 
+      # Rails 8.1+ emits this event for a redirect to another host when
+      # `config.action_controller.action_on_open_redirect = :notify`. Rails' own text subscriber does
+      # not log it (only its StructuredEventSubscriber reports it), so it is logged here at :warn,
+      # the level Rails uses for `action_on_open_redirect = :log`.
+      def open_redirect(event)
+        controller_logger(event).warn do
+          payload = event.payload
+          request = payload[:request]
+
+          {
+            message:   "Open redirect detected",
+            payload:   {
+              location:       payload[:location],
+              request_method: request&.method,
+              request_path:   request&.path
+            }.compact,
+            backtrace: payload[:stack_trace],
+            metric:    "rails.controller.open_redirect"
+          }
+        end
+      end
+
       def send_data(event)
         controller_logger(event).info(message:  "Sent data",
                                       payload:  {file_name: event.payload[:filename]},

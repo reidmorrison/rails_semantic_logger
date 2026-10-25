@@ -93,6 +93,51 @@ class ActionControllerTest < Minitest::Test
       end
     end
 
+    # Rails 8.1+ instruments this event; earlier versions never do, so call the handler directly.
+    describe "#open_redirect" do
+      it "logs the location and request at :warn with the redirect's stack trace" do
+        request = ActionDispatch::TestRequest.create("REQUEST_METHOD" => "POST", "PATH_INFO" => "/articles")
+        event   = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: request, stack_trace: ["app/x.rb:1"]}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :warn,
+          message: "Open redirect detected",
+          payload: {location: "https://elsewhere.example.com/", request_method: "POST", request_path: "/articles"},
+          metric:  "rails.controller.open_redirect"
+        )
+        assert_equal ["app/x.rb:1"], messages[0].backtrace
+      end
+
+      it "leaves request details out when the event has no request" do
+        event = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: nil, stack_trace: nil}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_equal({location: "https://elsewhere.example.com/"}, messages[0].payload)
+      end
+    end
+
     describe "#start_processing" do
       let(:event) do
         ActiveSupport::Notifications::Event.new(

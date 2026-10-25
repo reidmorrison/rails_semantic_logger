@@ -4,6 +4,7 @@ Dummy::Application.routes.draw do
   resources :articles do
     collection do
       get :redirector
+      get :open_redirector
       get :rescued
       get :filtered
       get :halted

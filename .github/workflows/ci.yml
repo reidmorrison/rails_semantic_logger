@@ -8,6 +8,9 @@ jobs:
   test:
     name: "Test: Rails ${{ matrix.rails }} on Ruby ${{ matrix.ruby }}"
     runs-on: ubuntu-latest
+    # Rails edge tracks rails/rails main, which can break at any time for reasons unrelated
+    # to a change here, so a failure there is reported but does not fail the build.
+    continue-on-error: ${{ matrix.rails == 'edge' }}
     strategy:
       fail-fast: false
       matrix:

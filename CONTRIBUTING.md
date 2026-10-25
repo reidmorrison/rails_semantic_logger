@@ -53,9 +53,14 @@ Github.
 
 5. Run tests.
 
-   The default rake task runs the tests against every supported Rails version (each appraisal):
+   The default rake task runs the tests against every released Rails version (each appraisal except
+   `rails_edge`):
 
        bundle exec rake
+
+   To run the tests against Rails edge (rails/rails `main`), which CI also runs but allows to fail:
+
+       bundle exec appraisal rails_edge rake test
 
    To run the tests once against the current `Gemfile`:
 

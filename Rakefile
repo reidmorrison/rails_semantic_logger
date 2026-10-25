@@ -27,10 +27,21 @@ end
 require "rubocop/rake_task"
 RuboCop::RakeTask.new
 
-# By default lint once, then run tests against all appraisals
+# By default lint once, then run tests against every released Rails version. Rails edge is
+# left out because it tracks rails/rails main; run it with `appraisal rails_edge rake test`.
 if !ENV["APPRAISAL_INITIALIZED"] && !ENV["TRAVIS"]
   require "appraisal"
-  task default: %i[rubocop appraisal]
+
+  desc "Run the tests against every released Rails version (all appraisals except rails_edge)"
+  task :released do
+    Appraisal::AppraisalFile.each do |appraisal|
+      next if appraisal.name == "rails_edge"
+
+      sh "bundle exec appraisal #{appraisal.name} rake test"
+    end
+  end
+
+  task default: %i[rubocop released]
 else
   task default: :test
 end

@@ -22,6 +22,10 @@ class ArticlesController < ApplicationController
     redirect_to article_url(:new)
   end
 
+  def open_redirector
+    redirect_to "https://elsewhere.example.com/landing"
+  end
+
   def rescued
     raise Handled, "boom"
   end

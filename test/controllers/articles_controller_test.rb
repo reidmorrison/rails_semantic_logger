@@ -315,6 +315,40 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
+    describe "#open_redirector" do
+      it "logs an open redirect at :warn when action_on_open_redirect is :notify" do
+        skip "open_redirect.action_controller instrumented in Rails 8.1" if Rails.version.to_f < 8.1
+
+        original_action = ActionController::Base.action_on_open_redirect
+        original_raise  = ActionController::Base.raise_on_open_redirects
+        begin
+          ActionController::Base.action_on_open_redirect = :notify
+          ActionController::Base.raise_on_open_redirects = false
+          messages = semantic_logger_events do
+            get open_redirector_articles_url
+          end
+
+          open_redirect = messages.find { |m| m.message == "Open redirect detected" }
+
+          assert open_redirect, messages
+          assert_semantic_logger_event(
+            open_redirect,
+            level:   :warn,
+            payload: {
+              location:       "https://elsewhere.example.com/landing",
+              request_method: "GET",
+              request_path:   "/articles/open_redirector"
+            },
+            metric:  "rails.controller.open_redirect"
+          )
+          refute_empty open_redirect.backtrace.to_a, "expected the redirect's stack trace as the backtrace"
+        ensure
+          ActionController::Base.action_on_open_redirect = original_action
+          ActionController::Base.raise_on_open_redirects = original_raise
+        end
+      end
+    end
+
     describe "#rescued" do
       it "logs the rescue_from handler" do
         skip "rescue_from_callback instrumented in Rails 8.1" if Rails.version.to_f < 8.1

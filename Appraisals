@@ -12,3 +12,8 @@ appraise "rails_8.1" do
   gem "rails", "~> 8.1.1"
   gem "sidekiq", "~> 8.1"
 end
+
+appraise "rails_edge" do
+  gem "rails", github: "rails/rails", branch: "main"
+  gem "sidekiq", "~> 8.1"
+end

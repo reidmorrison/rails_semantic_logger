@@ -89,32 +89,23 @@ module RailsSemanticLogger
         binds         = {}
         casted_params = type_casted_binds(payload[:type_casted_binds])
         payload[:binds].each_with_index do |attr, i|
-          filtered_value   = filter(attribute_name(attr, i), casted_params[i])
-          attr_name, value = render_bind(attr, filtered_value)
+          attribute_name   = attr.name if attr.is_a?(ActiveModel::Attribute)
+          filtered_value   = filter(attribute_name, casted_params[i])
+          attr_name, value = render_bind(attr, filtered_value, i)
           add_bind_value(binds, attr_name, value)
         end
         binds
       end
 
-      def attribute_name(attr, index)
-        if attr.respond_to?(:name)
-          attr.name
-        elsif attr.respond_to?(:[]) && attr[index].respond_to?(:name)
-          attr[index].name
-        end
-      end
-
-      def render_bind(attr, value)
-        case attr
-        when ActiveModel::Attribute
+      # Binds without a column name (casted binds: plain values, as passed to `select_all`) are
+      # keyed by their parameter position, `$1`, `$2`, ..., as Rails 8.2 does.
+      def render_bind(attr, value, index)
+        if attr.is_a?(ActiveModel::Attribute)
           value = "<#{attr.value_for_database.to_s.bytesize} bytes of binary data>" if attr.type.binary? && attr.value
-        when Array
-          attr = attr.first
+          [attr.name, value]
         else
-          attr = nil
+          ["$#{index + 1}", value]
         end
-
-        [attr&.name || :nil, value]
       end
 
       # Filter sensitive bind values using the same parameter filter Rails uses for ActiveRecord,

@@ -181,6 +181,27 @@ class ActiveRecordTest < Minitest::Test
           }
         )
       end
+
+      it "keys binds without a column name by their parameter position" do
+        sql = 'SELECT * FROM "samples" WHERE "samples"."name" = ? AND "samples"."age" = ?'
+
+        messages = semantic_logger_events do
+          Sample.connection.select_all(sql, "SQL", ["foo", 2])
+        end
+
+        assert_equal 1, messages.count, messages
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:            :debug,
+          name:             "ActiveRecord::Base",
+          message:          "SQL",
+          payload_includes: {
+            sql:   sql,
+            binds: {"$1": "foo", "$2": 2}
+          }
+        )
+      end
     end
 
     describe "async queries" do

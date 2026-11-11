@@ -407,7 +407,10 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
           assert unpermitted, messages
           assert_equal :debug, unpermitted.level
           assert_includes unpermitted.payload[:keys], "bogus"
-          assert unpermitted.payload.key?(:context), unpermitted.payload
+          assert_equal "ArticlesController", unpermitted.payload[:context][:controller]
+          assert_equal "filtered", unpermitted.payload[:context][:action]
+          # The request refers back to itself, so a JSON formatter overflows the stack on it.
+          refute unpermitted.payload[:context].key?(:request), unpermitted.payload
         ensure
           ActionController::Parameters.action_on_unpermitted_parameters = old
         end

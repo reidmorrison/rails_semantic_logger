@@ -42,6 +42,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   under the logger of the controller handling the request, and path relative redirects with `url`.
 - Action Controller: skip logging, as Rails does, when the controller has no logger and
   `ActionController::Base.logger` is nil, instead of raising `NoMethodError` from the subscriber.
+- Action Controller: leave the request out of the `unpermitted_parameters` context, as Rails'
+  structured event subscriber does. The request refers back to itself, so the `:json` formatter
+  overflowed the stack and the `Unpermitted parameter` line was never written, and the appender
+  thread walked the request's env while the request was still using it.
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
 

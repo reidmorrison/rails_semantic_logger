@@ -191,8 +191,10 @@ module RailsSemanticLogger
         controller_logger(event)&.debug do
           unpermitted_keys = event.payload[:keys]
           payload          = {keys: unpermitted_keys}
-          # Rails includes the controller/action context alongside the rejected keys.
-          payload[:context] = event.payload[:context] if event.payload[:context]
+          # Rails includes the controller/action context alongside the rejected keys. Leave out the
+          # request, as Rails' structured event subscriber does: it refers back to itself, so a JSON
+          # formatter overflows the stack on it.
+          payload[:context] = event.payload[:context].except(:request) if event.payload[:context]
 
           {
             message: "Unpermitted parameter#{'s' if unpermitted_keys.size > 1}: #{unpermitted_keys.join(', ')}",

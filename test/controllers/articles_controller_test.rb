@@ -298,19 +298,28 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
       it "logs the redirect source when verbose_redirect_logs is enabled" do
         skip "verbose_redirect_logs added in Rails 8.1" unless ActionDispatch.respond_to?(:verbose_redirect_logs)
 
-        old = ActionDispatch.verbose_redirect_logs
+        old        = ActionDispatch.verbose_redirect_logs
+        subscriber = RailsSemanticLogger::ActionController::LogSubscriber
+        cleaner    = subscriber.backtrace_cleaner
         begin
           ActionDispatch.verbose_redirect_logs = true
-          messages = semantic_logger_events do
+          # The application's cleaner has no silencers in these tests (see test_helper.rb).
+          subscriber.backtrace_cleaner = Rails::BacktraceCleaner.new
+          messages                     = semantic_logger_events do
             get redirector_articles_url
           end
 
           redirect = messages.find { |m| m.message == "Redirected to" }
 
           assert redirect, messages
-          assert redirect.payload.key?(:source), redirect.payload
+          assert_kind_of String, redirect.payload[:source], redirect.payload
+          # Rails does not clean backtraces when BACKTRACE is set.
+          unless ENV["BACKTRACE"]
+            assert redirect.payload[:source].start_with?("app/controllers/articles_controller.rb:"), redirect.payload
+          end
         ensure
           ActionDispatch.verbose_redirect_logs = old
+          subscriber.backtrace_cleaner         = cleaner
         end
       end
     end

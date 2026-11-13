@@ -46,15 +46,6 @@ module RailsSemanticLogger
       app.config.rails_semantic_logger.flush_deprecations!
     end
 
-    # Rails 8.1+ gives its own Action Controller log subscriber the application's backtrace cleaner,
-    # as it does Active Record's and Active Job's. Give it to this gem's subscriber on every supported
-    # Rails version, so that the backtraces it logs are relative to Rails.root and follow the
-    # application's backtrace silencers. Engine initializers run before the application's own, so an
-    # application can still assign a different cleaner from config/initializers.
-    initializer "rails_semantic_logger.action_controller.backtrace_cleaner" do
-      RailsSemanticLogger::ActionController::LogSubscriber.backtrace_cleaner = ::Rails.backtrace_cleaner
-    end
-
     # Replace Rails logger initializer
     Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 

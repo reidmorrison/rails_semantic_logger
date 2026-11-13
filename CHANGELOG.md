@@ -38,7 +38,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   never logs the `open_redirect.action_controller` and `unsafe_redirect.action_controller` events
   (on Rails 8.2 only its structured event subscriber reports open redirects), so neither was
   logged. Both are now logged at `:warn` with the redirect's stack trace, cleaned of gem frames, as
-  the backtrace: open redirects with `location`, `request_method` and `request_path` in the payload,
+  the backtrace (every frame, with gem paths shortened, when all of them are in gems, as for a
+  redirect from an engine's controller): open redirects with `location`, `request_method` and `request_path` in the payload,
   under the logger of the controller handling the request, and path relative redirects with `url`.
 - Action Controller: skip logging, as Rails does, when the controller has no logger and
   `ActionController::Base.logger` is nil, instead of raising `NoMethodError` from the subscriber.

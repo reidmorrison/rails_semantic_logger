@@ -245,9 +245,14 @@ module RailsSemanticLogger
         nil
       end
 
-      # Removes framework and gem frames, leaving the application code that caused the event.
+      # Removes framework and gem frames, leaving the application code that caused the event. When
+      # every frame is in a gem, as for a redirect issued by an engine's controller, keeps them all,
+      # with the gem paths shortened, so that the entry still shows where the event came from.
       def clean_backtrace(backtrace)
-        backtrace_cleaner.clean(backtrace) if backtrace
+        return unless backtrace
+
+        cleaned = backtrace_cleaner.clean(backtrace)
+        cleaned.empty? ? backtrace_cleaner.clean(backtrace, :all) : cleaned
       end
 
       # Logs a redirect event at :warn with the redirect's stack trace, cleaned of gem frames, as the

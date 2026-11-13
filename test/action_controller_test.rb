@@ -199,6 +199,24 @@ class ActionControllerTest < Minitest::Test
         assert_equal ["app/x.rb:1"], messages[0].backtrace
       end
 
+      it "keeps every frame, with gem paths shortened, when all of them are in gems" do
+        engine_frame = "#{Gem.path.first}/gems/devise-4.9.4/app/controllers/devise/sessions_controller.rb:23"
+        event        = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: nil, stack_trace: [engine_frame]}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_equal ["devise (4.9.4) app/controllers/devise/sessions_controller.rb:23"], messages[0].backtrace
+      end
+
       it "does not fail when ActionController::Base has no logger" do
         event = ActiveSupport::Notifications::Event.new(
           "open_redirect.action_controller",

@@ -799,7 +799,7 @@ class ActiveJobTest < Minitest::Test
           assert_source line, messages[0]
         end
 
-        it "logs the source of a failed enqueue" do
+        it "logs the source of a halted enqueue" do
           aborted  = new_event("enqueue.active_job", payload.merge(aborted: true))
           line     = __LINE__ + 1
           messages = semantic_logger_events { subscriber.enqueue(aborted) }
@@ -808,11 +808,78 @@ class ActiveJobTest < Minitest::Test
           assert_source line, messages[0]
         end
 
-        it "logs no source for a perform" do
-          messages = semantic_logger_events { subscriber.perform_start(new_event("perform_start.active_job", payload)) }
+        it "logs the source of an enqueue that failed with an error" do
+          failed   = new_event("enqueue.active_job", payload.merge(exception_object: StandardError.new("boom")))
+          line     = __LINE__ + 1
+          messages = semantic_logger_events { subscriber.enqueue(failed) }
 
           assert_equal 1, messages.count, messages
-          refute messages[0].payload.key?(:source), messages[0].payload
+          assert_equal :error, messages[0].level
+          assert_source line, messages[0]
+        end
+
+        # As for a job performed inline, such as with perform_now. A worker's call stack has no
+        # application frame outside the job, so its perform_start and perform entries get no source.
+        it "logs the code that performed the job inline as the source of a perform" do
+          started  = new_event("perform_start.active_job", payload)
+          line     = __LINE__ + 1
+          messages = semantic_logger_events { subscriber.perform_start(started) }
+
+          assert_equal 1, messages.count, messages
+          assert_source line, messages[0]
+        end
+
+        describe "when the logger would not log the entry" do
+          # Counts the frames the cleaner looks at while the block runs.
+          def frames_cleaned
+            frames = 0
+            subscriber.backtrace_cleaner.add_silencer do
+              frames += 1
+              false
+            end
+            yield
+            frames
+          end
+
+          let(:failed) { new_event("enqueue.active_job", payload.merge(exception_object: StandardError.new("boom"))) }
+
+          it "does not look for the source of an info entry" do
+            frames = frames_cleaned do
+              ActiveJob::Base.logger.stub(:info?, false) { subscriber.enqueue(event) }
+            end
+
+            assert_equal 0, frames
+          end
+
+          it "does not look for the source of an enqueue_all" do
+            event  = new_event(
+              "enqueue_all.active_job",
+              {adapter: ActiveJob::QueueAdapters::InlineAdapter.new, jobs: [MyJob.new("a")], enqueued_count: 1}
+            )
+            frames = frames_cleaned do
+              ActiveJob::Base.logger.stub(:info?, false) { subscriber.enqueue_all(event) }
+            end
+
+            assert_equal 0, frames
+          end
+
+          it "does not look for the source of an error entry" do
+            frames = frames_cleaned do
+              ActiveJob::Base.logger.stub(:error?, false) { subscriber.enqueue(failed) }
+            end
+
+            assert_equal 0, frames
+          end
+
+          it "still logs the source of an error entry when only info is off" do
+            line     = __LINE__ + 2
+            messages = ActiveJob::Base.logger.stub(:info?, false) do
+              semantic_logger_events { subscriber.enqueue(failed) }
+            end
+
+            assert_equal 1, messages.count, messages
+            assert_source line, messages[0]
+          end
         end
 
         it "logs no source when it is off" do

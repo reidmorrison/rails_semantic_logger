@@ -44,13 +44,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   backtrace keeps instead the frames from the first one in the file that defines the controller's
   action, or every frame when there is none, with gem paths shortened.
 - Active Job: support `config.active_job.verbose_enqueue_logs`, which Rails turns on in
-  development for new applications. When it is on, each `enqueue`, `enqueue_at` and `enqueue_all`
-  entry has the application code that enqueued the job as `source` in its payload, such as
+  development for new applications. When it is on, each enqueue entry has the application code
+  that enqueued the job as `source` in its payload, such as
   `source: "app/controllers/orders_controller.rb:18:in 'OrdersController#create'"`, where Rails'
   own log adds a `↳` line. It was ignored on every Rails version. As Rails does, the source is the
-  first frame of the call stack that the application's `Rails.backtrace_cleaner` keeps. Rails also
-  adds the line below the perform entries, whose call stack rarely holds the application's code;
-  they get no source here.
+  first frame of the call stack that the application's `Rails.backtrace_cleaner` keeps, and every
+  info and error entry gets one when there is such a frame: a job performed inline, such as with
+  `perform_now`, has the code that performed it, while the perform entries of a job performed by a
+  worker have none, and its Continuation step entries (Rails 8.1+) have the job's line. A job
+  enqueued after its transaction commits (`enqueue_after_transaction_commit`, Rails 8.1+) is
+  logged at the commit, so its source is the code that opened the transaction, as in Rails' own
+  log. To use another cleaner, assign
+  `RailsSemanticLogger::ActiveJob::LogSubscriber.backtrace_cleaner`.
 - Active Record: support `config.active_record.verbose_query_logs`, which Rails turns on in
   development for new applications. When it is on, each query entry, and each strict loading
   violation, has the application code that caused it as `source` in its payload, such as

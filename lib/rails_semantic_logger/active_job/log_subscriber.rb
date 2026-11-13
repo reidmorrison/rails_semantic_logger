@@ -17,9 +17,21 @@ require "active_job"
 # The Continuation handlers are defined unconditionally. On Rails < 8.1 those notifications are
 # never emitted, so the extra methods are simply never invoked.
 #
+# When `verbose_enqueue_logs` is on, Rails logs a "↳ source" line, the application code that
+# enqueued the job, after every info and error line of its subscriber. Rails documents it as listed
+# below the enqueue log lines, and only enqueuing code reliably has the application on the call
+# stack, so this subscriber adds `source` to the payload of the enqueue, enqueue_at and enqueue_all
+# entries only. On a perform entry, an application's around_perform would otherwise be its source.
+#
 module RailsSemanticLogger
   module ActiveJob
     class LogSubscriber < ::ActiveSupport::LogSubscriber
+      # The events whose entries `log_with_formatter` gives the enqueuing code as their source.
+      ENQUEUE_EVENTS = %w[enqueue.active_job enqueue_at.active_job].freeze
+
+      # The application's, as Rails gives its own Active Job log subscriber.
+      class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
+
       def enqueue(event)
         ex = enqueue_error(event)
 
@@ -231,17 +243,17 @@ module RailsSemanticLogger
             "Failed enqueuing #{failed_count} #{'job'.pluralize(failed_count)} to #{adapter_name}"
           end
 
-        logger.info(
-          message: message,
-          metric:  "rails.job.enqueue_all",
-          payload: {
-            event_name:     event.name,
-            adapter:        adapter_name,
-            enqueued_count: enqueued_count,
-            total_count:    jobs.size,
-            job_classes:    jobs.map { |job| job.class.name }.tally
-          }
-        )
+        payload = {
+          event_name:     event.name,
+          adapter:        adapter_name,
+          enqueued_count: enqueued_count,
+          total_count:    jobs.size,
+          job_classes:    jobs.map { |job| job.class.name }.tally
+        }
+        source           = enqueue_source_location
+        payload[:source] = source if source
+
+        logger.info(message: message, metric: "rails.job.enqueue_all", payload: payload)
       end
 
       private
@@ -356,7 +368,24 @@ module RailsSemanticLogger
         # Emit a metric for every info/warn/error entry, named after the notification
         # (e.g. "enqueue.active_job" -> "rails.job.enqueue"). Debug entries are excluded.
         msg[:metric] ||= "rails.job.#{kw_args[:event].name.split('.').first}" unless level == :debug
+        source = enqueue_source_location if ENQUEUE_EVENTS.include?(kw_args[:event].name)
+        extra  = extra.merge(source: source) if source
         logger.public_send(level, **msg, payload: fmt.payload.merge(extra))
+      end
+
+      # When `verbose_enqueue_logs` is on, returns the application code that enqueued the job: the
+      # first frame of the call stack that the backtrace cleaner keeps, which Rails logs as
+      # "↳ source" below its enqueue log lines. Returns nil when the option is off or the cleaner
+      # keeps no frame.
+      def enqueue_source_location
+        return unless ::ActiveJob.verbose_enqueue_logs
+
+        Thread.each_caller_location do |location|
+          # A String: with BACKTRACE set, Rails' cleaner returns the location unchanged.
+          frame = backtrace_cleaner.clean_frame(location)
+          return frame.to_s if frame
+        end
+        nil
       end
 
       def logger

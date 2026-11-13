@@ -737,6 +737,94 @@ class ActiveJobTest < Minitest::Test
         end
       end
 
+      describe ".backtrace_cleaner" do
+        it "is the application's backtrace cleaner" do
+          assert_same Rails.backtrace_cleaner, RailsSemanticLogger::ActiveJob::LogSubscriber.backtrace_cleaner
+        end
+      end
+
+      describe "verbose_enqueue_logs" do
+        before do
+          @verbose_enqueue_logs           = ActiveJob.verbose_enqueue_logs
+          ActiveJob.verbose_enqueue_logs  = true
+          # The application's cleaner has no silencers in these tests (see test_helper.rb), and none at
+          # all when BACKTRACE is set. This one keeps only this file's frames, so that the source is the
+          # line in this file that enqueued the job.
+          subscriber.backtrace_cleaner = ActiveSupport::BacktraceCleaner.new.tap do |cleaner|
+            cleaner.remove_filters!
+            cleaner.add_silencer { |line| !line.start_with?("#{__FILE__}:") }
+          end
+        end
+
+        after do
+          ActiveJob.verbose_enqueue_logs = @verbose_enqueue_logs
+        end
+
+        def new_event(name, payload)
+          ActiveSupport::Notifications::Event.new(name, 5.seconds.ago, Time.zone.now, SecureRandom.uuid, payload)
+        end
+
+        def assert_source(line, message)
+          assert_match(/\A#{Regexp.escape(__FILE__)}:#{line}:in /, message.payload[:source], message.payload)
+        end
+
+        it "logs the code that enqueued the job as the source of an enqueue" do
+          line     = __LINE__ + 1
+          messages = semantic_logger_events { subscriber.enqueue(event) }
+
+          assert_equal 1, messages.count, messages
+          assert_source line, messages[0]
+        end
+
+        it "logs the code that enqueued the job as the source of an enqueue_at" do
+          event    = new_event("enqueue_at.active_job", payload)
+          line     = __LINE__ + 2
+          messages = job.stub(:scheduled_at, Time.zone.now.to_i) do
+            semantic_logger_events { subscriber.enqueue_at(event) }
+          end
+
+          assert_equal 1, messages.count, messages
+          assert_source line, messages[0]
+        end
+
+        it "logs the code that enqueued the jobs as the source of an enqueue_all" do
+          event = new_event(
+            "enqueue_all.active_job",
+            {adapter: ActiveJob::QueueAdapters::InlineAdapter.new, jobs: [MyJob.new("a")], enqueued_count: 1}
+          )
+          line     = __LINE__ + 1
+          messages = semantic_logger_events { subscriber.enqueue_all(event) }
+
+          assert_equal 1, messages.count, messages
+          assert_source line, messages[0]
+        end
+
+        it "logs the source of a failed enqueue" do
+          aborted  = new_event("enqueue.active_job", payload.merge(aborted: true))
+          line     = __LINE__ + 1
+          messages = semantic_logger_events { subscriber.enqueue(aborted) }
+
+          assert_equal 1, messages.count, messages
+          assert_source line, messages[0]
+        end
+
+        it "logs no source for a perform" do
+          messages = semantic_logger_events { subscriber.perform_start(new_event("perform_start.active_job", payload)) }
+
+          assert_equal 1, messages.count, messages
+          refute messages[0].payload.key?(:source), messages[0].payload
+        end
+
+        it "logs no source when it is off" do
+          ActiveJob.verbose_enqueue_logs = false
+
+          messages = semantic_logger_events { subscriber.enqueue(event) }
+
+          assert_equal 1, messages.count, messages
+          refute messages[0].payload.key?(:source), messages[0].payload
+        end
+      end
+
       describe "ActiveJob::Logging::LogSubscriber::EventFormatter" do
         let(:formatter) do
           RailsSemanticLogger::ActiveJob::LogSubscriber::EventFormatter.new(event: event, log_duration: true)

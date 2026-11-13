@@ -43,6 +43,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   When cleaning would remove every frame, as for a redirect from an engine's controller, the
   backtrace keeps instead the frames from the first one in the file that defines the controller's
   action, or every frame when there is none, with gem paths shortened.
+- Active Job: support `config.active_job.verbose_enqueue_logs`, which Rails turns on in
+  development for new applications. When it is on, each `enqueue`, `enqueue_at` and `enqueue_all`
+  entry has the application code that enqueued the job as `source` in its payload, such as
+  `source: "app/controllers/orders_controller.rb:18:in 'OrdersController#create'"`, where Rails'
+  own log adds a `↳` line. It was ignored on every Rails version. As Rails does, the source is the
+  first frame of the call stack that the application's `Rails.backtrace_cleaner` keeps. Rails also
+  adds the line below the perform entries, whose call stack rarely holds the application's code;
+  they get no source here.
 - Active Record: support `config.active_record.verbose_query_logs`, which Rails turns on in
   development for new applications. When it is on, each query entry, and each strict loading
   violation, has the application code that caused it as `source` in its payload, such as

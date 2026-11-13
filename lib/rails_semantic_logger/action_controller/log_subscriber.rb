@@ -12,6 +12,7 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       INTERNAL_PARAMS = %w[controller action format _method only_path].freeze
 
+      # The engine assigns the application's `Rails.backtrace_cleaner` while Rails boots.
       class_attribute :backtrace_cleaner, default: ActiveSupport::BacktraceCleaner.new
 
       class << self

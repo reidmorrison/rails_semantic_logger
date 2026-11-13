@@ -93,8 +93,45 @@ class ActionControllerTest < Minitest::Test
       end
     end
 
+    describe ".backtrace_cleaner" do
+      it "is the application's backtrace cleaner" do
+        assert_same Rails.backtrace_cleaner, RailsSemanticLogger::ActionController::LogSubscriber.backtrace_cleaner
+      end
+    end
+
     # Rails 8.1+ instruments this event; earlier versions never do, so call the handler directly.
     describe "#open_redirect" do
+      # The application's cleaner has no silencers in these tests (see test_helper.rb), and none at all
+      # when BACKTRACE is set, so these tests use a cleaner of their own.
+      before { subscriber.backtrace_cleaner = ActiveSupport::BacktraceCleaner.new }
+
+      it "logs application frames relative to Rails.root with the application's cleaner" do
+        skip "Rails does not clean backtraces when BACKTRACE is set" if ENV["BACKTRACE"]
+
+        subscriber.backtrace_cleaner = Rails::BacktraceCleaner.new
+        event                        = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {
+            location:    "https://elsewhere.example.com/",
+            request:     nil,
+            stack_trace: [
+              "#{Gem.path.first}/gems/actionpack-8.1.4/lib/action_controller/metal/redirecting.rb:161:in 'redirect_to'",
+              "#{Rails.root}/app/controllers/articles_controller.rb:26:in 'open_redirector'"
+            ]
+          }
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_equal ["app/controllers/articles_controller.rb:26:in 'open_redirector'"], messages[0].backtrace
+      end
+
       it "logs the location and request at :warn with the redirect's stack trace" do
         request = ActionDispatch::TestRequest.create("REQUEST_METHOD" => "POST", "PATH_INFO" => "/articles")
         event   = ActiveSupport::Notifications::Event.new(
@@ -298,6 +335,9 @@ class ActionControllerTest < Minitest::Test
 
     # Rails 8.1+ instruments this event; earlier versions never do, so call the handler directly.
     describe "#unsafe_redirect" do
+      # As for #open_redirect.
+      before { subscriber.backtrace_cleaner = ActiveSupport::BacktraceCleaner.new }
+
       it "logs the message and url at :warn with the redirect's stack trace" do
         event = ActiveSupport::Notifications::Event.new(
           "unsafe_redirect.action_controller",

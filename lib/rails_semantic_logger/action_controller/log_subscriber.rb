@@ -147,37 +147,30 @@ module RailsSemanticLogger
       # StructuredEventSubscriber reports it, to `Rails.event`. So it is logged here at :warn, the
       # level Rails uses for `action_on_open_redirect = :log`.
       def open_redirect(event)
-        controller_logger(event)&.warn do
-          payload = event.payload
-          request = payload[:request]
+        request = event.payload[:request]
 
-          {
-            message:   "Open redirect detected",
-            payload:   {
-              location:       payload[:location],
-              request_method: request&.method,
-              request_path:   request&.path
-            }.compact,
-            backtrace: clean_backtrace(payload[:stack_trace]),
-            metric:    "rails.controller.open_redirect"
-          }
-        end
+        log_redirect_warning(
+          event,
+          message: "Open redirect detected",
+          payload: {
+            location:       event.payload[:location],
+            request_method: request&.method,
+            request_path:   request&.path
+          }.compact,
+          metric:  "rails.controller.open_redirect"
+        )
       end
 
       # Rails 8.1+ emits this event for a path relative redirect, such as `redirect_to "foo"`, when
       # `config.action_controller.action_on_path_relative_redirect = :notify`. No Rails subscriber
       # logs it, so it is logged here at :warn, the level Rails uses for `:log`.
       def unsafe_redirect(event)
-        controller_logger(event)&.warn do
-          payload = event.payload
-
-          {
-            message:   payload[:message],
-            payload:   {url: payload[:url]},
-            backtrace: clean_backtrace(payload[:stack_trace]),
-            metric:    "rails.controller.unsafe_redirect"
-          }
-        end
+        log_redirect_warning(
+          event,
+          message: event.payload[:message],
+          payload: {url: event.payload[:url]},
+          metric:  "rails.controller.unsafe_redirect"
+        )
       end
 
       def send_data(event)
@@ -255,6 +248,21 @@ module RailsSemanticLogger
       # Removes framework and gem frames, leaving the application code that caused the event.
       def clean_backtrace(backtrace)
         backtrace_cleaner.clean(backtrace) if backtrace
+      end
+
+      # Logs a redirect event at :warn with the redirect's stack trace, cleaned of gem frames, as the
+      # entry's backtrace. The backtrace goes with the log call rather than in a logging block's
+      # result: since semantic_logger 5.2 a block cannot replace a backtrace the entry already has,
+      # and the entry captures this subscriber's own stack whenever :warn is at or above the
+      # `backtrace_level`, as it is in the Rails console.
+      def log_redirect_warning(event, message:, payload:, metric:)
+        logger = controller_logger(event)
+        return unless logger&.warn?
+
+        logger.warn(message:   message,
+                    payload:   payload,
+                    backtrace: clean_backtrace(event.payload[:stack_trace]),
+                    metric:    metric)
       end
 
       # Rails logs every CSRF event at :warn, and only while log_warning_on_csrf_failure is on.

@@ -120,6 +120,29 @@ class ActionControllerTest < Minitest::Test
         assert_equal ["app/x.rb:1"], messages[0].backtrace
       end
 
+      # The entry captures the subscriber's own stack at the backtrace_level, and semantic_logger 5.2+
+      # keeps it over a backtrace returned from a logging block.
+      it "keeps the redirect's stack trace when the backtrace_level also captures one" do
+        original                       = SemanticLogger.backtrace_level
+        SemanticLogger.backtrace_level = :warn
+        event                          = ActiveSupport::Notifications::Event.new(
+          "open_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {location: "https://elsewhere.example.com/", request: nil, stack_trace: ["app/x.rb:1"]}
+        )
+
+        messages = semantic_logger_events do
+          subscriber.open_redirect(event)
+        end
+
+        assert_equal ["app/x.rb:1"], messages[0].backtrace
+        refute messages[0].payload.key?(:backtrace), messages[0].payload
+      ensure
+        SemanticLogger.backtrace_level = original
+      end
+
       it "leaves request details out when the event has no request" do
         event = ActiveSupport::Notifications::Event.new(
           "open_redirect.action_controller",

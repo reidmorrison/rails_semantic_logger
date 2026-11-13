@@ -46,9 +46,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Active Record: support `config.active_record.verbose_query_logs`, which Rails turns on in
   development for new applications. When it is on, each query entry, and each strict loading
   violation, has the application code that caused it as `source` in its payload, such as
-  `source: "app/models/user.rb:12:in 'recent'"`, where Rails' own log adds a `↳` line. It was
-  ignored on every Rails version. As Rails does, the source is the first frame of the call stack
-  that the application's `Rails.backtrace_cleaner` keeps.
+  `source: "app/models/user.rb:12:in 'User.recent'"`, where Rails' own log adds a `↳` line. It
+  was ignored on every Rails version. As Rails does, the source is the first frame of the call
+  stack that the application's `Rails.backtrace_cleaner` keeps. To use another cleaner, assign
+  `RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner`.
 - Action Controller: clean the backtraces it logs with the application's `Rails.backtrace_cleaner`,
   as Rails 8.1 does for its own subscriber, on every supported Rails version. Application frames
   are logged relative to `Rails.root`, and the application's backtrace silencers apply. This covers

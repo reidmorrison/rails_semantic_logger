@@ -46,6 +46,20 @@ module RailsSemanticLogger
     @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
   end
 
+  # Returns the first frame of the current call stack that the backtrace cleaner keeps, as a String,
+  # or nil when it keeps none. This is how Rails' log subscribers find the application code behind
+  # an entry for their verbose_*_logs options: Rails 7.2 and 8.0 walk the frames with `clean_frame`,
+  # and Rails 8.1 calls the cleaner's `first_clean_frame`, which does the same. This works on every
+  # supported version.
+  def self.first_clean_frame(backtrace_cleaner)
+    Thread.each_caller_location do |location|
+      # A String: Rails 8.0+'s cleaner returns the location unchanged when BACKTRACE is set.
+      frame = backtrace_cleaner.clean_frame(location)
+      return frame.to_s if frame
+    end
+    nil
+  end
+
   # Warn that a setting was changed too late to take effect, so the change has no
   # effect. When `config_initializers_too_late` is true (the default), the setting
   # is consumed while the logger is built, *before* `config/initializers/*` is

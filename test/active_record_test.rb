@@ -460,6 +460,39 @@ class ActiveRecordTest < Minitest::Test
         assert_equal 1, messages.count, messages
         refute messages[0].payload.key?(:source), messages[0].payload
       end
+
+      describe "with Rails' backtrace cleaner" do
+        before { RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner = Rails::BacktraceCleaner.new }
+
+        # Runs a query as if from application code under Rails.root.
+        def query_from_app
+          semantic_logger_events do
+            eval("Sample.first", binding, "#{Rails.root}/app/models/probe.rb", 7) # rubocop:disable Style/EvalWithLocation
+          end
+        end
+
+        it "logs the source relative to Rails.root" do
+          skip "Rails does not clean backtraces when BACKTRACE is set" if ENV["BACKTRACE"]
+
+          messages = query_from_app
+
+          assert_equal 1, messages.count, messages
+          assert_match(%r{\Aapp/models/probe\.rb:7:in }, messages[0].payload[:source])
+        end
+
+        # Rails 8.0+'s cleaner then returns the frame's location unchanged.
+        it "logs the source as a String when BACKTRACE is set" do
+          backtrace        = ENV.fetch("BACKTRACE", nil)
+          ENV["BACKTRACE"] = "1"
+
+          messages = query_from_app
+
+          assert_equal 1, messages.count, messages
+          assert_kind_of String, messages[0].payload[:source]
+        ensure
+          ENV["BACKTRACE"] = backtrace
+        end
+      end
     end
   end
 end

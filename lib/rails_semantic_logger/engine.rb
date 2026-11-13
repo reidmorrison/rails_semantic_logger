@@ -46,13 +46,6 @@ module RailsSemanticLogger
       app.config.rails_semantic_logger.flush_deprecations!
     end
 
-    # As Rails does for its own Active Record log subscriber, which uses it for verbose_query_logs.
-    initializer "rails_semantic_logger.active_record.backtrace_cleaner" do
-      if defined?(::ActiveRecord)
-        RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner = ::Rails.backtrace_cleaner
-      end
-    end
-
     # Replace Rails logger initializer
     Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 

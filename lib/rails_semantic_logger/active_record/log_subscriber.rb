@@ -12,8 +12,9 @@
 # `query_source_location` helper, which finds the "↳ source" that `verbose_query_logs` adds below
 # each debug line, and a `:nodoc:` comment. Rails 7.2 and 8.0 walk `Thread.each_caller_location`
 # with the backtrace cleaner's `clean_frame`, and 8.1 calls the cleaner's `first_clean_frame`, which
-# does the same. This subscriber walks the frames itself, as 7.2 and 8.0 do, on every version, and
-# adds the source to the payload. As a result no version-specific behavior is required here.
+# does the same. This subscriber walks the frames with `RailsSemanticLogger.first_clean_frame`, as
+# 7.2 and 8.0 do, on every version, and adds the source to the payload. As a result no
+# version-specific behavior is required here.
 #
 # As of Rails 8.1 there is also a parallel ActiveRecord::StructuredEventSubscriber (it emits
 # structured events to Rails.event rather than text to Rails.logger). It is the authoritative,
@@ -27,8 +28,8 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
 
-      # The engine assigns the application's `Rails.backtrace_cleaner` while Rails boots.
-      class_attribute :backtrace_cleaner, default: ActiveSupport::BacktraceCleaner.new
+      # The application's, as Rails gives its own Active Record log subscriber for verbose_query_logs.
+      class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
 
       def strict_loading_violation(event)
         return unless logger.debug?
@@ -87,14 +88,7 @@ module RailsSemanticLogger
       # cleaner keeps, which Rails logs as "↳ source" below the entry. Returns nil when the option is
       # off or the cleaner keeps no frame.
       def query_source_location
-        return unless ::ActiveRecord.verbose_query_logs
-
-        Thread.each_caller_location do |location|
-          # A String: with BACKTRACE set, Rails' cleaner returns the location unchanged.
-          frame = backtrace_cleaner.clean_frame(location)
-          return frame.to_s if frame
-        end
-        nil
+        RailsSemanticLogger.first_clean_frame(backtrace_cleaner) if ::ActiveRecord.verbose_query_logs
       end
 
       # When multiple values are received for a single bound field, it is converted into an array

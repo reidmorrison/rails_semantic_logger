@@ -120,8 +120,10 @@ class ActionControllerTest < Minitest::Test
         assert_equal ["app/x.rb:1"], messages[0].backtrace
       end
 
-      # The entry captures the subscriber's own stack at the backtrace_level, and semantic_logger 5.2+
-      # keeps it over a backtrace returned from a logging block.
+      # semantic_logger 5.2+ keeps a backtrace captured at the backtrace_level over one returned from
+      # a logging block. The dummy app captures at :trace, so the other redirect tests cover this too,
+      # but this one sets the level itself, as the Rails console does with
+      # `backtrace_level = default_level`, so that it does not depend on the dummy app's setting.
       it "keeps the redirect's stack trace when the backtrace_level also captures one" do
         original                       = SemanticLogger.backtrace_level
         SemanticLogger.backtrace_level = :warn
@@ -137,6 +139,7 @@ class ActionControllerTest < Minitest::Test
           subscriber.open_redirect(event)
         end
 
+        assert_equal 1, messages.count, messages
         assert_equal ["app/x.rb:1"], messages[0].backtrace
         refute messages[0].payload.key?(:backtrace), messages[0].payload
       ensure

@@ -374,5 +374,125 @@ class ActiveRecordTest < Minitest::Test
         refute messages[0].payload.key?(:class)
       end
     end
+
+    describe ".backtrace_cleaner" do
+      it "is the application's backtrace cleaner" do
+        assert_same Rails.backtrace_cleaner, RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner
+      end
+    end
+
+    describe "verbose_query_logs" do
+      # The application's cleaner has no silencers in these tests (see test_helper.rb), and none at all
+      # when BACKTRACE is set. This one keeps only this file's frames, so that the source is the line in
+      # this file that ran the query.
+      let(:cleaner) do
+        ActiveSupport::BacktraceCleaner.new.tap do |cleaner|
+          cleaner.remove_filters!
+          cleaner.add_silencer { |line| !line.start_with?("#{__FILE__}:") }
+        end
+      end
+
+      before do
+        @verbose_query_logs = ActiveRecord.verbose_query_logs
+        @backtrace_cleaner  = RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner
+        RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner = cleaner
+        ActiveRecord.verbose_query_logs = true
+      end
+
+      after do
+        ActiveRecord.verbose_query_logs                                    = @verbose_query_logs
+        RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner = @backtrace_cleaner
+      end
+
+      it "logs the code that ran the query as its source" do
+        line     = __LINE__ + 2
+        messages = semantic_logger_events do
+          Sample.first
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_match(/\A#{Regexp.escape(__FILE__)}:#{line}:in /, messages[0].payload[:source])
+      end
+
+      it "logs the code that triggered a strict loading violation as its source" do
+        reflection = Struct.new(:name) do
+          def polymorphic?
+            true
+          end
+
+          def strict_loading_violation_message(owner)
+            "`#{owner}` is marked for strict_loading."
+          end
+        end.new(:commentable)
+        owner = Class.new do
+          def self.name
+            "Article"
+          end
+        end
+
+        line     = __LINE__ + 2
+        messages = semantic_logger_events do
+          ActiveSupport::Notifications.instrument("strict_loading_violation.active_record", owner:, reflection:)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_match(/\A#{Regexp.escape(__FILE__)}:#{line}:in /, messages[0].payload[:source])
+      end
+
+      it "logs no source when it is off" do
+        ActiveRecord.verbose_query_logs = false
+
+        messages = semantic_logger_events do
+          Sample.first
+        end
+
+        assert_equal 1, messages.count, messages
+        refute messages[0].payload.key?(:source), messages[0].payload
+      end
+
+      it "logs no source when the cleaner keeps no frame" do
+        cleaner.add_silencer { true }
+
+        messages = semantic_logger_events do
+          Sample.first
+        end
+
+        assert_equal 1, messages.count, messages
+        refute messages[0].payload.key?(:source), messages[0].payload
+      end
+
+      describe "with Rails' backtrace cleaner" do
+        before { RailsSemanticLogger::ActiveRecord::LogSubscriber.backtrace_cleaner = Rails::BacktraceCleaner.new }
+
+        # Runs a query as if from application code under Rails.root.
+        def query_from_app
+          semantic_logger_events do
+            eval("Sample.first", binding, "#{Rails.root}/app/models/probe.rb", 7) # rubocop:disable Style/EvalWithLocation
+          end
+        end
+
+        it "logs the source relative to Rails.root" do
+          skip "Rails does not clean backtraces when BACKTRACE is set" if ENV["BACKTRACE"]
+
+          messages = query_from_app
+
+          assert_equal 1, messages.count, messages
+          assert_match(%r{\Aapp/models/probe\.rb:7:in }, messages[0].payload[:source])
+        end
+
+        # Rails 8.0+'s cleaner then returns the frame's location unchanged.
+        it "logs the source as a String when BACKTRACE is set" do
+          backtrace        = ENV.fetch("BACKTRACE", nil)
+          ENV["BACKTRACE"] = "1"
+
+          messages = query_from_app
+
+          assert_equal 1, messages.count, messages
+          assert_kind_of String, messages[0].payload[:source]
+        ensure
+          ENV["BACKTRACE"] = backtrace
+        end
+      end
+    end
   end
 end

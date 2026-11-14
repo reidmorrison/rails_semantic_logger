@@ -56,6 +56,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   logged at the commit, so its source is the code that opened the transaction, as in Rails' own
   log. To use another cleaner, assign
   `RailsSemanticLogger::ActiveJob::LogSubscriber.backtrace_cleaner`.
+- Active Job: close the parentheses in the message of an `enqueue` or `enqueue_at` that failed
+  with an error, which reads as Rails words it:
+  `Failed enqueuing MyJob (Job ID: 1a2b) to Sidekiq(default): RuntimeError (boom)`.
+  It ended `... to Sidekiq(default) (RuntimeError (boom)`, missing a closing
+  parenthesis, since 4.13.0. **Log output change:** update any log query or alert that matches the
+  old message.
 - Active Record: support `config.active_record.verbose_query_logs`, which Rails turns on in
   development for new applications. When it is on, each query entry, and each strict loading
   violation, has the application code that caused it as `source` in its payload, such as

@@ -37,7 +37,7 @@ module RailsSemanticLogger
         if ex
           log_with_formatter level: :error, event: event do |fmt|
             {
-              message:   "Failed enqueuing #{fmt.job_info} (#{ex.class} (#{ex.message})",
+              message:   "Failed enqueuing #{fmt.job_info}: #{ex.class} (#{ex.message})",
               exception: ex
             }
           end
@@ -58,7 +58,7 @@ module RailsSemanticLogger
         if ex
           log_with_formatter level: :error, event: event do |fmt|
             {
-              message:   "Failed enqueuing #{fmt.job_info} (#{ex.class} (#{ex.message})",
+              message:   "Failed enqueuing #{fmt.job_info}: #{ex.class} (#{ex.message})",
               exception: ex
             }
           end

@@ -179,6 +179,8 @@ class ActiveJobTest < Minitest::Test
             }
           )
           assert_includes messages[0].payload, :job_id
+          # As Rails words it: "Failed enqueuing <job> to <queue>: <exception class> (<message>)".
+          assert_match(/ to Inline\(my_jobs\): ArgumentError \(error\)\z/, messages[0].message)
 
           exception = messages[0].exception
 
@@ -253,6 +255,8 @@ class ActiveJobTest < Minitest::Test
             }
           )
           assert_includes messages[0].payload, :job_id
+          # As Rails words it: "Failed enqueuing <job> to <queue>: <exception class> (<message>)".
+          assert_match(/ to Inline\(my_jobs\): ArgumentError \(error\)\z/, messages[0].message)
 
           exception = messages[0].exception
 

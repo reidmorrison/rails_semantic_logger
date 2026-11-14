@@ -45,7 +45,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Action Controller: leave the request out of the `unpermitted_parameters` context, as Rails'
   structured event subscriber does. The request refers back to itself, so the `:json` formatter
   overflowed the stack and the `Unpermitted parameter` line was never written, and the appender
-  thread walked the request's env while the request was still using it.
+  thread walked the request's env while the request was still using it. Fixed in #338. Thanks to
+  [Philippe Vaucher](https://github.com/Silex).
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
 

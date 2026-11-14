@@ -40,6 +40,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   logged. Both are now logged at `:warn` with the redirect's stack trace, cleaned of gem frames, as
   the backtrace: open redirects with `location`, `request_method` and `request_path` in the payload,
   under the logger of the controller handling the request, and path relative redirects with `url`.
+  When cleaning would remove every frame, as for a redirect from an engine's controller, the
+  backtrace keeps instead the frames from the first one in the file that defines the controller's
+  action, or every frame when there is none, with gem paths shortened.
 - Action Controller: skip logging, as Rails does, when the controller has no logger and
   `ActionController::Base.logger` is nil, instead of raising `NoMethodError` from the subscriber.
 - Action Controller: leave the request out of the `unpermitted_parameters` context, as Rails'

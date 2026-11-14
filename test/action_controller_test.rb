@@ -199,6 +199,88 @@ class ActionControllerTest < Minitest::Test
         assert_equal ["app/x.rb:1"], messages[0].backtrace
       end
 
+      describe "when every frame is in a gem, as for a redirect from an engine's controller" do
+        let(:gems) { "#{Gem.path.first}/gems" }
+        let(:action_file) { "#{gems}/devise-4.9.4/app/controllers/devise/sessions_controller.rb" }
+        let(:rails_frame) { "#{gems}/actionpack-8.1.4/lib/action_controller/metal/redirecting.rb:161:in 'redirect_to'" }
+        let(:rack_frame) { "#{gems}/rack-3.2.0/lib/rack/head.rb:15:in 'call'" }
+
+        # A request handled by an engine's controller, whose `create` action is defined in a gem's
+        # file, as Devise's actions are, so that Ruby reports that file as the action's source.
+        def engine_request(action_name)
+          engine = Class.new(ActionController::Base)
+          engine.class_eval("def create; end", action_file, 18) # rubocop:disable Style/EvalWithLocation
+          controller                  = engine.new
+          controller.action_name      = action_name
+          request                     = ActionDispatch::TestRequest.create
+          request.controller_instance = controller
+          request
+        end
+
+        def logged_backtrace(request, stack_trace)
+          event = ActiveSupport::Notifications::Event.new(
+            "open_redirect.action_controller",
+            5.seconds.ago,
+            Time.zone.now,
+            SecureRandom.uuid,
+            {location: "https://elsewhere.example.com/", request: request, stack_trace: stack_trace}
+          )
+          messages = semantic_logger_events do
+            subscriber.open_redirect(event)
+          end
+
+          assert_equal 1, messages.count, messages
+          messages[0].backtrace
+        end
+
+        # Here through the responders gem and past an APM hook inside redirect_to.
+        it "starts at the frame in the controller action's file" do
+          stack_trace = [
+            rails_frame,
+            "#{gems}/appsignal-4.5.0/lib/appsignal/hooks/active_support_notifications.rb:20:in 'instrument'",
+            "#{gems}/responders-3.1.1/lib/action_controller/responder.rb:204:in 'navigation_behavior'",
+            "#{action_file}:23:in 'create'",
+            rack_frame
+          ]
+
+          assert_equal [
+            "devise (4.9.4) app/controllers/devise/sessions_controller.rb:23:in 'create'",
+            "rack (3.2.0) lib/rack/head.rb:15:in 'call'"
+          ], logged_backtrace(engine_request("create"), stack_trace)
+        end
+
+        it "starts at the action's own frame when a prepended module wraps it" do
+          wrapper_file = "#{gems}/apm-1.0.0/lib/apm/action_wrapper.rb"
+          wrapper      = Module.new
+          wrapper.module_eval("def create; super; end", wrapper_file, 3) # rubocop:disable Style/EvalWithLocation
+          request = engine_request("create")
+          request.controller_instance.class.prepend(wrapper)
+          stack_trace = [rails_frame, "#{action_file}:23:in 'create'", "#{wrapper_file}:3:in 'create'", rack_frame]
+
+          assert_equal [
+            "devise (4.9.4) app/controllers/devise/sessions_controller.rb:23:in 'create'",
+            "apm (1.0.0) lib/apm/action_wrapper.rb:3:in 'create'",
+            "rack (3.2.0) lib/rack/head.rb:15:in 'call'"
+          ], logged_backtrace(request, stack_trace)
+        end
+
+        # As for a redirect from a before_action, which runs before the action does.
+        it "keeps every frame when none is in the action's file" do
+          assert_equal [
+            "actionpack (8.1.4) lib/action_controller/metal/redirecting.rb:161:in 'redirect_to'",
+            "rack (3.2.0) lib/rack/head.rb:15:in 'call'"
+          ], logged_backtrace(engine_request("create"), [rails_frame, rack_frame])
+        end
+
+        # As for an action that only renders a template.
+        it "keeps every frame when the action is not a method" do
+          assert_equal [
+            "actionpack (8.1.4) lib/action_controller/metal/redirecting.rb:161:in 'redirect_to'",
+            "rack (3.2.0) lib/rack/head.rb:15:in 'call'"
+          ], logged_backtrace(engine_request("show"), [rails_frame, rack_frame])
+        end
+      end
+
       it "does not fail when ActionController::Base has no logger" do
         event = ActiveSupport::Notifications::Event.new(
           "open_redirect.action_controller",
@@ -238,6 +320,35 @@ class ActionControllerTest < Minitest::Test
           metric:  "rails.controller.unsafe_redirect"
         )
         assert_equal ["app/x.rb:1"], messages[0].backtrace
+      end
+
+      # Its event names no controller, so there is no action file to start from.
+      it "keeps every frame, with gem paths shortened, when every frame is in a gem" do
+        gems  = "#{Gem.path.first}/gems"
+        event = ActiveSupport::Notifications::Event.new(
+          "unsafe_redirect.action_controller",
+          5.seconds.ago,
+          Time.zone.now,
+          SecureRandom.uuid,
+          {
+            url:         "foo",
+            message:     'Path relative URL redirect detected: "foo"',
+            stack_trace: [
+              "#{gems}/actionpack-8.1.4/lib/action_controller/metal/redirecting.rb:161:in 'redirect_to'",
+              "#{gems}/rack-3.2.0/lib/rack/head.rb:15:in 'call'"
+            ]
+          }
+        )
+
+        messages = semantic_logger_events do
+          subscriber.unsafe_redirect(event)
+        end
+
+        assert_equal 1, messages.count, messages
+        assert_equal [
+          "actionpack (8.1.4) lib/action_controller/metal/redirecting.rb:161:in 'redirect_to'",
+          "rack (3.2.0) lib/rack/head.rb:15:in 'call'"
+        ], messages[0].backtrace
       end
     end
 

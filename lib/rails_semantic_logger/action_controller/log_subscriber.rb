@@ -246,12 +246,45 @@ module RailsSemanticLogger
       end
 
       # Removes framework and gem frames, leaving the application code that caused the event.
-      def clean_backtrace(backtrace)
-        backtrace_cleaner.clean(backtrace) if backtrace
+      #
+      # When cleaning removes every frame, as for a redirect issued by an engine's controller, it
+      # keeps instead the frames from the first one in a file that defines the controller's action,
+      # or every frame when there is no such frame. They keep their gem paths shortened, and none is
+      # silenced. Formatters show the first frame as the entry's file and line, so the entry still
+      # shows where the action redirected.
+      def clean_backtrace(backtrace, controller = nil)
+        return unless backtrace
+
+        cleaned = backtrace_cleaner.clean(backtrace)
+        return cleaned unless cleaned.empty?
+
+        prefixes    = action_files(controller).map { |file| "#{file}:" }
+        from_action = backtrace.drop_while { |frame| prefixes.none? { |prefix| frame.to_s.start_with?(prefix) } }
+        backtrace_cleaner.clean(from_action.presence || backtrace, :all)
       end
 
-      # Logs a redirect event at :warn with the redirect's stack trace, cleaned of gem frames, as the
-      # entry's backtrace. The backtrace goes with the log call rather than in a logging block's
+      # Returns the files that define the action the controller is handling: those of the action's
+      # method, of any method that wraps it from a prepended module, and of any it overrides. Empty
+      # when there is no controller or its action is not a method, as for an action that only renders
+      # a template. A wrapper that replaces the method, instead of calling it with super, hides the
+      # files below it.
+      def action_files(controller)
+        action = controller&.action_name
+        return [] unless action
+
+        method = controller.class.instance_method(action)
+        files  = []
+        while method
+          files << method.source_location&.first
+          method = method.super_method
+        end
+        files.compact
+      rescue NameError
+        []
+      end
+
+      # Logs a redirect event at :warn with the redirect's stack trace, cleaned by #clean_backtrace,
+      # as the entry's backtrace. The backtrace goes with the log call rather than in a logging block's
       # result: since semantic_logger 5.2 a block cannot replace a backtrace the entry already has,
       # and the entry captures this subscriber's own stack whenever :warn is at or above the
       # `backtrace_level`, as it is in the Rails console.
@@ -259,9 +292,10 @@ module RailsSemanticLogger
         logger = controller_logger(event)
         return unless logger&.warn?
 
+        controller = event.payload[:request]&.controller_instance
         logger.warn(message:   message,
                     payload:   payload,
-                    backtrace: clean_backtrace(event.payload[:stack_trace]),
+                    backtrace: clean_backtrace(event.payload[:stack_trace], controller),
                     metric:    metric)
       end
 

@@ -43,6 +43,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   When cleaning would remove every frame, as for a redirect from an engine's controller, the
   backtrace keeps instead the frames from the first one in the file that defines the controller's
   action, or every frame when there is none, with gem paths shortened.
+- Action Controller: clean the backtraces it logs with the application's `Rails.backtrace_cleaner`,
+  as Rails 8.1 does for its own subscriber, on every supported Rails version. Application frames
+  are logged relative to `Rails.root`, and the application's backtrace silencers apply. This covers
+  the open and path relative redirect backtraces, and the `source` of a `Redirected to` entry when
+  `ActionDispatch.verbose_redirect_logs` is on (Rails 8.1+). **Log output change:** that `source`
+  was an absolute path, such as
+  `/srv/app/app/controllers/articles_controller.rb:12:in 'ArticlesController#create'`, and is now
+  `app/controllers/articles_controller.rb:12:in 'ArticlesController#create'`, as in Rails' own log.
+  On Rails 7.2 to 8.1, Rails' cleaner also leaves out frames outside `app/`, `config/`, `lib/` and
+  `test/`, as Rails' own log does, so code in other directories, such as `packs/` or a local engine
+  in `engines/`, is no longer the `source`; add to `Rails.backtrace_cleaner` to change that. To use
+  another cleaner, assign `RailsSemanticLogger::ActionController::LogSubscriber.backtrace_cleaner`.
 - Action Controller: skip logging, as Rails does, when the controller has no logger and
   `ActionController::Base.logger` is nil, instead of raising `NoMethodError` from the subscriber.
 - Action Controller: leave the request out of the `unpermitted_parameters` context, as Rails'

@@ -12,7 +12,10 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       INTERNAL_PARAMS = %w[controller action format _method only_path].freeze
 
-      class_attribute :backtrace_cleaner, default: ActiveSupport::BacktraceCleaner.new
+      # The application's, as Rails 8.1+ gives its own Action Controller log subscriber, on every
+      # supported Rails version: the backtraces logged here are relative to Rails.root and follow the
+      # application's backtrace silencers.
+      class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
 
       class << self
         attr_accessor :action_message_format, :processing_log_level
@@ -322,9 +325,10 @@ module RailsSemanticLogger
         index ? path[0, index] : path
       end
 
-      # Rails 8.1+ BacktraceCleaner exposes #first_clean_frame for verbose redirect logging.
+      # Rails 8.1+ BacktraceCleaner exposes #first_clean_frame for verbose redirect logging. A String:
+      # Rails 8.0+'s cleaner returns the frame's location unchanged when BACKTRACE is set.
       def redirect_source_location
-        backtrace_cleaner.first_clean_frame if backtrace_cleaner.respond_to?(:first_clean_frame)
+        backtrace_cleaner.first_clean_frame&.to_s if backtrace_cleaner.respond_to?(:first_clean_frame)
       end
 
       def action_message(message, payload)

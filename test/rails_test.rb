@@ -19,6 +19,12 @@ class RailsTest < Minitest::Test
       end
     end
 
+    describe "SemanticLogger.backtrace_cleaner" do
+      it "is the application's backtrace cleaner" do
+        assert_same Rails.backtrace_cleaner, SemanticLogger.backtrace_cleaner
+      end
+    end
+
     # Rails' own :initialize_logger wraps every Rails.logger in an
     # ActiveSupport::BroadcastLogger (railties application/bootstrap.rb). BroadcastLogger
     # has no #tagged of its own, so the call falls through to its #method_missing, which

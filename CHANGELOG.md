@@ -90,6 +90,35 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   [Philippe Vaucher](https://github.com/Silex).
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
+- Clean the backtraces of logged exceptions with `Rails.backtrace_cleaner` by default, as Rails' own
+  log does. Sets Semantic Logger 5.3's `SemanticLogger.backtrace_cleaner`, so the text formatters
+  (`:default`, `:color`, ...) and the `:json` formatter, including the appenders that send JSON
+  (HTTP, TCP, UDP, Kafka, ...), write only the application's frames, relative to `Rails.root`. The
+  silencers in `config/initializers/backtrace_silencers.rb` apply, and an exception with no
+  application frames, such as one raised entirely within a gem, keeps its whole backtrace. This
+  covers every exception logged through Semantic Logger: requests, Active Job and Sidekiq job
+  failures, and the application's own `logger.error(exception)` calls. Error services, such as
+  Sentry or Bugsnag, still receive the full backtrace. See
+  [discussion #236](https://github.com/reidmorrison/rails_semantic_logger/discussions/236).
+  **Log output change:** backtraces were logged in full, with absolute paths. To log full
+  backtraces again, set the `BACKTRACE` environment variable as with the rest of Rails, opt out
+  with `config.semantic_logger.backtrace_cleaner = nil` in `config/application.rb`, or opt out
+  for one appender with `formatter: {json: {backtrace_cleaner: false}}`.
+- Action Dispatch: log a routing error, and the other exceptions in
+  `ActionDispatch::ExceptionWrapper.silent_exceptions`, without a backtrace when none of its frames
+  is the application's, as Rails' own log does. A request for a missing route, such as
+  `/apple-touch-icon.png`, is now one line instead of dozens of middleware frames:
+  `Rails -- Exception: ActionController::RoutingError: No route matches [GET] "/apple-touch-icon.png"`.
+  The logged exception is a copy without the backtrace; Rails renders, and error services report,
+  the original. With `BACKTRACE` set, or a routing error raised from application code, the
+  backtrace is kept. To leave these out of the log altogether, set
+  `config.action_dispatch.log_rescued_responses = false`.
+  See [discussion #236](https://github.com/reidmorrison/rails_semantic_logger/discussions/236).
+- Action Dispatch: log a `SyntaxError` raised while handling a request, such as one in a file that
+  Rails loads on demand in development. It was logged as
+  `ArgumentError: Invalid value for logger exception`, since Rails passes it wrapped in an
+  `ActiveSupport::SyntaxErrorProxy`.
+- Requires Semantic Logger 5.3 or later.
 
 ## [5.2.0] - 2026-09-05
 

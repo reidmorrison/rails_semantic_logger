@@ -21,6 +21,17 @@ module RailsSemanticLogger
 
     config.rails_semantic_logger = RailsSemanticLogger::Options.new
 
+    # Clean the backtraces of logged exceptions with the application's backtrace cleaner, as Rails'
+    # own log does: only the application's frames, relative to Rails.root, honoring the silencers in
+    # config/initializers/backtrace_silencers.rb, and every frame when BACKTRACE is set.
+    #
+    # Assigned before the application's configuration is read, so that the application can choose
+    # another cleaner, or none, with `config.semantic_logger.backtrace_cleaner = ...` in
+    # config/application.rb or config/environments/*.rb.
+    config.before_configuration do
+      ::SemanticLogger.backtrace_cleaner = ::Rails.backtrace_cleaner
+    end
+
     # Initialize SemanticLogger. In a Rails environment it will automatically
     # insert itself above the configured rails logger to add support for its
     # additional features

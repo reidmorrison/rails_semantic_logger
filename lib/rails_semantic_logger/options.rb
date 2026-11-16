@@ -122,6 +122,37 @@ module RailsSemanticLogger
   # * Do not replace the SolidQueue logger / log subscriber.
   #
   #     config.rails_semantic_logger.replace_solid_queue_logger = false
+  #
+  # * Do not redact the application's filter parameters from every log entry.
+  #
+  #   Rails filters `config.filter_parameters` only from the request parameters that it logs. By
+  #   default, Rails Semantic Logger also has Semantic Logger replace the value of every key that
+  #   they match with "[FILTERED]" in every log entry: in its payload, named tags, and context, at
+  #   any depth, before any appender writes it. Keys are matched by name, both as written and in
+  #   snake_case, so `X-Api-Key` is also matched as `x_api_key`. The filters are read once the
+  #   application has initialized, so those added in `config/initializers/*`, such as
+  #   `config/initializers/filter_parameter_logging.rb`, apply. See `SemanticLogger.sensitive_keys=`.
+  #
+  #   Note:
+  #   * The filters match any key that contains them, so Rails' default filters (:passw, :email,
+  #     :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc) also redact
+  #     keys such as `max_tokens`, `token_count`, `cache_key`, and `api_key_id`, every `email`, and
+  #     the `concurrency_key` of Solid Queue's entries.
+  #   * Rails' default filters do not match `Authorization` or `Cookie`; add them to
+  #     `config.filter_parameters` to redact those, e.g. `config.filter_parameters += [:authorization]`.
+  #   * Active Job `arguments` and Action Mailer `args` are logged as JSON text, which is not
+  #     redacted. For a job that takes a secret, leave its arguments out of the log with
+  #     `self.log_arguments = false`.
+  #   * Proc filters are not applied, since they change values rather than match keys.
+  #   * A dotted filter, such as "credit_card.code", only matches a key named that, not a `code` key
+  #     nested in `credit_card`, including the "model.attribute" filters that Rails adds for Active
+  #     Record encrypted attributes.
+  #   * An application that assigns its own `SemanticLogger.sensitive_keys` keeps them. Assigning
+  #     nil does not turn redaction off, since it cannot be told apart from never assigning it: use
+  #     this option.
+  #   * Entries logged before the application has initialized may not be redacted.
+  #
+  #     config.rails_semantic_logger.redact_filter_parameters = false
   class Options
     # Settings consumed while the logger itself is built, during Rails'
     # `:initialize_logger` initializer. Changing them after that (e.g. from
@@ -131,7 +162,9 @@ module RailsSemanticLogger
     # Settings consumed as Rails finishes initializing (`config.after_initialize`),
     # which runs *after* `config/initializers/*`. They may still be set there, but
     # changing them after the application has booted has no effect.
-    POST_INIT_SETTINGS = %i[started processing rendered quiet_assets action_message_format].freeze
+    POST_INIT_SETTINGS = %i[
+      started processing rendered quiet_assets action_message_format redact_filter_parameters
+    ].freeze
 
     attr_reader(*LOGGER_INIT_SETTINGS, *POST_INIT_SETTINGS)
 
@@ -167,6 +200,7 @@ module RailsSemanticLogger
       @action_message_format      = nil
       @replace_sidekiq_logger     = true
       @replace_solid_queue_logger = true
+      @redact_filter_parameters   = true
     end
 
     # Declare the appenders for Rails Semantic Logger to create, replacing the

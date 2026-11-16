@@ -201,6 +201,13 @@ module RailsSemanticLogger
       end
     end
 
+    # Redact the application's filter parameters from every log entry. Not before now, since
+    # config/initializers/filter_parameter_logging.rb adds to them. Registered before the hook below,
+    # so that it runs first.
+    config.after_initialize do
+      RailsSemanticLogger.redact_filter_parameters(Rails.application.config)
+    end
+
     # After any initializers run, but after the gems have been loaded
     config.after_initialize do
       config = Rails.application.config

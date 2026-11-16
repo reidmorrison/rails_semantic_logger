@@ -10,9 +10,20 @@ module ActionDispatch
       Rails.application.deprecators.silence do
         return if !log_rescued_responses?(request) && wrapper.rescue_response?
 
-        level = request.get_header("action_dispatch.debug_exception_log_level")
-        ActionController::Base.logger.log(level, **semantic_logger_arguments(wrapper))
+        level     = request.get_header("action_dispatch.debug_exception_log_level")
+        logger    = ActionController::Base.logger
+        call_site = semantic_logger_call_site(wrapper, logger, level)
+        logger.log(level, **semantic_logger_arguments(wrapper), call_site: call_site)
       end
+    end
+
+    # Returns the entry's call site, or nil when it records none: where the application raised the
+    # exception, the first frame of its backtrace that the request's backtrace cleaner keeps before
+    # Rails took over (see RailsSemanticLogger::ApplicationFrame.in_backtrace), or else false, as for a
+    # routing error raised in middleware, rather than the frame that logs the entry.
+    def semantic_logger_call_site(wrapper, logger, level)
+      cleaner = wrapper.backtrace_cleaner || ::Rails.backtrace_cleaner
+      RailsSemanticLogger.exception_call_site(wrapper.exception, cleaner, logger, level)
     end
 
     # Returns the arguments of the entry that logs the exception.

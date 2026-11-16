@@ -26,11 +26,16 @@ module RailsSemanticLogger
       @processing_log_level = :debug
 
       def start_processing(event)
-        controller_logger(event)&.send(self.class.processing_log_level) { action_message("Processing", event.payload) }
+        logger = controller_logger(event)
+        level  = self.class.processing_log_level
+        logger&.send(level, call_site: call_site(event, logger, level, from_stack: false)) do
+          action_message("Processing", event.payload)
+        end
       end
 
       def process_action(event)
-        controller_logger(event)&.info do
+        logger = controller_logger(event)
+        logger&.info(call_site: call_site(event, logger, :info, from_stack: false)) do
           # `event.payload` is shared with every other subscriber on this notification, so we work on
           # a copy. A shallow `dup` is sufficient: only mutate `payload` via top-level key reassignment
           # (e.g. `payload[:format] = ...`) or by writing into a freshly-created hash (e.g. the `.except`
@@ -95,7 +100,8 @@ module RailsSemanticLogger
       end
 
       def halted_callback(event)
-        controller_logger(event)&.info do
+        logger = controller_logger(event)
+        logger&.info(call_site: call_site(event, logger, :info, from_stack: false)) do
           {
             message: "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected",
             metric:  "rails.controller.halted_callback"
@@ -106,8 +112,11 @@ module RailsSemanticLogger
       # Rails 8.1+ emits this event when an exception is handled by a `rescue_from` callback.
       # On earlier Rails versions the event is never instrumented, so this handler is dormant.
       def rescue_from_callback(event)
-        controller_logger(event)&.info do
-          exception = event.payload[:exception]
+        logger    = controller_logger(event)
+        exception = event.payload[:exception]
+        return unless logger
+
+        logger.info(call_site: RailsSemanticLogger.exception_call_site(exception, backtrace_cleaner, logger, :info)) do
           backtrace = exception.backtrace&.first
           backtrace = backtrace&.delete_prefix("#{Rails.root}/") if defined?(Rails.root) && Rails.root
 
@@ -124,24 +133,25 @@ module RailsSemanticLogger
       end
 
       def send_file(event)
-        controller_logger(event)&.info(message:  "Sent file",
-                                       payload:  {path: event.payload[:path]},
-                                       duration: event.duration,
-                                       metric:   "rails.controller.send_file")
+        logger = controller_logger(event)
+        logger&.info(message: "Sent file", payload: {path: event.payload[:path]}, duration: event.duration,
+                     metric: "rails.controller.send_file", call_site: call_site(event, logger, :info))
       end
 
       def redirect_to(event)
         payload = {location: event.payload[:location]}
 
         # Rails 8.1+ optionally logs the source location of the redirect when
-        # ActionDispatch.verbose_redirect_logs is enabled.
+        # ActionDispatch.verbose_redirect_logs is enabled. The same frame is the entry's call site.
         if ActionDispatch.respond_to?(:verbose_redirect_logs) && ActionDispatch.verbose_redirect_logs
-          source           = redirect_source_location
+          frame            = RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner, for_source: true)
+          source           = frame.source
           payload[:source] = source if source
         end
 
-        controller_logger(event)&.info(message: "Redirected to", payload: payload,
-                                       metric: "rails.controller.redirect_to")
+        logger = controller_logger(event)
+        logger&.info(message: "Redirected to", payload: payload, metric: "rails.controller.redirect_to",
+                     call_site: call_site(event, logger, :info, frame: frame))
       end
 
       # Rails 8.1+ emits this event for a redirect to another host when
@@ -177,14 +187,14 @@ module RailsSemanticLogger
       end
 
       def send_data(event)
-        controller_logger(event)&.info(message:  "Sent data",
-                                       payload:  {file_name: event.payload[:filename]},
-                                       duration: event.duration,
-                                       metric:   "rails.controller.send_data")
+        logger = controller_logger(event)
+        logger&.info(message: "Sent data", payload: {file_name: event.payload[:filename]}, duration: event.duration,
+                     metric: "rails.controller.send_data", call_site: call_site(event, logger, :info))
       end
 
       def unpermitted_parameters(event)
-        controller_logger(event)&.debug do
+        logger = controller_logger(event)
+        logger&.debug(call_site: call_site(event, logger, :debug)) do
           unpermitted_keys = event.payload[:keys]
           payload          = {keys: unpermitted_keys}
           # Rails includes the controller/action context alongside the rejected keys. Leave out the
@@ -219,7 +229,8 @@ module RailsSemanticLogger
         class_eval <<-METHOD, __FILE__, __LINE__ + 1
           def #{method}(event)
             return unless ::ActionController::Base.enable_fragment_cache_logging
-            controller_logger(event)&.info do
+            logger = controller_logger(event)
+            logger&.info(call_site: call_site(event, logger, :info)) do
               key_or_path = event.payload[:key] || event.payload[:path]
               {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration, metric: "rails.controller.#{method.delete('?')}"}
             end
@@ -228,6 +239,36 @@ module RailsSemanticLogger
       end
 
       private
+
+      # Returns the call site of an entry about the event logged at the level, or nil when the entry
+      # records none (see RailsSemanticLogger.call_site?).
+      #
+      # With from_stack, for an event that the action itself causes, such as a redirect_to call, it
+      # is the first frame of the application's code on the stack. Otherwise, or without one, it is
+      # where the controller defines its action, since Rails reports events such as a completed
+      # action once the action has returned. False when neither is known, so that the entry records
+      # no call site rather than Active Support's frame.
+      #
+      # The frame, a RailsSemanticLogger::ApplicationFrame, is the one already found for the entry's
+      # source, if any.
+      def call_site(event, logger, level, from_stack: true, frame: nil)
+        return unless logger && RailsSemanticLogger.call_site?(logger, level)
+
+        frame ||= RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner) if from_stack
+        frame&.call_site || action_call_site(event.payload) || false
+      end
+
+      # Returns [SemanticLogger::CallSite|nil] where the controller handling the event defines its
+      # action. Most events carry the request, which knows its controller; the unpermitted parameters
+      # and CSRF events name the controller and action instead.
+      def action_call_site(payload)
+        controller = payload[:request]&.controller_instance
+        return RailsSemanticLogger.method_call_site(controller.class, controller.action_name) if controller
+
+        names      = payload[:context] || payload
+        controller = names[:controller].is_a?(String) ? names[:controller].safe_constantize : nil
+        RailsSemanticLogger.method_call_site(controller, names[:action]) if controller && names[:action]
+      end
 
       # Returns the logger of the controller that emitted the event, or ActionController::Base.logger
       # when the event names no controller or it cannot be found. Like Rails, which skips logging
@@ -306,7 +347,8 @@ module RailsSemanticLogger
       def log_csrf_warning(event_name, event, message)
         return unless ::ActionController::Base.log_warning_on_csrf_failure
 
-        controller_logger(event)&.warn do
+        logger = controller_logger(event)
+        logger&.warn(call_site: call_site(event, logger, :warn, from_stack: false)) do
           payload = event.payload
           {
             message: message,
@@ -323,12 +365,6 @@ module RailsSemanticLogger
       def extract_path(path)
         index = path.index("?")
         index ? path[0, index] : path
-      end
-
-      # Rails 8.1+ BacktraceCleaner exposes #first_clean_frame for verbose redirect logging. A String:
-      # Rails 8.0+'s cleaner returns the frame's location unchanged when BACKTRACE is set.
-      def redirect_source_location
-        backtrace_cleaner.first_clean_frame&.to_s if backtrace_cleaner.respond_to?(:first_clean_frame)
       end
 
       def action_message(message, payload)

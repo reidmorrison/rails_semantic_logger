@@ -151,6 +151,42 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     nested in `credit_card`. That includes the `"model.attribute"` filters that Rails adds for
     Active Record encrypted attributes.
   - Entries logged before the application has initialized may not be redacted.
+- Record where each entry was logged, with Semantic Logger 5.3's `SemanticLogger.call_site_level`:
+  the file, line, and method of the code behind it. The text formatters write it after the thread,
+  such as `[1234:puma 1 articles_controller.rb:15 ArticlesController#index]`, and the `:json`
+  formatter as `file`, `line`, and `method`. Unlike `backtrace_level`, it reads only the frames up to
+  that code, about a microsecond per entry. For the entries of Rails' events, Rails Semantic Logger
+  reads the stack up to the first application frame, with the subscriber's backtrace cleaner, which
+  costs more. When there is none, it reads up to where Rails took over from the application, or the
+  whole stack, when Rails did not take over, or a `verbose_*_logs` option needs the entry's source.
+  - On by default in development, at every level. **Log output change:** to turn it off, or choose
+    another level, set `config.semantic_logger.call_site_level = nil` (or `:info`, ...) in
+    `config/application.rb`, `config/environments/development.rb`, or an initializer.
+  - In the Rails console it replaces `backtrace_level`, which captured a backtrace for every entry
+    at the default level. Backtraces in the console are back to the `:error` default.
+  - The entries for Rails' events record the application code behind them, not Active Support's
+    frame: for a query, the code that ran it; for a redirect, `send_data`, `send_file`, unpermitted
+    parameters, and fragment caching, the line in the action; for Processing, Completed, and CSRF
+    warnings, the controller's action; for `rescue_from`, where the exception was raised; for a
+    render, the code that called `render`, or the template that rendered a partial; for Active Job,
+    the code that enqueued or performed the job, or else the job's `#perform`; for Action Mailer,
+    the code that delivered the mail, or else the mailer's action; for an exception that a request
+    raised, including in a live or streamed response, where the application raised it.
+  - Application code that only wraps what Rails runs, such as an `around_action`, or a worker's
+    middleware, is not taken for the code behind an entry that Rails logs once it has taken over.
+    The search stops where Rails dispatches an action, and where Active Job performs a job from its
+    queue, so a template that Rails renders once the action has returned records no call site, and
+    a job that a worker performs records its `#perform`, as does a job performed by the inline or
+    test adapter. An action, or `#perform`, that a class inherits is labelled with the class that
+    defines it, and a compiled template's frame has no label, since Rails names its method with
+    numbers that change on every boot. With `BACKTRACE` set, every frame is the application's, so
+    the call site is the first frame outside Rails Semantic Logger.
+  - Entries with no application code behind them record no call site: Rack's `Started`, a halted
+    filter chain, Sidekiq's job start, completion, and error handler entries, and Solid Queue's.
+- Active Record: decide whether to log a query's backtrace by its entry's level, `:debug`, as
+  Semantic Logger does, rather than the logger's level. With the logger at `:trace` and
+  `SemanticLogger.backtrace_level = :debug`, the backtrace started in Active Support rather than at
+  the application code that ran the query.
 - Requires Semantic Logger 5.3 or later.
 
 ## [5.2.0] - 2026-09-05

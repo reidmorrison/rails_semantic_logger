@@ -18,6 +18,10 @@ module RailsSemanticLogger
     class LogSubscriber < ActiveSupport::LogSubscriber
       VIEWS_PATTERN = %r{^app/views/}
 
+      # The application's, to find the application code that rendered a template: the action, or
+      # the template that rendered a partial.
+      class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
+
       class << self
         attr_accessor :rendered_log_level
 
@@ -26,6 +30,17 @@ module RailsSemanticLogger
         # initialized.
         def logger
           @logger ||= ::ActionView::Base.logger
+        end
+
+        # Returns the call site of a render entry that the logger logs at the level, or nil when it
+        # records none: the application code that rendered the template, such as the action that
+        # called render, or the template that rendered a partial. False when there is none, as for a
+        # template that Rails renders once the action has returned, even inside an around_action, so
+        # that the entry records no call site rather than Active Support's frame (see ApplicationFrame).
+        def call_site(logger, level)
+          return unless RailsSemanticLogger.call_site?(logger, level)
+
+          RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner).call_site || false
         end
       end
 
@@ -47,9 +62,10 @@ module RailsSemanticLogger
         logger.measure(
           self.class.rendered_log_level,
           "Rendered",
-          payload:  payload,
-          duration: event.duration,
-          metric:   "rails.view.render.template"
+          payload:   payload,
+          duration:  event.duration,
+          metric:    "rails.view.render.template",
+          call_site: call_site
         )
       end
 
@@ -67,9 +83,10 @@ module RailsSemanticLogger
         logger.measure(
           self.class.rendered_log_level,
           "Rendered",
-          payload:  payload,
-          duration: event.duration,
-          metric:   "rails.view.render.partial"
+          payload:   payload,
+          duration:  event.duration,
+          metric:    "rails.view.render.partial",
+          call_site: call_site
         )
       end
 
@@ -85,9 +102,10 @@ module RailsSemanticLogger
         logger.measure(
           self.class.rendered_log_level,
           "Rendered layout",
-          payload:  payload,
-          duration: event.duration,
-          metric:   "rails.view.render.layout"
+          payload:   payload,
+          duration:  event.duration,
+          metric:    "rails.view.render.layout",
+          call_site: call_site
         )
       end
 
@@ -107,9 +125,10 @@ module RailsSemanticLogger
         logger.measure(
           self.class.rendered_log_level,
           "Rendered",
-          payload:  payload,
-          duration: event.duration,
-          metric:   "rails.view.render.collection"
+          payload:   payload,
+          duration:  event.duration,
+          metric:    "rails.view.render.collection",
+          call_site: call_site
         )
       end
 
@@ -119,7 +138,8 @@ module RailsSemanticLogger
           payload          = {template: from_rails_root(payload[:identifier])}
           payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
-          logger.send(self.class.rendered_log_level, message: "Rendering#{qualifier}", payload: payload)
+          logger.send(self.class.rendered_log_level, message: "Rendering#{qualifier}", payload: payload,
+                                                     call_site: call_site)
         end
 
         super
@@ -133,7 +153,7 @@ module RailsSemanticLogger
           payload          = {template: from_rails_root(payload[:identifier])}
           payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
-          logger.debug(message: "Rendering#{qualifier}", payload: payload)
+          logger.debug(message: "Rendering#{qualifier}", payload: payload, call_site: call_site)
         end
 
         def finish(name, id, payload)
@@ -153,6 +173,10 @@ module RailsSemanticLogger
 
         def logger
           @logger ||= ::ActionView::Base.logger
+        end
+
+        def call_site
+          LogSubscriber.call_site(logger, :debug)
         end
       end
 
@@ -189,6 +213,10 @@ module RailsSemanticLogger
 
       def logger
         self.class.logger
+      end
+
+      def call_site
+        self.class.call_site(logger, self.class.rendered_log_level)
       end
     end
   end

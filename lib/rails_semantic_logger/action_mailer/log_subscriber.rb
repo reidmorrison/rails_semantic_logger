@@ -13,6 +13,9 @@ require "action_mailer"
 module RailsSemanticLogger
   module ActionMailer
     class LogSubscriber < ::ActiveSupport::LogSubscriber
+      # The application's, to find the application code that sent the mail.
+      class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
+
       def deliver(event)
         # Rails gates this event with `subscribe_log_level :deliver, :debug`, so the upstream
         # subscriber only runs when the logger is at debug level (or lower). Match that here.
@@ -136,7 +139,24 @@ module RailsSemanticLogger
         # Emit a metric for every info/warn/error entry, named after the notification
         # (e.g. "deliver.action_mailer" -> "rails.mailer.deliver"). Debug entries (process) are excluded.
         msg[:metric] ||= "rails.mailer.#{kw_args[:event].name.split('.').first}" unless level == :debug
-        logger.public_send(level, **msg, payload: fmt.payload)
+        logger.public_send(level, **msg, payload: fmt.payload, call_site: call_site(kw_args[:event], level))
+      end
+
+      # Returns the call site of an entry about the event logged at the level, or nil when it records
+      # none: the application code on the stack, such as the code that called deliver_now, else where
+      # the mailer defines the action that built the mail, as for mail delivered by a job, else false,
+      # so that the entry records no call site rather than Active Support's frame.
+      def call_site(event, level)
+        return unless RailsSemanticLogger.call_site?(logger, level)
+
+        RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner).call_site ||
+          mailer_action_call_site(event.payload) || false
+      end
+
+      # Only the process event names the action.
+      def mailer_action_call_site(payload)
+        mailer = payload[:mailer].is_a?(String) ? payload[:mailer].safe_constantize : nil
+        RailsSemanticLogger.method_call_site(mailer, payload[:action]) if mailer && payload[:action]
       end
 
       def logger

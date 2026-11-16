@@ -28,7 +28,8 @@ module RailsSemanticLogger
             logger.info(
               "Start #perform",
               metric:        "sidekiq.queue.latency",
-              metric_amount: job_latency_ms(item)
+              metric_amount: job_latency_ms(item),
+              call_site:     false
             )
           end
 
@@ -39,6 +40,7 @@ module RailsSemanticLogger
               on_exception_level: :error,
               log_exception:      :full,
               metric:             "sidekiq.job.perform",
+              call_site:          false,
               &block
             )
           elsif block_given?

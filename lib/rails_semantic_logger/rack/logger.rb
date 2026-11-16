@@ -42,7 +42,8 @@ module RailsSemanticLogger
         }
         handle.start
 
-        logger.send(self.class.started_request_log_level) { started_request_message(request) }
+        # No call site: no application code has run yet, and this middleware's caller is another one.
+        logger.send(self.class.started_request_log_level, call_site: false) { started_request_message(request) }
         status, headers, body = @app.call(env)
         body                  = ::Rack::BodyProxy.new(body, &instrumenter_finish)
         [status, headers, body]

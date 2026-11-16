@@ -28,8 +28,15 @@ module RailsSemanticLogger
     # Assigned before the application's configuration is read, so that the application can choose
     # another cleaner, or none, with `config.semantic_logger.backtrace_cleaner = ...` in
     # config/application.rb or config/environments/*.rb.
+    #
+    # In development, also record where each entry was logged, at every level: the file, line, and
+    # method of the code behind it. Assigned before the application's configuration is read, so that
+    # the application can choose another level, or turn it off, with
+    # `config.semantic_logger.call_site_level = nil` in config/application.rb,
+    # config/environments/development.rb, or an initializer.
     config.before_configuration do
       ::SemanticLogger.backtrace_cleaner = ::Rails.backtrace_cleaner
+      RailsSemanticLogger.record_call_sites_in_development(::Rails.env)
     end
 
     # Initialize SemanticLogger. In a Rails environment it will automatically
@@ -321,8 +328,9 @@ module RailsSemanticLogger
         # Add a stderr logger when running inside a Rails console unless one has already been added.
         RailsSemanticLogger.add_console_appenders
 
-        # Include method names on log entries in the console
-        SemanticLogger.backtrace_level = SemanticLogger.default_level
+        # Include where each entry was logged, its file, line, and method, on the entries logged in the
+        # console. Unlike a backtrace, this reads only the frames up to the code that logged the entry.
+        SemanticLogger.call_site_level = SemanticLogger.default_level
       end
 
       # Initialization is complete; the post-init settings have been consumed, so

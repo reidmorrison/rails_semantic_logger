@@ -11,6 +11,8 @@ module RailsSemanticLogger
             job_hash = ctx[:job] || {}
             klass    = job_hash["display_class"] || job_hash["wrapped"] || job_hash["class"]
             logger   = klass ? SemanticLogger[klass] : ::Sidekiq.logger
+            # No call site: Sidekiq calls this handler with none of the application's code on the stack.
+            ctx = ctx.merge(call_site: false)
             ctx[:context] ? logger.info(ctx[:context], ctx) : logger.info(ctx)
           end
         end

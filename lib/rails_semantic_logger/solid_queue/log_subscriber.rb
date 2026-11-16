@@ -164,8 +164,10 @@ module RailsSemanticLogger
         }
       end
 
+      # Solid Queue's own processes log these events, with no application code on the stack, so they
+      # record no call site rather than one inside Solid Queue.
       def log_event(event, level, action, exception: nil, **attributes)
-        logger.public_send(level) do
+        logger.public_send(level, call_site: false) do
           msg = {message: action, payload: attributes, duration: event.duration}
           msg[:exception] = exception if exception
           # Emit a metric for every info/warn/error entry, named after the notification

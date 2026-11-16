@@ -46,18 +46,59 @@ module RailsSemanticLogger
     @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
   end
 
-  # Returns the first frame of the current call stack that the backtrace cleaner keeps, as a String,
-  # or nil when it keeps none. This is how Rails' log subscribers find the application code behind
-  # an entry for their verbose_*_logs options: Rails 7.2 and 8.0 walk the frames with `clean_frame`,
-  # and Rails 8.1 calls the cleaner's `first_clean_frame`, which does the same. This works on every
+  # Returns [Thread::Backtrace::Location|nil] the first frame of the current call stack that the
+  # backtrace cleaner keeps: the application code behind an entry, such as the code that ran a query.
+  # nil when the cleaner keeps none. This is how Rails' log subscribers find that code for their
+  # verbose_*_logs options: Rails 7.2 and 8.0 walk the frames with `clean_frame`, and Rails 8.1's
+  # cleaner has `first_clean_location` and `first_clean_frame`, which do the same. This works on every
   # supported version.
-  def self.first_clean_frame(backtrace_cleaner)
+  #
+  # The location is an entry's call site (see SemanticLogger.call_site_level), and .clean_frame
+  # writes it as the entry's source.
+  def self.first_clean_location(backtrace_cleaner)
     Thread.each_caller_location do |location|
-      # A String: Rails 8.0+'s cleaner returns the location unchanged when BACKTRACE is set.
-      frame = backtrace_cleaner.clean_frame(location)
-      return frame.to_s if frame
+      return location if backtrace_cleaner.clean_frame(location)
     end
     nil
+  end
+
+  # Returns [String] the frame at the location as the backtrace cleaner writes it, such as
+  # "app/models/user.rb:12:in 'User.recent'", which Rails logs as the "↳ source" of an entry.
+  def self.clean_frame(backtrace_cleaner, location)
+    # A String: Rails 8.0+'s cleaner returns the location unchanged when BACKTRACE is set.
+    backtrace_cleaner.clean_frame(location).to_s
+  end
+
+  # Whether an entry that the logger logs at the level records a call site: the logger logs at that
+  # level, and the level is at or above SemanticLogger.call_site_level. Otherwise there is no reason
+  # to look for the entry's call site.
+  def self.call_site?(logger, level)
+    SemanticLogger::Levels.index(level) >= SemanticLogger.call_site_level_index && logger.public_send(:"#{level}?")
+  end
+
+  # Returns [SemanticLogger::CallSite|nil] where the class defines the instance method, such as a
+  # controller's action or a job's #perform, with a label such as "ArticlesController#index", as
+  # Ruby 3.4 labels the method's frames. It is the call site of an entry about that method when none
+  # of the application's code is on the stack, as when Rails reports that an action has completed.
+  #
+  # nil when the class has no such method, as for an action that only renders its template, or when
+  # Ruby cannot say where it is defined.
+  def self.method_call_site(klass, method_name)
+    path, line = klass.instance_method(method_name).source_location
+    return unless path.is_a?(String) && line.is_a?(Integer)
+
+    label = klass.name ? "#{klass.name}##{method_name}" : method_name.to_s
+    SemanticLogger::CallSite.new(path: -path, line: line, label: -label)
+  rescue NameError
+    nil
+  end
+
+  # Record where each entry was logged in development, at every level, unless the application has
+  # already chosen a call site level. The engine calls this before the application's configuration
+  # is read, so that config/application.rb, config/environments/development.rb or an initializer can
+  # choose another level, or turn it off with `config.semantic_logger.call_site_level = nil`.
+  def self.record_call_sites_in_development(env)
+    SemanticLogger.call_site_level = :trace if env.development? && SemanticLogger.call_site_level.nil?
   end
 
   # Redact the application's filter parameters (`config.filter_parameters`) from every log entry,

@@ -2,7 +2,8 @@ source "https://rubygems.org"
 
 gemspec
 
-# Semantic Logger 5.3, which this gem requires, is not released yet. Remove once it is.
+# Semantic Logger 5.3 is not released yet, and the changes built on this need it. Once it is, remove
+# this line and run `appraisal generate`, since CI installs from the gemfiles/ that it generates.
 gem "semantic_logger", github: "reidmorrison/semantic_logger", branch: "main"
 
 gem "appraisal"

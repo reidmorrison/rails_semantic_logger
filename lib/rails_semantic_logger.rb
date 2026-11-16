@@ -63,7 +63,8 @@ module RailsSemanticLogger
   # Redact the application's filter parameters (`config.filter_parameters`) from every log entry,
   # by making them Semantic Logger's sensitive keys (see SemanticLogger.sensitive_keys=), unless
   # the application turned this off with `config.rails_semantic_logger.redact_filter_parameters`,
-  # or assigned `SemanticLogger.sensitive_keys` itself.
+  # or assigned its own `SemanticLogger.sensitive_keys`. An assigned nil cannot be told apart from
+  # none, so it does not turn redaction off.
   #
   # Called by the engine once the application has initialized, so that the filters added in
   # `config/initializers/*` apply.

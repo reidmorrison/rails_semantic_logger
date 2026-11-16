@@ -131,18 +131,25 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `SemanticLogger.sensitive_keys` once the application has initialized, so the value of every key
   that the filters match is written as `"[FILTERED]"` in the payload, named tags, and context of
   every entry, at any depth, by every appender. Keys are matched as written and in snake_case, so
-  a `password` in a job's arguments, or an `X-Api-Key` header in a payload, is redacted. See
+  an `X-Api-Key` header in a payload is redacted, as `x_api_key`. See
   [semantic_logger discussion #272](https://github.com/reidmorrison/semantic_logger/discussions/272).
   **Log output change:** the filters match any key that contains them, so Rails' default filters
   (`:passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc`)
-  also redact keys such as `max_tokens`, `token_count`, `cache_key`, and `api_key_id`, and every
-  `email`. To opt out, set `config.rails_semantic_logger.redact_filter_parameters = false`. An
-  application that assigns `SemanticLogger.sensitive_keys` itself keeps its own value. Limits:
+  also redact keys such as `max_tokens`, `token_count`, `cache_key`, and `api_key_id`, every
+  `email`, and the `concurrency_key` of Solid Queue's entries. To opt out, set
+  `config.rails_semantic_logger.redact_filter_parameters = false`; assigning
+  `SemanticLogger.sensitive_keys = nil` does not opt out, since it cannot be told apart from never
+  assigning it. An application that assigns its own `SemanticLogger.sensitive_keys` keeps them.
+  Limits:
   - Rails' default filters do not match `Authorization` or `Cookie`; add them, e.g.
     `config.filter_parameters += [:authorization, :cookie]`.
+  - Active Job `arguments` and Action Mailer `args` are logged as JSON text, which is not redacted.
+    For a job that takes a secret, leave its arguments out of the log with
+    `self.log_arguments = false`.
   - Proc filters are not applied, since they change values rather than match keys.
   - A dotted filter, such as `"credit_card.code"`, only matches a key named that, not a `code` key
-    nested in `credit_card`.
+    nested in `credit_card`. That includes the `"model.attribute"` filters that Rails adds for
+    Active Record encrypted attributes.
   - Entries logged before the application has initialized may not be redacted.
 - Requires Semantic Logger 5.3 or later.
 

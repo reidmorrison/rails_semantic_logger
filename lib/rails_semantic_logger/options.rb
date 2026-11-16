@@ -136,13 +136,20 @@ module RailsSemanticLogger
   #   Note:
   #   * The filters match any key that contains them, so Rails' default filters (:passw, :email,
   #     :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc) also redact
-  #     keys such as `max_tokens`, `token_count`, `cache_key`, and `api_key_id`.
+  #     keys such as `max_tokens`, `token_count`, `cache_key`, and `api_key_id`, every `email`, and
+  #     the `concurrency_key` of Solid Queue's entries.
   #   * Rails' default filters do not match `Authorization` or `Cookie`; add them to
   #     `config.filter_parameters` to redact those, e.g. `config.filter_parameters += [:authorization]`.
+  #   * Active Job `arguments` and Action Mailer `args` are logged as JSON text, which is not
+  #     redacted. For a job that takes a secret, leave its arguments out of the log with
+  #     `self.log_arguments = false`.
   #   * Proc filters are not applied, since they change values rather than match keys.
   #   * A dotted filter, such as "credit_card.code", only matches a key named that, not a `code` key
-  #     nested in `credit_card`.
-  #   * An application that assigns `SemanticLogger.sensitive_keys` itself keeps its own value.
+  #     nested in `credit_card`, including the "model.attribute" filters that Rails adds for Active
+  #     Record encrypted attributes.
+  #   * An application that assigns its own `SemanticLogger.sensitive_keys` keeps them. Assigning
+  #     nil does not turn redaction off, since it cannot be told apart from never assigning it: use
+  #     this option.
   #   * Entries logged before the application has initialized may not be redacted.
   #
   #     config.rails_semantic_logger.redact_filter_parameters = false

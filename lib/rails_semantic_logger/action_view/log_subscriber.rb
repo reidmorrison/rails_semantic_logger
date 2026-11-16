@@ -35,12 +35,12 @@ module RailsSemanticLogger
         # Returns the call site of a render entry that the logger logs at the level, or nil when it
         # records none: the application code that rendered the template, such as the action that
         # called render, or the template that rendered a partial. False when there is none, as for a
-        # template that Rails renders once the action has returned, so that the entry records no call
-        # site rather than Active Support's frame.
+        # template that Rails renders once the action has returned, even inside an around_action, so
+        # that the entry records no call site rather than Active Support's frame (see ApplicationFrame).
         def call_site(logger, level)
           return unless RailsSemanticLogger.call_site?(logger, level)
 
-          RailsSemanticLogger.first_clean_location(backtrace_cleaner) || false
+          RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner).call_site || false
         end
       end
 

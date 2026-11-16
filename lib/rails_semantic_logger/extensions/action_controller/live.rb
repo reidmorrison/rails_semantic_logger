@@ -7,7 +7,10 @@ ActiveSupport.on_load(:action_controller, run_once: true) do
   ActionController::Live.module_eval do
     undef_method :log_error
     def log_error(exception)
-      logger.fatal(exception)
+      logger.fatal(
+        exception: exception,
+        call_site: RailsSemanticLogger.exception_call_site(exception, Rails.backtrace_cleaner, logger, :fatal)
+      )
     end
   end
 end

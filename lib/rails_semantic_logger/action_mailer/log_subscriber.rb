@@ -149,7 +149,8 @@ module RailsSemanticLogger
       def call_site(event, level)
         return unless RailsSemanticLogger.call_site?(logger, level)
 
-        RailsSemanticLogger.first_clean_location(backtrace_cleaner) || mailer_action_call_site(event.payload) || false
+        RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner).call_site ||
+          mailer_action_call_site(event.payload) || false
       end
 
       # Only the process event names the action.

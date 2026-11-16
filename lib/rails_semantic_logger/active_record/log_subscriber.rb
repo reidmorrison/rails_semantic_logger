@@ -12,7 +12,7 @@
 # `query_source_location` helper, which finds the "↳ source" that `verbose_query_logs` adds below
 # each debug line, and a `:nodoc:` comment. Rails 7.2 and 8.0 walk `Thread.each_caller_location`
 # with the backtrace cleaner's `clean_frame`, and 8.1 calls the cleaner's `first_clean_frame`, which
-# does the same. This subscriber walks the frames with `RailsSemanticLogger.first_clean_location`, as
+# does the same. This subscriber walks the frames with `RailsSemanticLogger::ApplicationFrame`, as
 # 7.2 and 8.0 do, on every version, and adds the source to the payload. The same frame is the entry's
 # call site (see SemanticLogger.call_site_level). As a result no version-specific behavior is
 # required here.
@@ -41,13 +41,14 @@ module RailsSemanticLogger
 
         log_payload = {owner: owner.name, association: reflection.name}
         log_payload[:class] = reflection.klass.name unless reflection.polymorphic?
-        location             = application_location
-        log_payload[:source] = query_source(location) if query_source?(location)
+        frame                = application_frame
+        source               = frame&.source if ::ActiveRecord.verbose_query_logs
+        log_payload[:source] = source if source
 
         logger.debug(
           message:   reflection.strict_loading_violation_message(owner),
           payload:   log_payload,
-          call_site: location || false
+          call_site: frame&.call_site || false
         )
       end
 
@@ -66,15 +67,16 @@ module RailsSemanticLogger
           log_payload[:async]     = true
           log_payload[:lock_wait] = payload[:lock_wait] if payload[:lock_wait]
         end
-        location             = application_location
-        log_payload[:source] = query_source(location) if query_source?(location)
+        frame                = application_frame
+        source               = frame&.source if ::ActiveRecord.verbose_query_logs
+        log_payload[:source] = source if source
 
         log = {
           message:   name,
           payload:   log_payload,
           duration:  event.duration,
           # No call site when no application code ran the query, rather than Active Support's frame.
-          call_site: location || false
+          call_site: frame&.call_site || false
         }
 
         # Log the location of the query itself. The entry is logged at :debug, so that is the level
@@ -88,24 +90,14 @@ module RailsSemanticLogger
 
       private
 
-      # Returns the application code that ran the query, or that triggered the strict loading
-      # violation: the first frame of the call stack that the backtrace cleaner keeps. It is the
-      # entry's source when `verbose_query_logs` is on, and its call site when the entry records one.
-      # Returns nil when the entry needs neither, or the cleaner keeps no frame.
-      def application_location
+      # Returns [ApplicationFrame|nil] the application code that ran the query, or that triggered the
+      # strict loading violation, when the entry needs it: as its source, which Rails logs as
+      # "↳ source" below the entry when `verbose_query_logs` is on, or as its call site. nil when it
+      # needs neither.
+      def application_frame
         return unless ::ActiveRecord.verbose_query_logs || RailsSemanticLogger.call_site?(logger, :debug)
 
-        RailsSemanticLogger.first_clean_location(backtrace_cleaner)
-      end
-
-      # Whether to log the location as the entry's source, which Rails logs as "↳ source" below the
-      # entry when `verbose_query_logs` is on.
-      def query_source?(location)
-        location && ::ActiveRecord.verbose_query_logs
-      end
-
-      def query_source(location)
-        RailsSemanticLogger.clean_frame(backtrace_cleaner, location)
+        RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner, for_source: ::ActiveRecord.verbose_query_logs)
       end
 
       # When multiple values are received for a single bound field, it is converted into an array

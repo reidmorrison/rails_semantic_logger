@@ -37,6 +37,7 @@ module RailsSemanticLogger
     autoload :LogSubscriber, "rails_semantic_logger/solid_queue/log_subscriber"
   end
 
+  autoload :ApplicationFrame, "rails_semantic_logger/application_frame"
   autoload :Appenders, "rails_semantic_logger/appenders"
   autoload :Options, "rails_semantic_logger/options"
 
@@ -46,48 +47,41 @@ module RailsSemanticLogger
     @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
   end
 
-  # Returns [Thread::Backtrace::Location|nil] the first frame of the current call stack that the
-  # backtrace cleaner keeps: the application code behind an entry, such as the code that ran a query.
-  # nil when the cleaner keeps none. This is how Rails' log subscribers find that code for their
-  # verbose_*_logs options: Rails 7.2 and 8.0 walk the frames with `clean_frame`, and Rails 8.1's
-  # cleaner has `first_clean_location` and `first_clean_frame`, which do the same. This works on every
-  # supported version.
-  #
-  # The location is an entry's call site (see SemanticLogger.call_site_level), and .clean_frame
-  # writes it as the entry's source.
-  def self.first_clean_location(backtrace_cleaner)
-    Thread.each_caller_location do |location|
-      return location if backtrace_cleaner.clean_frame(location)
-    end
-    nil
-  end
-
-  # Returns [String] the frame at the location as the backtrace cleaner writes it, such as
-  # "app/models/user.rb:12:in 'User.recent'", which Rails logs as the "↳ source" of an entry.
-  def self.clean_frame(backtrace_cleaner, location)
-    # A String: Rails 8.0+'s cleaner returns the location unchanged when BACKTRACE is set.
-    backtrace_cleaner.clean_frame(location).to_s
-  end
-
   # Whether an entry that the logger logs at the level records a call site: the logger logs at that
   # level, and the level is at or above SemanticLogger.call_site_level. Otherwise there is no reason
-  # to look for the entry's call site.
+  # to look for the entry's call site. The level is any that Semantic Logger accepts, such as :info
+  # or ::Logger::INFO.
   def self.call_site?(logger, level)
-    SemanticLogger::Levels.index(level) >= SemanticLogger.call_site_level_index && logger.public_send(:"#{level}?")
+    index = SemanticLogger::Levels.index(level)
+    index >= SemanticLogger.call_site_level_index && logger.public_send(:"#{SemanticLogger::Levels.level(index)}?")
   end
 
-  # Returns [SemanticLogger::CallSite|nil] where the class defines the instance method, such as a
-  # controller's action or a job's #perform, with a label such as "ArticlesController#index", as
-  # Ruby 3.4 labels the method's frames. It is the call site of an entry about that method when none
-  # of the application's code is on the stack, as when Rails reports that an action has completed.
+  # Returns the call site of an entry about the exception that the logger logs at the level, or nil
+  # when the entry records none: where the application raised the exception (see
+  # ApplicationFrame.in_backtrace), or else false, as for a routing error raised in middleware, or an
+  # exception that Rails raised itself, so that the entry records no call site rather than the frame
+  # that logged it.
+  def self.exception_call_site(exception, backtrace_cleaner, logger, level)
+    return unless call_site?(logger, level)
+
+    ApplicationFrame.in_backtrace(exception, backtrace_cleaner).call_site || false
+  end
+
+  # Returns [SemanticLogger::CallSite|nil] where the class's instance method is defined, such as a
+  # controller's action or a job's #perform, labelled with the class or module that defines it, as
+  # Ruby 3.4 labels the method's frames, such as "ArticlesController#index". It is the call site of an
+  # entry about that method when none of the application's code is on the stack, as when Rails
+  # reports that an action has completed.
   #
   # nil when the class has no such method, as for an action that only renders its template, or when
   # Ruby cannot say where it is defined.
   def self.method_call_site(klass, method_name)
-    path, line = klass.instance_method(method_name).source_location
+    method     = klass.instance_method(method_name)
+    path, line = method.source_location
     return unless path.is_a?(String) && line.is_a?(Integer)
 
-    label = klass.name ? "#{klass.name}##{method_name}" : method_name.to_s
+    owner = method.owner.name
+    label = owner ? "#{owner}##{method_name}" : method_name.to_s
     SemanticLogger::CallSite.new(path: -path, line: line, label: -label)
   rescue NameError
     nil

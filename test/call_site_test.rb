@@ -61,6 +61,20 @@ class CallSiteTest < ActiveSupport::TestCase
     end
   end
 
+  class CallSiteChildJob < CallSiteJob
+  end
+
+  # A frame with a path, line and label, as in a backtrace, or as Rails gives a SyntaxError's backtrace.
+  BacktraceFrame = Struct.new(:path, :lineno, :base_label) do
+    def label
+      base_label
+    end
+
+    def to_s
+      "#{path}:#{lineno}:in '#{label}'"
+    end
+  end
+
   class CallSiteMailer < ActionMailer::Base
     def note
       mail(to: "to@example.com", from: "from@example.com", subject: "Note", body: "Hi")
@@ -101,8 +115,133 @@ class CallSiteTest < ActiveSupport::TestCase
       assert_equal "CallSiteTest::CallSiteJob#perform", site.label
     end
 
+    it "labels an inherited method with the class that defines it" do
+      site = RailsSemanticLogger.method_call_site(CallSiteChildJob, :perform)
+
+      assert_equal [__FILE__, line_of(CallSiteJob, :perform)], site.file_name_and_line
+      assert_equal "CallSiteTest::CallSiteJob#perform", site.label
+    end
+
     it "returns nil for a method that the class does not define" do
       assert_nil RailsSemanticLogger.method_call_site(CallSiteJob, :missing)
+    end
+  end
+
+  describe RailsSemanticLogger::ApplicationFrame do
+    # A cleaner that keeps every frame, as Rails' does when BACKTRACE is set.
+    let(:keep_all_cleaner) { ActiveSupport::BacktraceCleaner.new.tap(&:remove_silencers!) }
+
+    # Ruby gives code that it evaluates the path that it is given.
+    def on_stack_from(path)
+      eval("RailsSemanticLogger::ApplicationFrame.on_stack(keep_all_cleaner)", binding, path, 1) # rubocop:disable Style/EvalWithLocation
+    end
+
+    it "is the first frame on the stack that the cleaner keeps" do
+      line  = __LINE__ + 1
+      frame = RailsSemanticLogger::ApplicationFrame.on_stack(keep_all_cleaner)
+
+      assert_equal [__FILE__, line], [frame.call_site.path, frame.call_site.lineno]
+      assert_match(/\A#{Regexp.escape(__FILE__)}:#{line}:/, frame.source)
+    end
+
+    it "skips the frames of this gem's own code" do
+      # A path in this gem's code, as Ruby loaded it.
+      subscriber = RailsSemanticLogger::ActiveRecord::LogSubscriber.instance_method(:sql).source_location.first
+      frame      = on_stack_from(File.join(File.dirname(subscriber), "fake.rb"))
+
+      assert_equal [__FILE__, line_of(self.class, :on_stack_from) + 1], [frame.call_site.path, frame.call_site.lineno]
+    end
+
+    it "keeps the frames of an application's own file with the same name" do
+      frame = on_stack_from("/app/lib/rails_semantic_logger/fake.rb")
+
+      assert_equal ["/app/lib/rails_semantic_logger/fake.rb", 1], [frame.call_site.path, frame.call_site.lineno]
+    end
+
+    it "is the call site, and the source, of the application frame" do
+      location = caller_locations(0, 1).first
+      frame    = RailsSemanticLogger::ApplicationFrame.new(keep_all_cleaner, location)
+
+      assert_same location, frame.call_site
+      assert_equal location.to_s, frame.source
+    end
+
+    it "is not the call site when Rails took over before it, but is still the source" do
+      location = caller_locations(0, 1).first
+      frame    = RailsSemanticLogger::ApplicationFrame.new(keep_all_cleaner, location, took_over: true)
+
+      assert_nil frame.call_site
+      assert_equal location.to_s, frame.source
+    end
+
+    it "leaves out the label of a compiled template's method, which changes on every boot" do
+      method   = "_app_views_orders_show_html_erb__1935574751676049736_7680"
+      location = BacktraceFrame.new("/app/views/orders/show.html.erb", 3, method)
+      site     = RailsSemanticLogger::ApplicationFrame.new(keep_all_cleaner, location).call_site
+
+      assert_equal ["/app/views/orders/show.html.erb", 3], site.file_name_and_line
+      assert_nil site.label
+    end
+
+    describe ".in_backtrace" do
+      def exception_with(*locations)
+        Struct.new(:backtrace_locations).new(locations)
+      end
+
+      # Keeps only the frames under /app/.
+      let(:app_cleaner) do
+        ActiveSupport::BacktraceCleaner.new.tap do |cleaner|
+          cleaner.remove_silencers!
+          cleaner.add_silencer { |line| !line.start_with?("/app/") }
+        end
+      end
+
+      # Its frames are not Thread::Backtrace::Locations, so the call site is made from the frame's
+      # path, line and label.
+      it "is where the application raised the exception" do
+        app   = BacktraceFrame.new("/app/models/order.rb", 12, "submit")
+        rails = BacktraceFrame.new("/gems/activerecord/lib/active_record/base.rb", 9, "save")
+        site  = RailsSemanticLogger::ApplicationFrame.in_backtrace(exception_with(rails, app), app_cleaner).call_site
+
+        assert_equal ["/app/models/order.rb", 12], site.file_name_and_line
+        assert_equal "submit", site.label
+      end
+
+      # Rails wraps a SyntaxError, such as one in a file that it loads on demand, and gives its
+      # backtrace frames of its own, which are not Thread::Backtrace::Locations: first the line with
+      # the error, read from the message, then a proxy for each frame of the SyntaxError's backtrace.
+      describe "of a SyntaxError" do
+        def syntax_error
+          eval("def broken(", binding, "/app/models/broken.rb", 3) # rubocop:disable Style/EvalWithLocation
+        rescue SyntaxError => e
+          ActiveSupport::SyntaxErrorProxy.new(e)
+        end
+
+        it "is the line with the error" do
+          site = RailsSemanticLogger::ApplicationFrame.in_backtrace(syntax_error, app_cleaner).call_site
+
+          assert_equal ["/app/models/broken.rb", 3], site.file_name_and_line
+        end
+
+        it "labels a proxy for a frame as Semantic Logger labels a location" do
+          error    = syntax_error
+          expected = error.__getobj__.backtrace_locations.find { |location| location.path == __FILE__ }
+          site     = RailsSemanticLogger::ApplicationFrame.in_backtrace(error, this_file_cleaner).call_site
+
+          assert_equal [expected.path, expected.lineno, expected.label], [site.path, site.line, site.label]
+        end
+      end
+
+      # As for an exception that Rails raised while rendering an action's template, inside an
+      # around_action.
+      it "stops where Rails took over" do
+        path      = "/gems/actionpack/lib/action_controller/metal/implicit_render.rb"
+        render    = BacktraceFrame.new(path, 37, "default_render")
+        around    = BacktraceFrame.new("/app/controllers/orders_controller.rb", 5, "switch_locale")
+        exception = exception_with(render, around)
+
+        assert_nil RailsSemanticLogger::ApplicationFrame.in_backtrace(exception, app_cleaner).call_site
+      end
     end
   end
 
@@ -211,6 +350,18 @@ class CallSiteTest < ActiveSupport::TestCase
         assert_equal "CallSiteTest::CallSiteJob#perform", message.call_site.label
       end
     end
+
+    # As a worker does, with its own code, such as middleware, further out on the stack.
+    it "records the job's #perform for a job taken from its queue" do
+      messages = with_call_sites do
+        with_cleaner(this_file_cleaner, subscriber) do
+          semantic_logger_events { ActiveJob::Base.execute(CallSiteJob.new(1).serialize) }
+        end
+      end
+
+      assert_equal 2, messages.count, messages
+      messages.each { |message| assert_equal [__FILE__, line_of(CallSiteJob, :perform)], call_site(message) }
+    end
   end
 
   describe "Action Mailer" do
@@ -244,6 +395,22 @@ class CallSiteTest < ActiveSupport::TestCase
       assert_equal [__FILE__, line_of(CallSiteMailer, :note)], call_site(processed)
       assert_nil delivered.call_site
     end
+
+    # As deliver_later does, with the worker's own code further out on the stack.
+    it "records the mailer's action, or else no call site, for mail delivered by a job" do
+      job      = ActionMailer::MailDeliveryJob.new(CallSiteMailer.name, "note", "deliver_now", args: [])
+      messages = with_call_sites do
+        with_cleaner(this_file_cleaner, subscriber, RailsSemanticLogger::ActiveJob::LogSubscriber) do
+          semantic_logger_events { ActiveJob::Base.execute(job.serialize) }
+        end
+      end
+
+      processed = messages.find { |message| message.message.include?("processed outbound mail") }
+      delivered = messages.find { |message| message.message.start_with?("Delivered mail") }
+
+      assert_equal [__FILE__, line_of(CallSiteMailer, :note)], call_site(processed)
+      assert_nil delivered.call_site
+    end
   end
 
   describe "Action View" do
@@ -261,6 +428,52 @@ class CallSiteTest < ActiveSupport::TestCase
       rendered = messages.find { |message| message.message == "Rendered" }
 
       assert_equal [__FILE__, line], call_site(rendered)
+    end
+
+    it "records the line of the template that rendered a partial, without the template method's name" do
+      messages = with_call_sites do
+        with_cleaner(Rails::BacktraceCleaner.new, RailsSemanticLogger::ActionView::LogSubscriber) do
+          semantic_logger_events { ApplicationController.render(template: "articles/with_partial", layout: false) }
+        end
+      end
+
+      partial = messages.find { |message| message.payload&.dig(:partial)&.include?("_title") }
+
+      assert_equal [Rails.root.join("app/views/articles/with_partial.html.erb").to_s, 1], call_site(partial)
+      assert_nil partial.call_site.label
+    end
+  end
+
+  describe "an exception that a request raised" do
+    let(:request) { ActionDispatch::Request.new(Rack::MockRequest.env_for("/", Rails.application.env_config)) }
+
+    def raise_here
+      raise ArgumentError, "Failed"
+    rescue ArgumentError => e
+      e
+    end
+
+    def log_error(exception, cleaner)
+      wrapper = ActionDispatch::ExceptionWrapper.new(cleaner, exception)
+      with_call_sites do
+        semantic_logger_events do
+          ActionDispatch::DebugExceptions.new(->(_env) {}).send(:log_error, request, wrapper)
+        end
+      end
+    end
+
+    it "records where the application raised it" do
+      messages = log_error(raise_here, this_file_cleaner)
+
+      assert_equal 1, messages.count, messages
+      assert_equal [__FILE__, line_of(self.class, :raise_here) + 1], call_site(messages.first)
+    end
+
+    it "records no call site when none of its frames is the application's" do
+      messages = log_error(raise_here, no_app_cleaner)
+
+      assert_equal 1, messages.count, messages
+      assert_nil messages.first.call_site
     end
   end
 
@@ -315,6 +528,8 @@ class CallSiteRequestTest < ActionDispatch::IntegrationTest
   end
 
   def request_entries(&block)
+    skip "Rails does not clean backtraces when BACKTRACE is set" if ENV["BACKTRACE"]
+
     with_call_sites do
       with_cleaner(rails_cleaner,
                    RailsSemanticLogger::ActionController::LogSubscriber,
@@ -380,6 +595,12 @@ class CallSiteRequestTest < ActionDispatch::IntegrationTest
       messages = request_entries { get filtered_articles_url(title: "Title", other: "x") }
 
       assert_equal [controller_file, controller_line("params.permit")], call_site(entry(messages, "Unpermitted"))
+    end
+
+    it "records no call site for a template rendered once the action has returned, inside an around_action" do
+      messages = request_entries { get "/welcome/index" }
+
+      assert_nil entry(messages, "Rendered").call_site
     end
 
     it "records no call site for a halted filter chain, whose event names no controller" do

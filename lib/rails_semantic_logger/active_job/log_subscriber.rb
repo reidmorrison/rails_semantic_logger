@@ -249,10 +249,11 @@ module RailsSemanticLogger
           total_count:    jobs.size,
           job_classes:    jobs.map { |job| job.class.name }.tally
         }
-        location         = application_location(:info)
-        payload[:source] = enqueue_source(location) if enqueue_source?(location, :info)
+        frame            = application_frame(:info)
+        source           = frame&.source if enqueue_source?(:info)
+        payload[:source] = source if source
         # No call site when no application code enqueued the jobs, rather than Active Support's frame.
-        call_site        = location || false if RailsSemanticLogger.call_site?(logger, :info)
+        call_site        = frame&.call_site || false if RailsSemanticLogger.call_site?(logger, :info)
 
         logger.info(message: message, metric: "rails.job.enqueue_all", payload: payload, call_site: call_site)
       end
@@ -369,48 +370,41 @@ module RailsSemanticLogger
         # Emit a metric for every info/warn/error entry, named after the notification
         # (e.g. "enqueue.active_job" -> "rails.job.enqueue"). Debug entries are excluded.
         msg[:metric] ||= "rails.job.#{kw_args[:event].name.split('.').first}" unless level == :debug
-        location = application_location(level)
-        extra    = extra.merge(source: enqueue_source(location)) if enqueue_source?(location, level)
+        frame  = application_frame(level)
+        source = frame&.source if enqueue_source?(level)
+        extra  = extra.merge(source: source) if source
         logger.public_send(
           level,
           **msg,
           payload:   fmt.payload.merge(extra),
-          call_site: call_site(location, kw_args[:event].payload[:job], level)
+          call_site: call_site(frame, kw_args[:event], level)
         )
       end
 
-      # Returns the first frame of the call stack that the backtrace cleaner keeps, such as the
-      # application code that enqueued or performed the job, when an entry logged at the level needs
-      # it: as its source when `verbose_enqueue_logs` is on, or as its call site. Returns nil when it
-      # needs neither, or the cleaner keeps no frame.
-      def application_location(level)
-        return unless enqueue_source_level?(level) || RailsSemanticLogger.call_site?(logger, level)
+      # Returns [ApplicationFrame|nil] the application code behind an entry logged at the level, such as
+      # the code that enqueued or performed the job, when the entry needs it: as its source when
+      # `verbose_enqueue_logs` is on, or as its call site. nil when it needs neither.
+      def application_frame(level)
+        return unless enqueue_source?(level) || RailsSemanticLogger.call_site?(logger, level)
 
-        RailsSemanticLogger.first_clean_location(backtrace_cleaner)
+        RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner, for_source: enqueue_source?(level))
       end
 
       # Whether an entry logged at the level has a source: `verbose_enqueue_logs` is on, and Rails logs
       # its "↳ source" below the entry, which it does for info and error lines, and the logger logs it.
-      def enqueue_source_level?(level)
+      def enqueue_source?(level)
         ::ActiveJob.verbose_enqueue_logs && %i[info error].include?(level) && logger.public_send(:"#{level}?")
       end
 
-      def enqueue_source?(location, level)
-        location && enqueue_source_level?(level)
-      end
-
-      def enqueue_source(location)
-        RailsSemanticLogger.clean_frame(backtrace_cleaner, location)
-      end
-
-      # Returns the call site of an entry logged at the level about the job, or nil when it records
-      # none: the application code on the stack, such as the code that called perform_now, else the
-      # job's #perform, as for a job that a worker performs, else false, so that the entry records no
-      # call site rather than Active Support's frame.
-      def call_site(location, job, level)
+      # Returns the call site of an entry logged at the level about the event's job, or nil when it
+      # records none: the application code behind it, such as the code that called perform_now, else
+      # the job's #perform, as for a job performed from its queue, else false, so that the entry records
+      # no call site rather than Active Support's frame.
+      def call_site(frame, event, level)
         return unless RailsSemanticLogger.call_site?(logger, level)
 
-        location || (job && RailsSemanticLogger.method_call_site(job.class, :perform)) || false
+        job = event.payload[:job]
+        frame&.call_site || (job && RailsSemanticLogger.method_call_site(job.class, :perform)) || false
       end
 
       def logger

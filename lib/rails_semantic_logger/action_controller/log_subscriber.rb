@@ -112,9 +112,11 @@ module RailsSemanticLogger
       # Rails 8.1+ emits this event when an exception is handled by a `rescue_from` callback.
       # On earlier Rails versions the event is never instrumented, so this handler is dormant.
       def rescue_from_callback(event)
-        logger = controller_logger(event)
-        logger&.info(call_site: exception_call_site(event.payload[:exception], logger, :info)) do
-          exception = event.payload[:exception]
+        logger    = controller_logger(event)
+        exception = event.payload[:exception]
+        return unless logger
+
+        logger.info(call_site: RailsSemanticLogger.exception_call_site(exception, backtrace_cleaner, logger, :info)) do
           backtrace = exception.backtrace&.first
           backtrace = backtrace&.delete_prefix("#{Rails.root}/") if defined?(Rails.root) && Rails.root
 
@@ -140,15 +142,16 @@ module RailsSemanticLogger
         payload = {location: event.payload[:location]}
 
         # Rails 8.1+ optionally logs the source location of the redirect when
-        # ActionDispatch.verbose_redirect_logs is enabled.
+        # ActionDispatch.verbose_redirect_logs is enabled. The same frame is the entry's call site.
         if ActionDispatch.respond_to?(:verbose_redirect_logs) && ActionDispatch.verbose_redirect_logs
-          source           = redirect_source_location
+          frame            = RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner, for_source: true)
+          source           = frame.source
           payload[:source] = source if source
         end
 
         logger = controller_logger(event)
         logger&.info(message: "Redirected to", payload: payload, metric: "rails.controller.redirect_to",
-                     call_site: call_site(event, logger, :info))
+                     call_site: call_site(event, logger, :info, frame: frame))
       end
 
       # Rails 8.1+ emits this event for a redirect to another host when
@@ -245,11 +248,14 @@ module RailsSemanticLogger
       # where the controller defines its action, since Rails reports events such as a completed
       # action once the action has returned. False when neither is known, so that the entry records
       # no call site rather than Active Support's frame.
-      def call_site(event, logger, level, from_stack: true)
+      #
+      # The frame, a RailsSemanticLogger::ApplicationFrame, is the one already found for the entry's
+      # source, if any.
+      def call_site(event, logger, level, from_stack: true, frame: nil)
         return unless logger && RailsSemanticLogger.call_site?(logger, level)
 
-        (from_stack && RailsSemanticLogger.first_clean_location(backtrace_cleaner)) ||
-          action_call_site(event.payload) || false
+        frame ||= RailsSemanticLogger::ApplicationFrame.on_stack(backtrace_cleaner) if from_stack
+        frame&.call_site || action_call_site(event.payload) || false
       end
 
       # Returns [SemanticLogger::CallSite|nil] where the controller handling the event defines its
@@ -262,15 +268,6 @@ module RailsSemanticLogger
         names      = payload[:context] || payload
         controller = names[:controller].is_a?(String) ? names[:controller].safe_constantize : nil
         RailsSemanticLogger.method_call_site(controller, names[:action]) if controller && names[:action]
-      end
-
-      # Returns the call site of an entry about the exception logged at the level, or nil when the
-      # entry records none: the first frame of the application's code in the exception's backtrace,
-      # which is where it was raised, or false when it has none.
-      def exception_call_site(exception, logger, level)
-        return unless logger && RailsSemanticLogger.call_site?(logger, level)
-
-        exception&.backtrace_locations&.find { |location| backtrace_cleaner.clean_frame(location) } || false
       end
 
       # Returns the logger of the controller that emitted the event, or ActionController::Base.logger
@@ -368,12 +365,6 @@ module RailsSemanticLogger
       def extract_path(path)
         index = path.index("?")
         index ? path[0, index] : path
-      end
-
-      # Rails 8.1+ BacktraceCleaner exposes #first_clean_frame for verbose redirect logging. A String:
-      # Rails 8.0+'s cleaner returns the frame's location unchanged when BACKTRACE is set.
-      def redirect_source_location
-        backtrace_cleaner.first_clean_frame&.to_s if backtrace_cleaner.respond_to?(:first_clean_frame)
       end
 
       def action_message(message, payload)

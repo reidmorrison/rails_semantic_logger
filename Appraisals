@@ -9,6 +9,10 @@ end
 appraise "rails_8.0" do
   gem "rails", "~> 8.0.0"
   gem "sidekiq", "~> 8.0.0"
+  # Active Support 8.0.0 to 8.0.5.2 pass `quirks_mode:` to JSON.generate, which json 3 removed, so
+  # every #to_json raises "unknown keyword: quirks_mode" and the :json formatter writes nothing.
+  # Remove once an 8.0 release includes rails/rails@2786de26c6 ("Stop passing `quirks_mode`").
+  gem "json", "< 3"
 end
 
 appraise "rails_8.1" do

@@ -90,6 +90,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   [Philippe Vaucher](https://github.com/Silex).
 - CI also tests against Rails edge (rails/rails `main`). A failure there is reported but does not
   fail the build, and the default `rake` task still runs only the released Rails versions.
+- Rails 8.0: Active Support 8.0.5.2 and earlier cannot encode JSON with json 3, so the `:json`
+  formatter writes nothing: each entry is dropped and reported by Semantic Logger's internal logger
+  as `ArgumentError: unknown keyword: quirks_mode`. Keep `gem "json", "< 3"` in the application's
+  Gemfile until an 8.0 release includes the fix
+  ([rails/rails@2786de26c6](https://github.com/rails/rails/commit/2786de26c6)), or upgrade to
+  Rails 8.1. CI now pins json below 3 for Rails 8.0, and tests that the `:json` formatter writes an
+  entry on every Rails version.
 
 ## [5.2.0] - 2026-09-05
 

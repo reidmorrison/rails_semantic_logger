@@ -1,8 +1,9 @@
 require_relative "test_helper"
 
 # The :json formatter encodes each entry with Active Support's JSON encoder, through #to_json. When
-# that encoder and the json gem disagree, as Active Support 8.0.5.2 and json 3 do, every entry is
-# dropped, and only Semantic Logger's internal logger (here, test/dummy/log/test.log) says why.
+# that encoder and the json gem disagree, as Active Support 7.2.3.2 and 8.0.5.2 and earlier do with
+# json 3, every entry is dropped, and only Semantic Logger's internal logger (here,
+# test/dummy/log/test.log) says why.
 class JsonFormatterTest < Minitest::Test
   describe "the :json formatter" do
     it "writes an entry" do

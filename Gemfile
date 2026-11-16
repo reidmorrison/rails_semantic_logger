@@ -2,6 +2,9 @@ source "https://rubygems.org"
 
 gemspec
 
+# Semantic Logger 5.3, which this gem requires, is not released yet. Remove once it is.
+gem "semantic_logger", github: "reidmorrison/semantic_logger", branch: "main"
+
 gem "appraisal"
 gem "puma"
 

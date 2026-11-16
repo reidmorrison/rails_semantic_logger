@@ -60,6 +60,27 @@ module RailsSemanticLogger
     nil
   end
 
+  # Redact the application's filter parameters (`config.filter_parameters`) from every log entry,
+  # by making them Semantic Logger's sensitive keys (see SemanticLogger.sensitive_keys=), unless
+  # the application turned this off with `config.rails_semantic_logger.redact_filter_parameters`,
+  # or assigned `SemanticLogger.sensitive_keys` itself.
+  #
+  # Called by the engine once the application has initialized, so that the filters added in
+  # `config/initializers/*` apply.
+  #
+  # Proc filters are left out: Semantic Logger asks the filter about each key by name alone, with
+  # no value, and a Proc filter changes the value it is given, rather than saying whether the key
+  # is sensitive.
+  def self.redact_filter_parameters(config)
+    return unless config.rails_semantic_logger.redact_filter_parameters
+    return unless SemanticLogger.sensitive_keys.nil?
+
+    filters = config.filter_parameters.reject { |filter| filter.respond_to?(:call) }
+    return if filters.empty?
+
+    SemanticLogger.sensitive_keys = ActiveSupport::ParameterFilter.new(filters)
+  end
+
   # Warn that a setting was changed too late to take effect, so the change has no
   # effect. When `config_initializers_too_late` is true (the default), the setting
   # is consumed while the logger is built, *before* `config/initializers/*` is

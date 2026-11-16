@@ -126,6 +126,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   Rails loads on demand in development. It was logged as
   `ArgumentError: Invalid value for logger exception`, since Rails passes it wrapped in an
   `ActiveSupport::SyntaxErrorProxy`.
+- Redact the application's `config.filter_parameters` from every log entry by default, not only
+  from the request parameters that Rails filters itself. Sets Semantic Logger 5.3's
+  `SemanticLogger.sensitive_keys` once the application has initialized, so the value of every key
+  that the filters match is written as `"[FILTERED]"` in the payload, named tags, and context of
+  every entry, at any depth, by every appender. Keys are matched as written and in snake_case, so
+  a `password` in a job's arguments, or an `X-Api-Key` header in a payload, is redacted. See
+  [semantic_logger discussion #272](https://github.com/reidmorrison/semantic_logger/discussions/272).
+  **Log output change:** the filters match any key that contains them, so Rails' default filters
+  (`:passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc`)
+  also redact keys such as `max_tokens`, `token_count`, `cache_key`, and `api_key_id`, and every
+  `email`. To opt out, set `config.rails_semantic_logger.redact_filter_parameters = false`. An
+  application that assigns `SemanticLogger.sensitive_keys` itself keeps its own value. Limits:
+  - Rails' default filters do not match `Authorization` or `Cookie`; add them, e.g.
+    `config.filter_parameters += [:authorization, :cookie]`.
+  - Proc filters are not applied, since they change values rather than match keys.
+  - A dotted filter, such as `"credit_card.code"`, only matches a key named that, not a `code` key
+    nested in `credit_card`.
+  - Entries logged before the application has initialized may not be redacted.
 - Requires Semantic Logger 5.3 or later.
 
 ## [5.2.0] - 2026-09-05

@@ -105,14 +105,22 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   with `config.semantic_logger.backtrace_cleaner = nil` in `config/application.rb`, or opt out
   for one appender with `formatter: {json: {backtrace_cleaner: false}}`.
 - Action Dispatch: log a routing error, and the other exceptions in
-  `ActionDispatch::ExceptionWrapper.silent_exceptions`, without a backtrace when none of its frames
-  is the application's, as Rails' own log does. A request for a missing route, such as
-  `/apple-touch-icon.png`, is now one line instead of dozens of middleware frames:
-  `Rails -- Exception: ActionController::RoutingError: No route matches [GET] "/apple-touch-icon.png"`.
-  The logged exception is a copy without the backtrace; Rails renders, and error services report,
-  the original. With `BACKTRACE` set, or a routing error raised from application code, the
-  backtrace is kept. To leave these out of the log altogether, set
-  `config.action_dispatch.log_rescued_responses = false`.
+  `ActionDispatch::ExceptionWrapper.silent_exceptions` (`ActionController::RoutingError` and
+  `ActionDispatch::Http::MimeNegotiation::InvalidType`), without its backtrace when none of its
+  frames is the application's, as Rails' own log does. Every other exception is logged as before. A
+  request for a missing route, such as `/apple-touch-icon.png`, is now one line, after the
+  response's status, instead of dozens of middleware frames:
+  `Rails -- 404 Not Found -- Exception: ActionController::RoutingError: No route matches [GET] "/apple-touch-icon.png"`.
+  It is logged with Semantic Logger's `log_exception: :partial`, so the entry has the exception's
+  class and message but not the exception: the `:json` formatter writes them in the `message`
+  rather than as an `exception`, and Semantic Logger's own error service appenders, such as
+  `sentry_ruby`, receive a message rather than an exception. The message also names each exception
+  that caused it, which Rails lists as "Caused by", without their backtraces, such as the
+  `Mime::Type::InvalidMimeType` behind an invalid `Accept` header. Rails renders the exception, and error
+  services hooked into Rails report it, as before. With `BACKTRACE` set, or a routing error raised
+  from application code, the exception is logged with its backtrace;
+  `config.semantic_logger.backtrace_cleaner = nil` does not change this. To leave these out of the
+  log altogether, set `config.action_dispatch.log_rescued_responses = false`.
   See [discussion #236](https://github.com/reidmorrison/rails_semantic_logger/discussions/236).
 - Action Dispatch: log a `SyntaxError` raised while handling a request, such as one in a file that
   Rails loads on demand in development. It was logged as

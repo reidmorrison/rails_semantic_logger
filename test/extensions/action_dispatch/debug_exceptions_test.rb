@@ -45,37 +45,38 @@ module ActionDispatch
       end
 
       describe "an exception that Rails logs without a backtrace" do
-        it "logs a copy without the backtrace" do
+        it "logs its class and message after the response's status, without the exception" do
           log = log_error(routing_error)
 
-          assert_instance_of ActionController::RoutingError, log.exception
-          assert_equal 'No route matches [GET] "/missing"', log.exception.message
-          assert_empty log.exception.backtrace
+          assert_nil log.exception
+          assert_equal '404 Not Found -- Exception: ActionController::RoutingError: No route matches [GET] "/missing"',
+                       log.message
         end
 
-        it "leaves the exception's own backtrace unchanged" do
-          backtrace = routing_error.backtrace.dup
-          log       = log_error(routing_error)
-
-          refute_same routing_error, log.exception
-          assert_equal backtrace, routing_error.backtrace
-        end
-
-        it "keeps the exception's cause" do
+        # Rails raises it while rescuing the Mime::Type::InvalidMimeType that caused it.
+        it "logs another silent exception with its own status, and its cause" do
           exception =
             begin
-              begin
-                raise ArgumentError, "inner"
-              rescue ArgumentError
-                raise ActionController::RoutingError, "outer"
-              end
-            rescue ActionController::RoutingError => e
+              ActionDispatch::Request.new(Rack::MockRequest.env_for("/", "HTTP_ACCEPT" => "foo/bar/baz")).formats
+
+              flunk "Rails accepted the Accept header"
+            rescue ActionDispatch::Http::MimeNegotiation::InvalidType => e
               e
             end
-
           log = log_error(exception)
 
-          assert_same exception.cause, log.exception.cause
+          assert_nil log.exception
+          assert_match(/\A406 Not Acceptable -- Exception: ActionDispatch::Http::MimeNegotiation::InvalidType: /,
+                       log.message)
+          # Its cause has the same message, so only its class is added.
+          assert_match(/ -- Cause: Mime::Type::InvalidMimeType\z/, log.message)
+        end
+
+        it "leaves the exception unchanged" do
+          backtrace = routing_error.backtrace.dup
+          log_error(routing_error)
+
+          assert_equal backtrace, routing_error.backtrace
         end
 
         it "writes one line" do
@@ -157,10 +158,10 @@ module ActionDispatch
         env_config["action_dispatch.backtrace_cleaner"] = DebugExceptionsTest.rails_cleaner
 
         messages = semantic_logger_events { get "/apple-touch-icon-120x120.png" }
-        log      = messages.find(&:exception)
+        log      = messages.find { |entry| entry.message&.include?("RoutingError") }
         output   = SemanticLogger::Formatters::Default.new.call(log, nil)
 
-        assert_instance_of ActionController::RoutingError, log.exception
+        assert_includes output, "Rails -- 404 Not Found -- Exception: ActionController::RoutingError: No route matches"
         assert_equal 1, output.lines.count, output
       ensure
         env_config.merge!(settings)

@@ -87,6 +87,24 @@ class SidekiqTest < Minitest::Test
         assert_kind_of Float, messages[1].duration
       end
 
+      it "logs a latency of zero when the job was enqueued by a host whose clock is ahead" do
+        ahead = [
+          Time.now.to_f + 60,
+          Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) + 60_000
+        ]
+        ahead.each do |enqueued_at|
+          msg = Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => enqueued_at})
+          unit_of_work = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg)
+
+          messages = semantic_logger_events do
+            processor.send(:process, unit_of_work)
+          end
+
+          assert_equal "sidekiq.queue.latency", messages[0].metric
+          assert_equal 0, messages[0].metric_amount, enqueued_at.class
+        end
+      end
+
       it "does not emit perform messages when disabled" do
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false
 

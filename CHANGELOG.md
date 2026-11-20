@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [5.3.0] - 2026-11-20
 
+- Requires Semantic Logger 5.3 or later.
 - Rails 8.2: detach Rails' own log subscribers from `ActiveSupport.event_reporter`. Rails 8.2 moves
   its framework log subscribers off `ActiveSupport::Notifications` and onto the event reporter, so
   they kept running next to the semantic subscribers and every request, query, render, mail and job
@@ -190,7 +191,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Sidekiq: log a queue latency (`sidekiq.queue.latency`) of zero, rather than a negative one, when the
   job was enqueued by a host whose clock is ahead of this one. Semantic Logger 5.3 deprecates a
   negative `metric_amount`.
-- Requires Semantic Logger 5.3 or later.
 
 ## [5.2.0] - 2026-09-05
 

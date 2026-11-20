@@ -81,17 +81,19 @@ module RailsSemanticLogger
         (@config && @config[:logged_job_attributes]) || DEFAULT_LOGGED_JOB_ATTRIBUTES
       end
 
+      # Never negative: the clock of the host that enqueued the job can be ahead of this one's, and
+      # Semantic Logger 5.3 deprecates a negative metric_amount.
       def job_latency_ms(job)
         return unless job && job["enqueued_at"]
 
         enqueued_at = job["enqueued_at"]
         if enqueued_at.is_a?(Float)
           # Sidekiq <= 7: seconds since epoch
-          (Time.now.to_f - enqueued_at) * 1000
+          [(Time.now.to_f - enqueued_at) * 1000, 0.0].max
         else
           # Sidekiq 8+: milliseconds since epoch
           now = Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond)
-          now - enqueued_at
+          [now - enqueued_at, 0].max
         end
       end
     end

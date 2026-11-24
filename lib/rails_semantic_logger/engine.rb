@@ -71,7 +71,13 @@ module RailsSemanticLogger
 
       # Time every request for http.server.request.duration. First in the stack, so that it sees every
       # request, and since an application can delete any other middleware.
-      config.middleware.unshift(RailsSemanticLogger::Rack::Metrics) if config.rails_semantic_logger.metrics
+      if config.rails_semantic_logger.metrics
+        config.middleware.unshift(RailsSemanticLogger::Rack::Metrics)
+
+        # The metrics of each Rails component, recorded whatever is logged. Decided here, with the
+        # middleware, so that the setting is read once, when the logger is initialized.
+        config.after_initialize { RailsSemanticLogger::Metrics.attach }
+      end
 
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
@@ -200,11 +206,6 @@ module RailsSemanticLogger
     # so that it runs first.
     config.after_initialize do
       RailsSemanticLogger.redact_filter_parameters(Rails.application.config)
-    end
-
-    # The Rails metrics, recorded whatever is logged, so whether or not the log subscribers are swapped.
-    config.after_initialize do
-      RailsSemanticLogger::Metrics.attach if Rails.application.config.rails_semantic_logger.metrics
     end
 
     # After any initializers run, but after the gems have been loaded

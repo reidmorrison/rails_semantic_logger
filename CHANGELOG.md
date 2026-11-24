@@ -50,9 +50,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   middleware, `RailsSemanticLogger::Rack::Metrics`, first in the middleware stack, records it. A
   hijacked connection, such as a WebSocket, is not recorded. Turn off the Rails and Sidekiq metrics
   with `config.rails_semantic_logger.metrics = false`.
-  middleware, `RailsSemanticLogger::Rack::Metrics`, records it just before
-  `ActionDispatch::ShowExceptions`. Turn off the Rails metrics with
-  `config.rails_semantic_logger.metrics = false`.
 - Action Controller: record its metrics apart from its log entries, which no longer carry a
   `metric`, and rename them under `rails.action_controller`, since no OpenTelemetry convention covers
   them:

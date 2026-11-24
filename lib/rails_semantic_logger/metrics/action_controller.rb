@@ -1,6 +1,10 @@
 module RailsSemanticLogger
   module Metrics
-    # Records the metrics of Action Controller. No OpenTelemetry convention covers them (the request
+    # Records the metrics of Action Controller, from the events that Rails instruments for its own log
+    # subscriber: when Rails adds or changes one, follow it here too. See the upstream source links at
+    # the top of lib/rails_semantic_logger/action_controller/log_subscriber.rb.
+    #
+    # No OpenTelemetry convention covers them (the request
     # itself is http.server.request.duration, see RailsSemanticLogger::Rack::Metrics), so they are
     # named under `rails.action_controller`.
     class ActionController < Subscriber
@@ -8,8 +12,7 @@ module RailsSemanticLogger
       def process_action(event)
         payload    = event.payload
         dimensions = {"code.function.name" => "#{payload[:controller]}##{payload[:action]}"}
-        status     = status(payload)
-        dimensions["http.response.status_code"] = status if status
+        dimensions["http.response.status_code"] = payload[:status] if payload[:status]
         dimensions["error.type"]                = payload[:exception].first if payload[:exception]
         time("rails.action_controller.process_action.duration", event, dimensions)
       end
@@ -21,7 +24,7 @@ module RailsSemanticLogger
 
       # Rails 8.1+.
       def rescue_from_callback(event)
-        increment("rails.action_controller.rescued_exceptions", "error.type" => event.payload[:exception].class.name)
+        increment("rails.action_controller.rescued_exceptions", "error.type" => error_type(event.payload[:exception]))
       end
 
       def redirect_to(event)
@@ -80,14 +83,6 @@ module RailsSemanticLogger
 
       def csrf(reason)
         increment("rails.action_controller.csrf_events", "rails.action_controller.csrf.reason" => reason)
-      end
-
-      # The status of the response, or the status Rails renders for the exception that the action raised.
-      def status(payload)
-        return payload[:status] if payload[:status]
-        return unless payload[:exception]
-
-        ::ActionDispatch::ExceptionWrapper.status_code_for_exception(payload[:exception].first)
       end
 
       # A callback named by a method keeps its name; any other, such as a block, is named by its class,

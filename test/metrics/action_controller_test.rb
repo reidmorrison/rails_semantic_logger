@@ -30,10 +30,12 @@ module Metrics
         end
 
         it "records the exception class and the status Rails renders for it" do
+          # Rails sets the status that it renders for the exception before it instruments the event.
           metrics = record(
             :process_action,
             controller: "ArticlesController",
             action:     "show",
+            status:     404,
             exception:  ["ActiveRecord::RecordNotFound", "not found"]
           )
 

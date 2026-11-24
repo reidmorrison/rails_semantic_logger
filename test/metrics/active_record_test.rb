@@ -14,8 +14,8 @@ module Metrics
 
         assert_equal "sqlite", metric.dimensions["db.system.name"]
         assert_equal "SELECT", metric.dimensions["db.operation.name"]
-        assert_equal "Sample Load", metric.dimensions["rails.active_record.query.name"]
-        assert_match(/test/, metric.dimensions["db.namespace"])
+        assert_equal "test", metric.dimensions["db.namespace"]
+        refute metric.dimensions.key?("rails.active_record.query.name")
       end
 
       it "leaves out queries served from the query cache" do
@@ -27,6 +27,14 @@ module Metrics
         end
 
         assert_equal 1, db_metrics(metrics).size, metrics.map(&:to_h)
+      end
+
+      it "never fails a query whose SQL is not valid UTF-8" do
+        sql = "SELECT * FROM samples WHERE name = '\xff'".dup.force_encoding("UTF-8")
+
+        metrics = db_metrics(semantic_logger_metrics { Sample.connection.select_all(sql) })
+
+        refute assert_metric(metrics, name: "db.client.operation.duration").dimensions.key?("db.operation.name")
       end
 
       it "records the error.type of a query that failed" do
@@ -51,6 +59,29 @@ module Metrics
 
         it "is nil for several statements" do
           assert_nil operation("SELECT 1; SELECT 2")
+        end
+
+        it "is the keyword after a line comment" do
+          assert_equal "SELECT", operation("-- report\nSELECT 1")
+        end
+
+        it "is the keyword of one statement with a semicolon in a string" do
+          assert_equal "INSERT", operation("INSERT INTO notes (body) VALUES ('a; b')")
+        end
+
+        it "is the keyword of one statement with a semicolon in a MySQL escaped string or a trailing comment" do
+          assert_equal "INSERT", operation("INSERT INTO t VALUES ('a\\'; b')")
+          assert_equal "SELECT", operation("SELECT 1 /* a; b */")
+          assert_equal "SELECT", operation("SELECT 1; -- done")
+        end
+
+        it "reads an apostrophe in a comment as part of the comment" do
+          assert_equal "SELECT", operation("SELECT 1 /* it's */, 'a;b'")
+          assert_nil operation("SELECT 1 -- it's\n; DELETE FROM t WHERE a = 'x'")
+        end
+
+        it "is nil for SQL that is not valid UTF-8" do
+          assert_nil operation("SELECT '\xff'".dup.force_encoding("UTF-8"))
         end
 
         it "is the keyword of one statement that ends with a semicolon" do

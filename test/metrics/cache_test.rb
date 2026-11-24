@@ -47,6 +47,22 @@ module Metrics
         assert_includes operations, "write"
       end
 
+      it "records a fetch that hit, and its read" do
+        store.write("key", 1)
+        generate = proc { 2 }
+        metrics  = cache_metrics { store.fetch("key", &generate) }
+
+        assert_metric(metrics, name: "rails.cache.operation.duration", dimensions: {
+                        "rails.cache.operation.name" => "fetch_hit",
+                        "rails.cache.store"          => "ActiveSupport::Cache::MemoryStore"
+                      })
+        assert_metric(metrics, name: "rails.cache.operation.duration", dimensions: {
+                        "rails.cache.operation.name" => "read",
+                        "rails.cache.store"          => "ActiveSupport::Cache::MemoryStore",
+                        "rails.cache.hit"            => true
+                      })
+      end
+
       it "names exist? without its question mark" do
         metrics = cache_metrics { store.exist?("key") }
 

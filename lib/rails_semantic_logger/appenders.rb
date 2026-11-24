@@ -84,9 +84,10 @@ module RailsSemanticLogger
     private
 
     # Apply the context default stream and formatter, without overriding a
-    # destination (io/file_name/...) the caller already supplied. Only a stream or a
-    # file takes the default formatter: an appender instance, a logger, and a metric
-    # appender bring their own, and Semantic Logger v6 refuses a formatter for them.
+    # destination (io/file_name/...) the caller already supplied. Colored text is
+    # meant for a screen or a file that a person reads, so only a stream or a file
+    # gets the default formatter; any other destination keeps its own. (A metric
+    # appender also refuses one, with an ArgumentError.)
     def defaults(args, io:)
       args      = args.dup
       args[:io] = io unless DESTINATIONS.any? { |key| args.key?(key) }

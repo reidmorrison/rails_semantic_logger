@@ -18,31 +18,25 @@ module RailsSemanticLogger
         @config = arg if arg.respond_to?(:[])
       end
 
+      # How long a job waited in its queue, from when it was enqueued until it started: no OpenTelemetry
+      # semantic convention covers it, so it is named after the system, Sidekiq.
+      QUEUE_DURATION = "sidekiq.queue.duration".freeze
+
+      # How long a job ran: OpenTelemetry's messaging convention for processing a message.
+      PROCESS_DURATION = "messaging.process.duration".freeze
+
       def call(item, queue, &block)
         klass  = item["wrapped"] || item["class"]
         logger = klass ? SemanticLogger[klass] : Sidekiq.logger
 
         SemanticLogger.tagged(queue: queue) do
-          if perform_messages_enabled?
-            # Latency is the time between when the job was enqueued and when it started executing.
-            latency = job_latency_ms(item)
-            logger.time("sidekiq.queue.latency", duration: latency) if latency
-            logger.info("Start #perform", call_site: false)
-          end
+          dimensions = {"messaging.system.name" => "sidekiq", "messaging.destination.name" => queue}
 
-          # Measure the duration of running the job
-          if perform_messages_enabled?
-            logger.measure_info(
-              "Completed #perform",
-              on_exception_level: :error,
-              log_exception:      :full,
-              metric:             "sidekiq.job.perform",
-              call_site:          false,
-              &block
-            )
-          elsif block_given?
-            yield
-          end
+          latency = job_latency_ms(item)
+          logger.time(QUEUE_DURATION, duration: latency, dimensions: dimensions) if latency
+          logger.info("Start #perform", call_site: false) if perform_messages_enabled?
+
+          process(logger, klass, dimensions, &block)
         end
       end
 
@@ -58,6 +52,38 @@ module RailsSemanticLogger
       end
 
       private
+
+      # Runs the job, logging it unless perform messages are turned off, and records how long it ran
+      # whether or not it is logged: the settings that turn off the perform messages are about logging.
+      def process(logger, klass, dimensions, &block)
+        start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+        error = nil
+        if perform_messages_enabled?
+          logger.measure_info(
+            "Completed #perform",
+            on_exception_level: :error,
+            log_exception:      :full,
+            call_site:          false,
+            &block
+          )
+        elsif block
+          yield
+        end
+      rescue Exception => e # rubocop:disable Lint/RescueException -- recorded, then raised again
+        error = e
+        raise
+      ensure
+        duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
+        logger.time(PROCESS_DURATION, duration: duration_ms, dimensions: process_dimensions(dimensions, klass, error))
+      end
+
+      # OpenTelemetry names a system-specific attribute after its system, as `messaging.sidekiq.*`.
+      def process_dimensions(dimensions, klass, error)
+        process = dimensions.merge("messaging.operation.name" => "process")
+        process["messaging.sidekiq.job.class"] = klass if klass
+        process["error.type"]                  = error.class.name if error
+        process
+      end
 
       def perform_messages_enabled?
         return false if @config && @config[:skip_default_job_logging]

@@ -46,7 +46,7 @@ class SidekiqTest < Minitest::Test
           level:      :info,
           name:       "SimpleJob",
           message:    "Completed #perform",
-          metric:     "sidekiq.job.perform",
+          metric:     :nil,
           named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[1].duration
@@ -78,7 +78,7 @@ class SidekiqTest < Minitest::Test
           level:      :info,
           name:       "SimpleJob",
           message:    "Completed #perform",
-          metric:     "sidekiq.job.perform",
+          metric:     :nil,
           named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[1].duration
@@ -87,7 +87,13 @@ class SidekiqTest < Minitest::Test
       it "records the queue latency in seconds, as a histogram" do
         metrics = semantic_logger_metrics { processor.send(:process, uow) }
 
-        latency = assert_metric(metrics, name: "sidekiq.queue.latency", kind: :histogram, unit: "s")
+        latency = assert_metric(
+          metrics,
+          name:       "sidekiq.queue.duration",
+          kind:       :histogram,
+          unit:       "s",
+          dimensions: {"messaging.system.name" => "sidekiq", "messaging.destination.name" => "default"}
+        )
 
         assert_in_delta 60, latency.value, 5
       end
@@ -99,7 +105,7 @@ class SidekiqTest < Minitest::Test
 
         metrics = semantic_logger_metrics { processor.send(:process, unit_of_work) }
 
-        latency = assert_metric(metrics, name: "sidekiq.queue.latency", kind: :histogram, unit: "s")
+        latency = assert_metric(metrics, name: "sidekiq.queue.duration", kind: :histogram, unit: "s")
 
         assert_in_delta 60, latency.value, 5
       end
@@ -115,7 +121,7 @@ class SidekiqTest < Minitest::Test
 
           metrics = semantic_logger_metrics { processor.send(:process, unit_of_work) }
 
-          assert_metric(metrics, name: "sidekiq.queue.latency", kind: :histogram, value: 0)
+          assert_metric(metrics, name: "sidekiq.queue.duration", kind: :histogram, value: 0)
         end
       end
 
@@ -125,7 +131,35 @@ class SidekiqTest < Minitest::Test
 
         metrics = semantic_logger_metrics { processor.send(:process, unit_of_work) }
 
-        assert_empty(metrics.select { |metric| metric.name == "sidekiq.queue.latency" })
+        assert_empty(metrics.select { |metric| metric.name == "sidekiq.queue.duration" })
+      end
+
+      it "records how long the job ran as messaging.process.duration" do
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        assert_metric(
+          metrics,
+          name:       "messaging.process.duration",
+          kind:       :histogram,
+          unit:       "s",
+          dimensions: {
+            "messaging.system.name"       => "sidekiq",
+            "messaging.destination.name"  => "default",
+            "messaging.operation.name"    => "process",
+            "messaging.sidekiq.job.class" => "SimpleJob"
+          }
+        )
+      end
+
+      it "records the metrics when perform messages are disabled" do
+        RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false
+
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        assert_metric(metrics, name: "sidekiq.queue.duration", kind: :histogram)
+        assert_metric(metrics, name: "messaging.process.duration", kind: :histogram)
+      ensure
+        RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
       end
 
       it "does not emit perform messages when disabled" do
@@ -207,7 +241,7 @@ class SidekiqTest < Minitest::Test
             level:      :error,
             name:       "BadJob",
             message:    "Completed #perform",
-            metric:     "sidekiq.job.perform",
+            metric:     :nil,
             named_tags: {jid: nil, class: "BadJob", queue: "default"},
             exception:  ArgumentError
           )
@@ -223,6 +257,16 @@ class SidekiqTest < Minitest::Test
           )
           assert_equal "BadJob", messages[2].payload[:job]["class"]
           assert_equal [], messages[2].payload[:job]["args"]
+        end
+
+        it "records the exception class as the error.type of the job's duration" do
+          metrics = semantic_logger_metrics do
+            assert_raises(ArgumentError) { processor.send(:process, uow) }
+          end
+
+          duration = assert_metric(metrics, name: "messaging.process.duration", kind: :histogram)
+
+          assert_equal "ArgumentError", duration.dimensions["error.type"]
         end
       end
     end

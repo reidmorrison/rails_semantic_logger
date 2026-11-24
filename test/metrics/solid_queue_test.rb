@@ -39,8 +39,29 @@ module Metrics
         )
       end
 
-      it "subscribes to every event that the log subscriber logs" do
-        logged = RailsSemanticLogger::SolidQueue::LogSubscriber.public_instance_methods(false).map(&:to_s)
+      it "records a recurring task that failed to enqueue its job as an error" do
+        assert_metric(
+          record(:enqueue_recurring_task, task: "cleanup", active_job_id: nil, enqueue_error: "boom"),
+          name:       "solid_queue.operation.duration",
+          dimensions: {"solid_queue.operation.name" => "enqueue_recurring_task", "error.type" => "enqueue_error"}
+        )
+      end
+
+      it "records no error.type for the jobs that fail_many_claimed failed" do
+        metric = assert_metric(
+          record(:fail_many_claimed, job_ids: [1], process_ids: [2], error: RuntimeError.new("pruned")),
+          name: "solid_queue.operation.duration"
+        )
+
+        refute metric.dimensions.key?("error.type")
+      end
+
+      # Solid Queue's log subscriber has no handler for polling and replace_thread, which EVENTS lists
+      # by hand, so this catches only a new event that Solid Queue also logs.
+      it "subscribes to every event that Solid Queue's own log subscriber logs" do
+        skip "SolidQueue is not available" unless defined?(::SolidQueue::LogSubscriber)
+
+        logged = ::SolidQueue::LogSubscriber.public_instance_methods(false).map(&:to_s)
 
         assert_empty logged - RailsSemanticLogger::Metrics::SolidQueue::EVENTS
       end

@@ -9,10 +9,11 @@ module RailsSemanticLogger
 
       # The events that Solid Queue instruments, each "<event>.solid_queue".
       EVENTS = %w[
-        dispatch_scheduled claim release_many_claimed fail_many_claimed release_claimed retry_all retry
-        discard_all discard release_many_blocked release_blocked enqueue_recurring_task start_process
-        shutdown_process register_process deregister_process prune_processes thread_error
-        graceful_termination immediate_termination unhandled_signal_error replace_fork
+        dispatch_scheduled claim polling release_many_claimed fail_many_claimed release_claimed retry_all
+        retry discard_all discard release_many_blocked release_blocked enqueue_recurring_task
+        start_process shutdown_process register_process deregister_process prune_processes thread_error
+        replace_thread graceful_termination immediate_termination unhandled_signal_error replace_fork
+        fork_boot_timeout finish_batch sweep_stalled_batches batch_progress_error
       ].freeze
 
       EVENTS.each do |operation|
@@ -23,16 +24,19 @@ module RailsSemanticLogger
 
       def record(operation, event)
         dimensions = {"solid_queue.operation.name" => operation}
-        error_type = error_type(event.payload)
-        dimensions["error.type"] = error_type if error_type
+        failure = failure_type(operation, event.payload)
+        dimensions["error.type"] = failure if failure
         time(NAME, event, dimensions)
       end
 
       # The class of the exception that the operation raised, or that it reports, as thread_error does.
-      def error_type(payload)
+      # A recurring task that failed to enqueue its job reports only the message, as enqueue_error. The
+      # error of fail_many_claimed is why the claimed jobs failed, not a failure of the operation.
+      def failure_type(operation, payload)
         return payload[:exception].first if payload[:exception]
+        return error_type(payload[:error]) if payload[:error].is_a?(Exception) && operation != "fail_many_claimed"
 
-        payload[:error].class.name if payload[:error].is_a?(Exception)
+        "enqueue_error" if payload[:enqueue_error]
       end
     end
   end

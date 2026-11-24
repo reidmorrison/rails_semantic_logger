@@ -30,7 +30,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
 
         assert_equal "Rendered", rendered.message
         assert_equal :debug, rendered.level
-        assert_equal "rails.view.render.partial", rendered.metric
+        assert_nil rendered.metric
         assert_equal "articles/_form.html.erb", rendered.payload[:partial]
         assert_kind_of Integer, rendered.payload[:allocations]
         assert_kind_of Float, rendered.payload[:gc_time]
@@ -86,7 +86,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
 
         assert_equal "Rendered", rendered.message
         assert_equal :debug, rendered.level
-        assert_equal "rails.view.render.collection", rendered.metric
+        assert_nil rendered.metric
         assert_equal "articles/_article.html.erb", rendered.payload[:template]
         assert_equal 3, rendered.payload[:count]
         assert_equal 2, rendered.payload[:cache_hits]
@@ -120,7 +120,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         rendered = events.find { |m| m.message == "Rendered" }
 
         assert rendered, events
-        assert_equal "rails.view.render.template", rendered.metric
+        assert_nil rendered.metric
         assert_equal "welcome/index.html.erb", rendered.payload[:template]
         assert_equal "layouts/application.html.erb", rendered.payload[:within]
         assert_kind_of Integer, rendered.payload[:allocations]
@@ -137,7 +137,7 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         rendered = events.find { |m| m.message == "Rendered layout" }
 
         assert rendered, events
-        assert_equal "rails.view.render.layout", rendered.metric
+        assert_nil rendered.metric
         assert_equal "layouts/application.html.erb", rendered.payload[:template]
       end
     end

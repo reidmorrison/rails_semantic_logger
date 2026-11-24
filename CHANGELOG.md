@@ -37,6 +37,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   - `RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false` and Sidekiq 8's
     `skip_default_job_logging` turn off only the log entries now. The entries no longer carry a
     `metric`.
+- `add_server` and `add_console` no longer give an appender instance, a logger, or a metric appender
+  the default `:color` formatter, which Semantic Logger v6 refuses for them with an `ArgumentError`.
+  A stream or a file still gets it.
 
 ## [5.3.0] - 2026-11-20
 

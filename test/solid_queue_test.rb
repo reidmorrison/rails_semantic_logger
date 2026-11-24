@@ -84,6 +84,78 @@ class SolidQueueTest < Minitest::Test
       end
     end
 
+    describe "#fail_many_claimed with an error" do
+      let(:event_name) { "fail_many_claimed.solid_queue" }
+      let(:payload) { {job_ids: [1], process_ids: [10], error: RuntimeError.new("pruned")} }
+
+      it "passes the error through as the exception" do
+        messages = semantic_logger_events { subscriber.fail_many_claimed(event) }
+
+        assert_equal "pruned", messages[0].exception.message
+      end
+    end
+
+    describe "#finish_batch" do
+      let(:event_name) { "finish_batch.solid_queue" }
+      let(:payload) { {batch_id: "b1", total_jobs: 3, completed_jobs: 2, failed_jobs: 1} }
+
+      it "logs at info level" do
+        messages = semantic_logger_events { subscriber.finish_batch(event) }
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :info,
+          message: "Finish batch",
+          payload: {batch_id: "b1", total_jobs: 3, completed_jobs: 2, failed_jobs: 1}
+        )
+      end
+    end
+
+    describe "#sweep_stalled_batches" do
+      let(:event_name) { "sweep_stalled_batches.solid_queue" }
+      let(:payload) { {stale_executions: 1, finished_batches: 2, started_batches: 3} }
+
+      it "logs at debug level" do
+        messages = semantic_logger_events { subscriber.sweep_stalled_batches(event) }
+
+        assert_semantic_logger_event(messages[0], level: :debug, message: "Sweep stalled batches")
+      end
+    end
+
+    describe "#batch_progress_error" do
+      let(:event_name) { "batch_progress_error.solid_queue" }
+      let(:payload) { {batch_id: "b1", job_id: 7, error: ArgumentError.new("boom")} }
+
+      it "logs at error level with the exception" do
+        messages = semantic_logger_events { subscriber.batch_progress_error(event) }
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :error,
+          message: "Error updating batch progress",
+          payload: {batch_id: "b1", job_id: 7}
+        )
+        assert_kind_of ArgumentError, messages[0].exception
+      end
+    end
+
+    describe "#fork_boot_timeout" do
+      let(:event_name) { "fork_boot_timeout.solid_queue" }
+      let(:process) { Struct.new(:kind, :hostname, :name).new("Worker", "host.local", "worker-1") }
+      let(:payload) { {pid: 42, process: process} }
+
+      it "logs at warn level" do
+        messages = semantic_logger_events { subscriber.fork_boot_timeout(event) }
+
+        assert_semantic_logger_event(
+          messages[0],
+          level:   :warn,
+          message: "Terminate Worker that failed to boot in time",
+          payload: {pid: 42, hostname: "host.local", name: "worker-1"}
+        )
+      end
+    end
+
     describe "#thread_error" do
       let(:event_name) { "thread_error.solid_queue" }
       let(:payload) { {error: ArgumentError.new("boom")} }

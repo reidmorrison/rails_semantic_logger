@@ -14,7 +14,24 @@ module RailsSemanticLogger
       end
 
       def fail_many_claimed(event)
-        log_event(event, :warn, "Fail claimed jobs", **event.payload.slice(:job_ids, :process_ids))
+        log_event(event, :warn, "Fail claimed jobs", exception: event.payload[:error],
+                                                     **event.payload.slice(:job_ids, :process_ids))
+      end
+
+      # Solid Queue 1.5+ batches.
+      def finish_batch(event)
+        log_event(event, :info, "Finish batch",
+                  **event.payload.slice(:batch_id, :total_jobs, :completed_jobs, :failed_jobs))
+      end
+
+      def sweep_stalled_batches(event)
+        log_event(event, :debug, "Sweep stalled batches",
+                  **event.payload.slice(:stale_executions, :finished_batches, :started_batches))
+      end
+
+      def batch_progress_error(event)
+        log_event(event, :error, "Error updating batch progress", exception: event.payload[:error],
+                                                                  **event.payload.slice(:batch_id, :job_id))
       end
 
       def release_claimed(event)
@@ -151,6 +168,12 @@ module RailsSemanticLogger
         elsif supervisor_pid != 1 # Running Docker, possibly having some processes that have been reparented
           log_event(event, :warn, "Tried to replace forked process but it had already died", **attributes)
         end
+      end
+
+      def fork_boot_timeout(event)
+        process = event.payload[:process]
+        log_event(event, :warn, "Terminate #{process.kind} that failed to boot in time",
+                  **event.payload.slice(:pid), hostname: process.hostname, name: process.name)
       end
 
       private

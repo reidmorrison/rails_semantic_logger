@@ -61,6 +61,50 @@ class RackMetricsTest < Minitest::Test
       assert_equal "_OTHER", metric.dimensions["http.request.method"]
     end
 
+    describe "when the route that matched passed the request on" do
+      let(:app) do
+        lambda { |env|
+          env["action_dispatch.route_uri_pattern"] = "/things/:id(.:format)"
+          [404, {"x-cascade" => "pass"}, []]
+        }
+      end
+
+      it "records no route" do
+        metric = assert_metric(request, name: "http.server.request.duration")
+
+        refute metric.dimensions.key?("http.route")
+      end
+    end
+
+    describe "a routing error that a controller raised" do
+      let(:app) do
+        lambda do |env|
+          env["action_dispatch.route_uri_pattern"] = "/articles/:id(.:format)"
+          env["action_controller.instance"]        = Object.new
+          raise ActionController::RoutingError, "Not Found"
+        end
+      end
+
+      it "keeps the route that served the request" do
+        metrics = semantic_logger_metrics do
+          assert_raises(ActionController::RoutingError) { middleware.call(::Rack::MockRequest.env_for("http://example.com/articles/9")) }
+        end
+
+        assert_equal "/articles/:id",
+                     assert_metric(metrics, name: "http.server.request.duration").dimensions["http.route"]
+      end
+    end
+
+    describe "a hijacked connection" do
+      let(:app) { ->(_env) { [-1, {}, []] } }
+
+      it "records nothing" do
+        metrics = semantic_logger_metrics { middleware.call(::Rack::MockRequest.env_for("http://example.com/cable")) }
+
+        assert_empty metrics
+      end
+    end
+
     describe "when no route matched" do
       let(:route) { nil }
       let(:status) { 404 }
@@ -102,11 +146,58 @@ class RackMetricsTest < Minitest::Test
 
   class RequestTest < ActionDispatch::IntegrationTest
     describe "the application's middleware" do
-      it "places the request metrics just before ShowExceptions" do
-        middleware = Rails.application.middleware.map(&:klass)
+      it "places the request metrics first, so that it sees every request" do
+        assert_equal RailsSemanticLogger::Rack::Metrics, Rails.application.middleware.first.klass
+      end
 
-        assert_equal ::ActionDispatch::ShowExceptions,
-                     middleware[middleware.index(RailsSemanticLogger::Rack::Metrics) + 1]
+      it "records a mounted Rack application by its mount path" do
+        metrics = semantic_logger_metrics { get "/mounted/anything" }
+
+        metric = assert_metric(metrics, name: "http.server.request.duration")
+
+        assert_equal "/mounted", metric.dimensions["http.route"]
+      end
+
+      it "records a mounted engine's route below its mount path" do
+        metric = assert_metric(semantic_logger_metrics { get "/blog/posts/5" }, name: "http.server.request.duration")
+
+        assert_equal "/blog/posts/:id", metric.dimensions["http.route"]
+      end
+
+      it "records routes under a dynamic segment by their templates, never by the path" do
+        rack_app = assert_metric(semantic_logger_metrics do
+          get "/en/localized/x"
+        end, name: "http.server.request.duration")
+        engine = assert_metric(semantic_logger_metrics do
+          get "/fr/news/posts/5"
+        end, name: "http.server.request.duration")
+
+        assert_equal "/:locale/localized", rack_app.dimensions["http.route"]
+        assert_equal "/:locale/news/posts/:id", engine.dimensions["http.route"]
+      end
+
+      it "records no route for a request that a route passed on" do
+        metrics = semantic_logger_metrics do
+          get "/cascading/5"
+        rescue ActionController::RoutingError
+          nil
+        end
+
+        metric = assert_metric(metrics, name: "http.server.request.duration")
+
+        refute metric.dimensions.key?("http.route"), metric.dimensions
+      end
+
+      it "records the method that the client sent, before a method override" do
+        metrics = semantic_logger_metrics do
+          post article_url(1), params: {_method: "delete"}
+        rescue AbstractController::ActionNotFound
+          nil
+        end
+
+        metric = assert_metric(metrics, name: "http.server.request.duration")
+
+        assert_equal "POST", metric.dimensions["http.request.method"]
       end
 
       it "records each request" do

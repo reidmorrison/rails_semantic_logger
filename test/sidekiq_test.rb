@@ -162,6 +162,16 @@ class SidekiqTest < Minitest::Test
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
       end
 
+      it "records no metrics when the Rails metrics are turned off" do
+        RailsSemanticLogger::Sidekiq::JobLogger.metrics = false
+
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        assert_empty metrics
+      ensure
+        RailsSemanticLogger::Sidekiq::JobLogger.metrics = true
+      end
+
       it "does not emit perform messages when disabled" do
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false
 

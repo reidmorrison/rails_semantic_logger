@@ -6,7 +6,12 @@ module RailsSemanticLogger
       DEFAULT_LOGGED_JOB_ATTRIBUTES = %w[bid tags].freeze
 
       class << self
-        attr_writer :perform_messages
+        attr_writer :perform_messages, :metrics
+
+        # Whether to record the job metrics. The engine sets it from config.rails_semantic_logger.metrics.
+        def metrics
+          instance_variable_defined?(:@metrics) ? @metrics : true
+        end
 
         def perform_messages
           instance_variable_defined?(:@perform_messages) ? @perform_messages : true
@@ -33,7 +38,7 @@ module RailsSemanticLogger
           dimensions = {"messaging.system.name" => "sidekiq", "messaging.destination.name" => queue}
 
           latency = job_latency_ms(item)
-          logger.time(QUEUE_DURATION, duration: latency, dimensions: dimensions) if latency
+          metrics.time(QUEUE_DURATION, duration: latency, dimensions: dimensions) if latency && self.class.metrics
           logger.info("Start #perform", call_site: false) if perform_messages_enabled?
 
           process(logger, klass, dimensions, &block)
@@ -73,15 +78,19 @@ module RailsSemanticLogger
         error = e
         raise
       ensure
-        duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
-        logger.time(PROCESS_DURATION, duration: duration_ms, dimensions: process_dimensions(dimensions, klass, error))
+        if self.class.metrics
+          duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
+          metrics.time(PROCESS_DURATION, duration:   duration_ms,
+                                         dimensions: process_dimensions(dimensions, klass, error))
+        end
       end
 
       # OpenTelemetry names a system-specific attribute after its system, as `messaging.sidekiq.*`.
       def process_dimensions(dimensions, klass, error)
         process = dimensions.merge("messaging.operation.name" => "process")
         process["messaging.sidekiq.job.class"] = klass if klass
-        process["error.type"]                  = job_error(error).class.name if error
+        # An anonymous exception class has no name: OpenTelemetry's fallback for an unknown error.
+        process["error.type"]                  = job_error(error).class.name || "_OTHER" if error
         process
       end
 
@@ -90,6 +99,12 @@ module RailsSemanticLogger
       def job_error(error)
         handled = defined?(::Sidekiq::JobRetry::Handled) && error.is_a?(::Sidekiq::JobRetry::Handled)
         handled && error.cause ? error.cause : error
+      end
+
+      # Records the job metrics. Not the job's logger, which can be Sidekiq's, and the application can
+      # make that a plain Ruby Logger, which records no metrics.
+      def metrics
+        RailsSemanticLogger::Metrics.logger
       end
 
       def perform_messages_enabled?

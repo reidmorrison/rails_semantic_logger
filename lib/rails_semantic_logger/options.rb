@@ -37,7 +37,8 @@ module RailsSemanticLogger
   #       Example, change the default internal logger to log to stdout:
   #         SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
   #
-  # * Do not record the Rails metrics, such as `http.server.request.duration`.
+  # * Do not record the Rails metrics, such as `http.server.request.duration`, nor the Sidekiq job
+  #   metrics (`sidekiq.queue.duration` and `messaging.process.duration`).
   #
   #     They are named after the OpenTelemetry semantic conventions where one exists, recorded
   #     whatever is logged, and cost almost nothing until a metric appender is added. Set it in

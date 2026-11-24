@@ -18,10 +18,16 @@ module RailsSemanticLogger
                                                      **event.payload.slice(:job_ids, :process_ids))
       end
 
-      # Solid Queue 1.5+ batches.
+      # Solid Queue 1.7+ batches.
+      # Solid Queue logs this event at info even when finishing the batch raised. Log that at error,
+      # with the exception, so a failed finish does not look like a successful one.
       def finish_batch(event)
-        log_event(event, :info, "Finish batch",
-                  **event.payload.slice(:batch_id, :total_jobs, :completed_jobs, :failed_jobs))
+        attributes = event.payload.slice(:batch_id, :total_jobs, :completed_jobs, :failed_jobs)
+        if (exception = event.payload[:exception_object])
+          log_event(event, :error, "Error finishing batch", exception: exception, **attributes)
+        else
+          log_event(event, :info, "Finish batch", **attributes)
+        end
       end
 
       def sweep_stalled_batches(event)
@@ -59,7 +65,8 @@ module RailsSemanticLogger
       end
 
       def release_blocked(event)
-        log_event(event, :debug, "Release blocked job", **event.payload.slice(:job_id, :concurrency_key, :released))
+        log_event(event, :debug, "Release blocked job",
+                  **event.payload.slice(:job_id, :concurrency_key, :released, :failed))
       end
 
       def enqueue_recurring_task(event)
@@ -170,10 +177,16 @@ module RailsSemanticLogger
         end
       end
 
+      # Solid Queue 1.5.1+.
       def fork_boot_timeout(event)
-        process = event.payload[:process]
-        log_event(event, :warn, "Terminate #{process.kind} that failed to boot in time",
-                  **event.payload.slice(:pid), hostname: process.hostname, name: process.name)
+        process    = event.payload[:process]
+        attributes = event.payload.slice(:pid).merge(hostname: process.hostname, name: process.name)
+        if (exception = event.payload[:exception_object])
+          log_event(event, :error, "Error terminating #{process.kind} that failed to boot in time",
+                    exception: exception, **attributes)
+        else
+          log_event(event, :warn, "Terminate #{process.kind} that failed to boot in time", **attributes)
+        end
       end
 
       private

@@ -81,8 +81,15 @@ module RailsSemanticLogger
       def process_dimensions(dimensions, klass, error)
         process = dimensions.merge("messaging.operation.name" => "process")
         process["messaging.sidekiq.job.class"] = klass if klass
-        process["error.type"]                  = error.class.name if error
+        process["error.type"]                  = job_error(error).class.name if error
         process
+      end
+
+      # The exception the job raised. When Sidekiq will retry the job, its retrier catches that exception
+      # and raises Sidekiq::JobRetry::Handled in its place, from the rescue, so it is the cause.
+      def job_error(error)
+        handled = defined?(::Sidekiq::JobRetry::Handled) && error.is_a?(::Sidekiq::JobRetry::Handled)
+        handled && error.cause ? error.cause : error
       end
 
       def perform_messages_enabled?

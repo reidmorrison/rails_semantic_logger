@@ -259,6 +259,24 @@ class SidekiqTest < Minitest::Test
           assert_equal [], messages[2].payload[:job]["args"]
         end
 
+        it "records the class that a retried job raised, not Sidekiq's Handled" do
+          job_logger = RailsSemanticLogger::Sidekiq::JobLogger.new(config)
+          item       = {"class" => "BadJob", "jid" => "1", "enqueued_at" => Time.now.to_f}
+
+          metrics = semantic_logger_metrics do
+            assert_raises(Sidekiq::JobRetry::Handled) do
+              job_logger.call(item, "default") do
+                raise ArgumentError, "boom"
+              rescue ArgumentError
+                raise Sidekiq::JobRetry::Handled
+              end
+            end
+          end
+
+          assert_equal "ArgumentError",
+                       assert_metric(metrics, name: "messaging.process.duration").dimensions["error.type"]
+        end
+
         it "records the exception class as the error.type of the job's duration" do
           metrics = semantic_logger_metrics do
             assert_raises(ArgumentError) { processor.send(:process, uow) }

@@ -101,6 +101,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   building a mail took, by `code.function.name` (`UserMailer#welcome`) and `error.type`, both
   histograms in seconds, whatever is logged. A delivery skipped by `perform_deliveries = false` is
   not recorded. The log entries no longer carry a `metric`.
+- Record `rails.cache.operation.duration`, a histogram in seconds of each operation on an
+  `ActiveSupport::Cache` store, by `rails.cache.operation.name` (`read`, `write`, `fetch_hit`,
+  `generate`, `delete`, `exist`, ...), `rails.cache.store`, and `rails.cache.hit` for a read. The
+  cache had no metric before.
 
 ## [5.3.0] - 2026-11-20
 

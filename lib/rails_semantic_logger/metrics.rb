@@ -9,6 +9,7 @@ module RailsSemanticLogger
   module Metrics
     autoload :ActionController, "rails_semantic_logger/metrics/action_controller"
     autoload :ActionView, "rails_semantic_logger/metrics/action_view"
+    autoload :ActiveRecord, "rails_semantic_logger/metrics/active_record"
     autoload :Subscriber, "rails_semantic_logger/metrics/subscriber"
 
     # Attaches the subscribers that record the metrics of each Rails component. Called once, by the
@@ -17,6 +18,7 @@ module RailsSemanticLogger
     def self.attach
       ActionController.attach_to(:action_controller)
       ActionView.attach_to(:action_view)
+      ActiveRecord.attach_to(:active_record)
     end
   end
 end

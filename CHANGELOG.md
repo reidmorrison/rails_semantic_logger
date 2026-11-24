@@ -42,6 +42,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   appender, which Semantic Logger v6 refuses a formatter for with an `ArgumentError`, an appender
   instance, which ignores it, and a logger (`logger:`) or an appender named by a Symbol (such as
   `appender: :syslog`), which no longer write colored text.
+- `add_server` and `add_console` no longer give an appender instance, a logger, or a metric appender
+  the default `:color` formatter, which Semantic Logger v6 refuses for them with an `ArgumentError`.
+  A stream or a file still gets it.
+- Record `http.server.request.duration`, OpenTelemetry's stable metric for HTTP server requests: a
+  histogram in seconds of the whole request, until its body is closed, with `http.request.method`,
+  `url.scheme`, `http.route` (the route template without `(.:format)`), `http.response.status_code`,
+  and `error.type` (the status code of a 5xx, or the class of an exception that escapes). A new
+  middleware, `RailsSemanticLogger::Rack::Metrics`, records it just before
+  `ActionDispatch::ShowExceptions`. Turn off the Rails metrics with
+  `config.rails_semantic_logger.metrics = false`.
 
 ## [5.3.0] - 2026-11-20
 

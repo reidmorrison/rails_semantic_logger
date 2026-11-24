@@ -69,6 +69,12 @@ module RailsSemanticLogger
         config.middleware.swap(Rails::Rack::Logger, RailsSemanticLogger::Rack::Logger, config.log_tags)
       end
 
+      # Time every request for http.server.request.duration. Just before ShowExceptions, so that it
+      # sees the status of the error pages that ShowExceptions renders.
+      if config.rails_semantic_logger.metrics
+        config.middleware.insert_before(::ActionDispatch::ShowExceptions, RailsSemanticLogger::Rack::Metrics)
+      end
+
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger = config.logger =

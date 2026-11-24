@@ -20,7 +20,7 @@ module RailsSemanticLogger
 
       def call(item, queue, &block)
         klass  = item["wrapped"] || item["class"]
-        logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+        logger = klass ? SemanticLogger[klass] : ::Sidekiq.logger
 
         SemanticLogger.tagged(queue: queue) do
           if perform_messages_enabled?

@@ -46,7 +46,12 @@ module RailsSemanticLogger
 
       # Records the duration of the event, in seconds, in the histogram `name`.
       def time(name, event, dimensions = nil)
-        self.class.logger.time(name, duration: event.duration, dimensions: dimensions)
+        record_duration(name, event.duration, dimensions)
+      end
+
+      # Records a duration given in milliseconds, in seconds, in the histogram `name`.
+      def record_duration(name, duration_ms, dimensions = nil)
+        self.class.logger.time(name, duration: duration_ms, dimensions: dimensions)
       end
 
       # OpenTelemetry's error.type for an exception: its class, or "_OTHER" for an anonymous class,
@@ -55,9 +60,9 @@ module RailsSemanticLogger
         exception.class.name || "_OTHER"
       end
 
-      # Adds one to the counter `name`.
-      def increment(name, dimensions = nil)
-        self.class.logger.increment(name, dimensions: dimensions)
+      # Adds `amount`, one by default, to the counter `name`.
+      def increment(name, dimensions = nil, amount = 1)
+        self.class.logger.increment(name, amount, dimensions: dimensions)
       end
     end
   end

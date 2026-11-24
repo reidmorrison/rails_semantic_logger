@@ -159,22 +159,19 @@ version.
 
 `RailsSemanticLogger::Options` is the public configuration surface, set via `config.rails_semantic_logger.*`
 in `application.rb`. Key flags include `semantic`, `started`, `processing`, `rendered`, `quiet_assets`,
-`add_file_appender`, `format` (`:default` / `:color` / `:json` / class / Proc), `filter`, `ap_options`,
-`action_message_format`, `replace_sidekiq_logger`, `replace_solid_queue_logger`, and `console_logger`. The
-long comment block at the top of that file is the authoritative documentation for each option, so keep it in
-sync when changing defaults or behavior.
+`action_message_format`, `replace_sidekiq_logger`, `replace_solid_queue_logger`, and
+`redact_filter_parameters`. The long comment block at the top of that file is the authoritative documentation
+for each option, so keep it in sync when changing defaults or behavior.
 
-The `format`, `ap_options`, `filter`, `console_logger`, and `add_file_appender` options are **deprecated** in
-favor of declaring appenders directly (see below). Their setters warn through `RailsSemanticLogger.deprecator` (whose removal
-horizon, `"6.0"`, is set in `lib/rails_semantic_logger.rb`) via the shared `deprecate_appender_option(option,
-via:)` helper; the `via:` argument customizes the suggested replacement call. The readers remain so the engine
-can still honor them on the legacy path. Reuse `deprecate_appender_option` when deprecating another option.
+v6 removed the `format`, `ap_options`, `filter`, `console_logger`, and `add_file_appender` options, which v5
+deprecated in favor of declaring appenders directly (see below). `RailsSemanticLogger.deprecator` stays
+registered as `Rails.application.deprecators[:rails_semantic_logger]`, with a `"7.0"` horizon, for future
+deprecations.
 
 ### Appenders configuration (`lib/rails_semantic_logger/appenders.rb`)
 
-This is the current way to configure where logs go. Rather than relying on the single default
-`log/<env>.log` file appender plus the `format` / `filter` / `ap_options` options, an application declares its
-appenders directly in a block:
+This is the way to configure where logs go. Rather than relying on the single default `log/<env>.log` file
+appender, an application declares its appenders directly in a block:
 
 ```ruby
 config.rails_semantic_logger.appenders do |appenders|
@@ -194,16 +191,15 @@ The design and the points to keep in mind when changing it:
   (`io` / `file_name` / `appender` / `logger` / `metric`, listed in `Appenders::DESTINATIONS`) was supplied.
   A context may therefore declare several appenders (for example a server-only stdout *and* a server-only
   file).
-- Once anything is declared, `Options#appenders?` is true, the engine **skips the default file appender**, and
-  the deprecated options above no longer apply.
+- Once anything is declared, `Options#appenders?` is true and the engine **skips the default file appender**
+  (`log/<env>.log`, in color unless `config.colorize_logging` is false).
 - **Materialization.** `add` appenders are created at init by `RailsSemanticLogger.add_appenders`.
   `add_server` appenders are created by the public `RailsSemanticLogger.add_server_appenders`, called
   automatically from the `rails server` patch (`extensions/rails/server.rb`) and the Sidekiq server block in
   the engine. `add_console` appenders are created by `RailsSemanticLogger.add_console_appenders`, called from
   the engine's `console do` hook. Both are idempotent via `SemanticLogger.appenders.console_output?`, and
-  both fall back to a default screen appender (stdout for server, stderr for console) for backward
-  compatibility when the app declared no appenders of its own (the console fallback is additionally gated
-  by the deprecated `console_logger` toggle).
+  both fall back to a default screen appender (stdout for server, stderr for console) when the app declared
+  no appenders of its own.
 - **No heuristic server detection, by design.** App servers without a first-party hook (bare `puma`, `rackup`,
   Passenger, Unicorn) are deliberately not auto-detected: there is no `$PROGRAM_NAME` matching and no
   `Puma::Launcher` monkey-patch, because a detection that only "sometimes works" is a support burden. Users of

@@ -129,6 +129,18 @@ class AppendersTest < Minitest::Test
       end
     end
 
+    describe "the default file appender" do
+      it "writes log/<environment>.log in color, with single-line Amazing Print" do
+        appender = SemanticLogger.appenders.find do |app|
+          app.is_a?(SemanticLogger::Appender::File) && app.file_name.to_s.end_with?("log/test.log")
+        end
+
+        assert appender, "no default file appender"
+        assert_kind_of SemanticLogger::Formatters::Color, appender.formatter
+        assert_equal({multiline: false}, appender.formatter.instance_variable_get(:@ai_options))
+      end
+    end
+
     describe "the appender options removed in v6" do
       %i[format ap_options filter console_logger add_file_appender].each do |option|
         it "no longer accepts #{option}" do

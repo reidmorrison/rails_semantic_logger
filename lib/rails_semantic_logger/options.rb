@@ -28,11 +28,12 @@ module RailsSemanticLogger
   #
   #     Unless the application declares its own appenders (see #appenders), Rails Semantic Logger
   #     writes to `log/<environment>.log`, in color unless `config.colorize_logging` is false, and to
-  #     the screen under `rails server` and `rails console`.
+  #     the screen under `rails server`, Sidekiq in server mode, and `rails console`.
   #
   #     Note:
-  #       When Semantic Logger fails to log to an appender it logs the error to an
-  #       internal logger, which by default writes to STDERR.
+  #       When Semantic Logger fails to log to an appender it logs the error to an internal logger:
+  #       the default log file, or, when the application declares its own appenders, its first file
+  #       appender, else STDERR.
   #       Example, change the default internal logger to log to stdout:
   #         SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
   #

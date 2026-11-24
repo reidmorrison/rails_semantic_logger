@@ -18,6 +18,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - The default file appender no longer changes the formatter of the file and IO appenders that the
   application added before Rails initialized, through `config.semantic_logger.add_appender`. Each
   keeps the formatter it was given.
+- An application that set `add_file_appender = false` or `console_logger = false` must declare all its
+  appenders in `config.rails_semantic_logger.appenders`, including those it added with
+  `config.semantic_logger.add_appender`: declaring any turns off the default file appender and the
+  default screen appenders, which `console_logger` also controlled under `rails server` and Sidekiq.
+  Deleting the line alone brings back `log/<environment>.log`, or the screen output.
 - The deprecator, `Rails.application.deprecators[:rails_semantic_logger]`, stays registered, so
   configuration that silences it keeps working.
 

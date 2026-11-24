@@ -22,21 +22,34 @@ module RailsSemanticLogger
       def enqueue_all(event)
         payload = event.payload
         jobs    = payload[:jobs] || []
-        jobs.select(&:successfully_enqueued?).group_by { |job| job_dimensions(job) }.each do |dimensions, sent|
-          increment("messaging.client.sent.messages", dimensions, sent.size)
+        error   = payload[:exception_object]
+        count   = payload[:enqueued_count].to_i
+        sent    = sent_jobs(jobs, count, error)
+        if sent
+          sent.group_by { |job| job_dimensions(job) }.each do |dimensions, group|
+            increment("messaging.client.sent.messages", dimensions, group.size)
+          end
+        else
+          count_unmarked(jobs, count)
         end
 
         dimensions = operation_dimensions("enqueue_all", "send")
         dimensions["messaging.active_job.adapter.name"] = adapter_name(payload[:adapter]) if payload[:adapter]
-        dimensions["error.type"]                        = "partial" if jobs.any? { |job| !job.successfully_enqueued? }
+        failure = enqueue_all_failure(jobs, sent ? sent.size : count, error)
+        dimensions["error.type"] = failure if failure
         time("messaging.client.operation.duration", event, dimensions)
       end
 
-      # How long the job waited in its queue: from when it was due, the time it was scheduled for or
-      # else when it was enqueued, until it started. No convention covers it.
+      # How long the job waited in its queue: from when it was due, the later of the time it was
+      # scheduled for and when it was last enqueued, until it started. No convention covers it.
+      #
+      # Only a job taken from a queue has enqueued_at: one performed at once, even with a wait, never
+      # waited in a queue.
       def perform_start(event)
         job = event.payload[:job]
-        due = job.scheduled_at || job.enqueued_at
+        return unless job.enqueued_at
+
+        due = [to_time(job.scheduled_at), to_time(job.enqueued_at)].compact.max
         return unless due
 
         record_duration("active_job.queue.duration", [(Time.now - due) * 1000, 0].max, job_dimensions(job))
@@ -45,8 +58,8 @@ module RailsSemanticLogger
       def perform(event)
         payload    = event.payload
         dimensions = job_dimensions(payload[:job]).merge("messaging.operation.name" => "process")
-        error_type = error_type(payload[:exception_object], payload[:aborted])
-        dimensions["error.type"] = error_type if error_type
+        failure = failure_type(payload[:exception_object], payload[:aborted])
+        dimensions["error.type"] = failure if failure
         time("messaging.process.duration", event, dimensions)
       end
 
@@ -74,7 +87,11 @@ module RailsSemanticLogger
       def step(event)
         payload    = event.payload
         dimensions = job_dimensions(payload[:job])
-        dimensions["active_job.step.name"] = payload[:step].name.to_s if payload[:step]
+        dimensions["active_job.step.name"]        = payload[:step].name.to_s if payload[:step]
+        dimensions["active_job.step.interrupted"] = payload[:interrupted] == true
+        # An interrupted step raises Interrupt through the instrumentation, which is not a failure.
+        error = payload[:exception_object] unless payload[:interrupted]
+        dimensions["error.type"] = error_type(error) if error
         time("active_job.step.duration", event, dimensions)
       end
 
@@ -90,8 +107,8 @@ module RailsSemanticLogger
 
         dimensions = job_dimensions(job).merge(operation_dimensions(operation, "send"))
         dimensions["messaging.active_job.adapter.name"] = adapter_name(payload[:adapter]) if payload[:adapter]
-        error_type = error_type(error, payload[:aborted])
-        dimensions["error.type"] = error_type if error_type
+        failure = failure_type(error, payload[:aborted])
+        dimensions["error.type"] = failure if failure
         time("messaging.client.operation.duration", event, dimensions)
       end
 
@@ -113,20 +130,68 @@ module RailsSemanticLogger
 
       def failure_dimensions(payload)
         dimensions = job_dimensions(payload[:job])
-        dimensions["error.type"] = payload[:error].class.name if payload[:error]
+        dimensions["error.type"] = error_type(payload[:error]) if payload[:error]
         dimensions
       end
 
-      # The exception class, or "aborted" when a callback halted the job.
-      def error_type(exception, aborted)
-        return exception.class.name if exception
+      # The exception's error.type, or "aborted" when a callback halted the job.
+      def failure_type(exception, aborted)
+        return error_type(exception) if exception
 
         "aborted" if aborted
       end
 
+      # The error.type of enqueue_all: the exception it raised, "failed" when no job was enqueued, and
+      # "partial" when only some were.
+      def enqueue_all_failure(jobs, enqueued, error)
+        return error_type(error) if error
+        return if enqueued >= jobs.size
+
+        enqueued.zero? ? "failed" : "partial"
+      end
+
+      # An adapter that enqueues jobs all at once, as Sidekiq's does, returns how many it enqueued and
+      # marks none, so when it enqueued only some, which ones is not known: they are counted by the
+      # jobs' queue and class when all share them, else by the system alone.
+      def count_unmarked(jobs, count)
+        return unless count.positive?
+
+        groups     = jobs.map { |job| job_dimensions(job) }.uniq
+        dimensions = groups.size == 1 ? groups.first : {"messaging.system.name" => SYSTEM}
+        increment("messaging.client.sent.messages", dimensions, count)
+      end
+
       # Rails reports an enqueue failure either as the event's exception or as the job's enqueue_error.
+      # The job's is read only when it was not enqueued: Rails 7.2 keeps the enqueue_error of an earlier
+      # attempt when the same job is enqueued again.
       def enqueue_error(payload)
-        payload[:exception_object] || (payload[:job].enqueue_error if payload[:job].respond_to?(:enqueue_error))
+        return payload[:exception_object] if payload[:exception_object]
+
+        job = payload[:job]
+        return if job.respond_to?(:successfully_enqueued?) && job.successfully_enqueued?
+
+        job.enqueue_error if job.respond_to?(:enqueue_error)
+      end
+
+      # The jobs that enqueue_all sent, when it is known which: all of them when the adapter enqueued as
+      # many as it was given, otherwise those marked as enqueued.
+      #
+      # Nil when the marks do not agree with the adapter's count: an adapter that enqueues them all at
+      # once, as Sidekiq's does, marks none, and a job enqueued before keeps its mark.
+      def sent_jobs(jobs, enqueued_count, error)
+        return jobs if error.nil? && enqueued_count == jobs.size
+
+        marked = jobs.select(&:successfully_enqueued?)
+        marked if error || marked.size == enqueued_count
+      end
+
+      # A time Active Job holds as a Time, a Date (wait_until: Date.tomorrow), or seconds since the epoch.
+      def to_time(value)
+        case value
+        when Numeric then Time.at(value)
+        when nil then nil
+        else value.to_time
+        end
       end
 
       def adapter_name(adapter)

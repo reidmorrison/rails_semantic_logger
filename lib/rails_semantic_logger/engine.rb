@@ -330,12 +330,5 @@ module RailsSemanticLogger
       # flag changes made after this point (e.g. at runtime) as having no effect.
       config.rails_semantic_logger.fully_initialized!
     end
-
-    # The Rails metrics, recorded whatever is logged, so whether or not the log subscribers are swapped.
-    # After the block above, since swapping the Action View log subscriber unsubscribes every subscriber
-    # to its render events.
-    config.after_initialize do
-      RailsSemanticLogger::Metrics.attach if Rails.application.config.rails_semantic_logger.metrics
-    end
   end
 end

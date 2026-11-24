@@ -6,6 +6,9 @@ module RailsSemanticLogger
     class ActionView < Subscriber
       NAME = "rails.action_view.render.duration".freeze
 
+      # The directory that holds the templates, of the application, a gem, or an engine.
+      VIEWS = "app/views/".freeze
+
       def render_template(event)
         render("template", event)
       end
@@ -31,13 +34,17 @@ module RailsSemanticLogger
         time(NAME, event, dimensions)
       end
 
-      # The template's path from the application's views, such as "articles/show.html.erb", or from
-      # its root for a template elsewhere, such as a gem's. The templates of an application are a
-      # fixed set, so the number of series stays bounded.
+      # The template's path from its views directory, such as "articles/show.html.erb", for the
+      # application's templates and a gem's or an engine's alike, so that the number of series stays
+      # bounded and no host's directories are sent. Nil for a template outside any app/views.
       def template(identifier)
         return unless identifier
 
-        identifier.delete_prefix(rails_root).delete_prefix("app/views/")
+        path = identifier.delete_prefix(rails_root)
+        return path.delete_prefix(VIEWS) if path.start_with?(VIEWS)
+
+        index = path.index("/#{VIEWS}")
+        path[(index + VIEWS.length + 1)..] if index
       end
 
       def rails_root

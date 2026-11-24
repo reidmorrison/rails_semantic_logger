@@ -67,7 +67,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Action View: record `rails.action_view.render.duration` (was `rails.view.render.template`,
   `partial`, `layout`, and `collection`), a histogram in seconds by `rails.action_view.render.kind`
   and `rails.action_view.template`, the template's path from `app/views`. Every render is recorded,
-  whether or not its `Rendered` entry is logged, and the entries no longer carry a `metric`.
+  whether or not its `Rendered` entry is logged, and the entries no longer carry a `metric`. A gem's
+  or an engine's template is named by its path from its own `app/views`.
+- Action View: attaching the log subscriber no longer detaches every listener to the
+  `render_template` and `render_layout` events, such as an APM gem's, the application's own, and on
+  Rails 8.1+ Rails' structured event subscriber: only the listeners that log "Rendering".
 
 ## [5.3.0] - 2026-11-20
 

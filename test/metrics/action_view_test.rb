@@ -35,12 +35,37 @@ module Metrics
         )
       end
 
-      it "records a template outside the application by its full path" do
-        metrics = instrument("render_partial", identifier: "/gems/engine/app/views/shared/_nav.html.erb")
+      it "records a gem's template by its path from its views" do
+        metrics = instrument("render_partial",
+                             identifier: "/home/deploy/gems/devise-4.9.4/app/views/devise/_links.html.erb")
 
         metric = assert_metric(metrics, name: "rails.action_view.render.duration")
 
-        assert_equal "/gems/engine/app/views/shared/_nav.html.erb", metric.dimensions["rails.action_view.template"]
+        assert_equal "devise/_links.html.erb", metric.dimensions["rails.action_view.template"]
+      end
+
+      it "records no template outside any views directory" do
+        metrics = instrument("render_template", identifier: "/tmp/inline.erb")
+
+        metric = assert_metric(metrics, name: "rails.action_view.render.duration")
+
+        refute metric.dimensions.key?("rails.action_view.template")
+      end
+
+      it "detaches only the listeners that log Rendering, when the log subscriber attaches" do
+        name      = "render_template.action_view"
+        delegates = -> { ActiveSupport::Notifications.notifier.all_listeners_for(name).map { |l| l.instance_variable_get(:@delegate) } }
+        start     = RailsSemanticLogger::ActionView::LogSubscriber::Start
+
+        assert_equal(1, delegates.call.count { |delegate| delegate.is_a?(start) })
+
+        RailsSemanticLogger::ActionView::LogSubscriber.send(:detach_start_listeners, name)
+        remaining = delegates.call
+
+        assert_equal(0, remaining.count { |delegate| delegate.is_a?(start) })
+        assert(remaining.any?(RailsSemanticLogger::Metrics::ActionView), "the metrics were detached too")
+      ensure
+        ActiveSupport::Notifications.subscribe(name, start.new) if delegates.call.none?(start)
       end
 
       it "records the renders of a request, though they are logged at :debug" do

@@ -8,6 +8,7 @@ module RailsSemanticLogger
   # meter for each component, never one for each controller or job class, which are dimensions.
   module Metrics
     autoload :ActionController, "rails_semantic_logger/metrics/action_controller"
+    autoload :ActionMailer, "rails_semantic_logger/metrics/action_mailer"
     autoload :ActionView, "rails_semantic_logger/metrics/action_view"
     autoload :ActiveJob, "rails_semantic_logger/metrics/active_job"
     autoload :ActiveRecord, "rails_semantic_logger/metrics/active_record"
@@ -21,6 +22,7 @@ module RailsSemanticLogger
       ActionView.attach_to(:action_view)
       ActiveRecord.attach_to(:active_record)
       ActiveJob.attach_to(:active_job)
+      ActionMailer.attach_to(:action_mailer)
     end
   end
 end

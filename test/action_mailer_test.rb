@@ -79,7 +79,7 @@ class ActionMailerTest < Minitest::Test
             events.first,
             level:            :info,
             message_includes: "Delivered mail <abc@mail>",
-            metric:           "rails.mailer.deliver"
+            metric:           :nil
           )
         end
 
@@ -108,7 +108,7 @@ class ActionMailerTest < Minitest::Test
             level:            :error,
             message_includes: "Error delivering mail <abc@mail>",
             exception:        exception,
-            metric:           "rails.mailer.deliver"
+            metric:           :nil
           )
         end
 

@@ -96,6 +96,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     `active_job.step.duration` (by `active_job.step.name`, `active_job.step.interrupted`, and
     `error.type`).
   A job that Active Job runs on Sidekiq is recorded under both systems, `active_job` and `sidekiq`.
+- Action Mailer: record `rails.action_mailer.delivery.duration` (was `rails.mailer.deliver`), by
+  `rails.action_mailer.mailer` and `error.type`, and `rails.action_mailer.process.duration`, how long
+  building a mail took, by `code.function.name` (`UserMailer#welcome`), both histograms in seconds,
+  whatever is logged. A delivery skipped by `perform_deliveries = false` is not recorded. The log
+  entries no longer carry a `metric`.
 
 ## [5.3.0] - 2026-11-20
 

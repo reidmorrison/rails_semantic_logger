@@ -202,6 +202,11 @@ module RailsSemanticLogger
       RailsSemanticLogger.redact_filter_parameters(Rails.application.config)
     end
 
+    # The Rails metrics, recorded whatever is logged, so whether or not the log subscribers are swapped.
+    config.after_initialize do
+      RailsSemanticLogger::Metrics.attach if Rails.application.config.rails_semantic_logger.metrics
+    end
+
     # After any initializers run, but after the gems have been loaded
     config.after_initialize do
       config = Rails.application.config

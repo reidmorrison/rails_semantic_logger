@@ -47,7 +47,7 @@ class ActionControllerTest < Minitest::Test
         assert_instance_of Float, payload[:idle_time]
       end
 
-      it "emits the rails.controller.process_action metric" do
+      it "carries no metric: the controller metrics record it" do
         event = ActiveSupport::Notifications::Event.new(
           "process_action.action_controller",
           5.seconds.ago,
@@ -65,12 +65,12 @@ class ActionControllerTest < Minitest::Test
         end
 
         assert_equal 1, messages.count, messages
-        assert_equal "rails.controller.process_action", messages[0].metric
+        assert_nil messages[0].metric
       end
     end
 
     describe "#redirect_to" do
-      it "emits the rails.controller.redirect_to metric" do
+      it "logs the redirect without a metric" do
         event = ActiveSupport::Notifications::Event.new(
           "redirect_to.action_controller",
           5.seconds.ago,
@@ -88,7 +88,7 @@ class ActionControllerTest < Minitest::Test
           messages[0],
           level:   :info,
           message: "Redirected to",
-          metric:  "rails.controller.redirect_to"
+          metric:  :nil
         )
       end
     end
@@ -152,7 +152,7 @@ class ActionControllerTest < Minitest::Test
           level:   :warn,
           message: "Open redirect detected",
           payload: {location: "https://elsewhere.example.com/", request_method: "POST", request_path: "/articles"},
-          metric:  "rails.controller.open_redirect"
+          metric:  :nil
         )
         assert_equal ["app/x.rb:1"], messages[0].backtrace
       end
@@ -357,7 +357,7 @@ class ActionControllerTest < Minitest::Test
           level:   :warn,
           message: 'Path relative URL redirect detected: "foo"',
           payload: {url: "foo"},
-          metric:  "rails.controller.unsafe_redirect"
+          metric:  :nil
         )
         assert_equal ["app/x.rb:1"], messages[0].backtrace
       end
@@ -475,7 +475,7 @@ class ActionControllerTest < Minitest::Test
             name:    "ArticlesController",
             message: "Can't verify CSRF token authenticity.",
             payload: {controller: "ArticlesController", action: "create", sec_fetch_site: "cross-site"},
-            metric:  "rails.controller.csrf_request_blocked"
+            metric:  :nil
           )
         end
       end
@@ -495,7 +495,7 @@ class ActionControllerTest < Minitest::Test
             name:    "ArticlesController",
             message: "Security warning: an embedded <script> tag",
             payload: {controller: "ArticlesController", action: "create", sec_fetch_site: "cross-site"},
-            metric:  "rails.controller.csrf_javascript_blocked"
+            metric:  :nil
           )
         end
       end
@@ -515,7 +515,7 @@ class ActionControllerTest < Minitest::Test
             name:    "ArticlesController",
             message: "Falling back to CSRF token verification",
             payload: {controller: "ArticlesController", action: "create"},
-            metric:  "rails.controller.csrf_token_fallback"
+            metric:  :nil
           )
         end
       end

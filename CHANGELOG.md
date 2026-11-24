@@ -50,6 +50,23 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   middleware, `RailsSemanticLogger::Rack::Metrics`, first in the middleware stack, records it. A
   hijacked connection, such as a WebSocket, is not recorded. Turn off the Rails and Sidekiq metrics
   with `config.rails_semantic_logger.metrics = false`.
+  middleware, `RailsSemanticLogger::Rack::Metrics`, records it just before
+  `ActionDispatch::ShowExceptions`. Turn off the Rails metrics with
+  `config.rails_semantic_logger.metrics = false`.
+- Action Controller: record its metrics apart from its log entries, which no longer carry a
+  `metric`, and rename them under `rails.action_controller`, since no OpenTelemetry convention covers
+  them:
+  - `rails.action_controller.process_action.duration` (was `rails.controller.process_action`), with
+    `code.function.name` (`ArticlesController#index`), `http.response.status_code`, and `error.type`
+    when the action raised. For the whole request, use `http.server.request.duration`.
+  - Counters `rails.action_controller.halted_callbacks` (by `rails.action_controller.filter`),
+    `rails.action_controller.rescued_exceptions` (by `error.type`), `rails.action_controller.redirects`
+    (by `http.response.status_code` and `code.function.name`),
+    `rails.action_controller.unsafe_redirects` (by `rails.action_controller.redirect.kind`, `open` or
+    `path_relative`), and `rails.action_controller.csrf_events` (by
+    `rails.action_controller.csrf.reason`).
+  - Histograms `rails.action_controller.send_file.duration`, `send_data.duration`, and
+    `fragment_cache.duration` (by `rails.cache.operation.name`).
 
 ## [5.3.0] - 2026-11-20
 

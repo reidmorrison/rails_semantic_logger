@@ -8,9 +8,8 @@ module RailsSemanticLogger
   #   end
   #
   # When at least one appender is declared this way, Rails Semantic Logger stops
-  # building its own default file appender (`format`, `ap_options`, `filter`, and
-  # `add_file_appender` no longer apply) and instead creates exactly the appenders
-  # declared here.
+  # building its own default file appender and default screen appenders, and instead
+  # creates exactly the appenders declared here.
   #
   # The methods name the *context* in which the appender is created; the
   # destination and formatting are ordinary `SemanticLogger.add_appender` arguments:

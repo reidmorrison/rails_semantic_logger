@@ -56,14 +56,6 @@ module RailsSemanticLogger
       app.deprecators[:rails_semantic_logger] = RailsSemanticLogger.deprecator
     end
 
-    # The deprecated appender options are set from `config/application.rb` and
-    # `config/environments/*.rb`, which Rails reads before it applies the deprecation
-    # settings above, so their warnings are recorded rather than emitted. Now that
-    # the settings are in place, emit them.
-    initializer "rails_semantic_logger.flush_deprecations", after: "active_support.deprecation_behavior" do |app|
-      app.config.rails_semantic_logger.flush_deprecations!
-    end
-
     # Replace Rails logger initializer
     Rails::Application::Bootstrap.initializers.delete_if { |i| i.name == :initialize_logger }
 
@@ -84,30 +76,20 @@ module RailsSemanticLogger
           if config.rails_semantic_logger.appenders?
             # The application declared its own appenders; create those and skip the default file appender.
             RailsSemanticLogger.add_appenders(config.rails_semantic_logger.appenders)
-          elsif config.rails_semantic_logger.add_file_appender
-            # DEPRECATED: This option is deprecated and will be removed in a future version.
+          else
+            # The default file appender, log/<environment>.log, in color unless the application turned
+            # colorized logging off.
             path = config.paths["log"].first
             FileUtils.mkdir_p(File.dirname(path))
 
-            # Add the log file to the list of appenders
-            # Use the colorized formatter if Rails colorized logs are enabled
-            ap_options = config.rails_semantic_logger.ap_options
-            formatter  = config.rails_semantic_logger.format
-            formatter  = {color: {ap: ap_options}} if (formatter == :default) && (config.colorize_logging != false)
+            formatter = config.colorize_logging == false ? :default : {color: {ap: {multiline: false}}}
 
             # Set internal logger to log to file only, in case another appender experiences errors during writes
             appender                         = SemanticLogger::Appender::File.new(path, formatter: formatter)
             appender.name                    = "SemanticLogger"
             SemanticLogger::Processor.logger = appender
 
-            # Check for previous file or stdout loggers
-            SemanticLogger.appenders.each do |app|
-              next unless app.is_a?(SemanticLogger::Appender::File) || app.is_a?(SemanticLogger::Appender::IO)
-
-              app.formatter = formatter
-            end
-            SemanticLogger.add_appender(file_name: path, formatter: formatter,
-                                        filter: config.rails_semantic_logger.filter)
+            SemanticLogger.add_appender(file_name: path, formatter: formatter)
           end
 
           SemanticLogger[Rails]

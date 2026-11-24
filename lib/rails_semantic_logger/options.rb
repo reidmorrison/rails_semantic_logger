@@ -24,19 +24,11 @@ module RailsSemanticLogger
   #
   #     config.rails_semantic_logger.rendered = false
   #
-  # * Override the Amazing Print options for logging Hash data as text:
+  # * Where logs go
   #
-  #     Any valid Amazing Print option for rendering data.
-  #     The defaults can changed be creating a `~/.aprc` file.
-  #     See: https://github.com/amazing-print/amazing_print
-  #
-  #     Note: The option :multiline is set to false if not supplied.
-  #     Note: Has no effect if Amazing Print is not installed.
-  #
-  #        config.rails_semantic_logger.ap_options = {multiline: false}
-  #
-  # * Whether to automatically add an environment specific log file appender.
-  #     For Example: 'log/development.log'
+  #     Unless the application declares its own appenders (see #appenders), Rails Semantic Logger
+  #     writes to `log/<environment>.log`, in color unless `config.colorize_logging` is false, and to
+  #     the screen under `rails server` and `rails console`.
   #
   #     Note:
   #       When Semantic Logger fails to log to an appender it logs the error to an
@@ -44,68 +36,9 @@ module RailsSemanticLogger
   #       Example, change the default internal logger to log to stdout:
   #         SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
   #
-  #       config.rails_semantic_logger.add_file_appender = true
-  #
-  #   DEPRECATED: declare appenders via #appenders instead. Declaring any appender there already
-  #   replaces the default file appender, so this flag is no longer needed:
-  #     config.rails_semantic_logger.appenders { |appenders| appenders.add(file_name: ...) }
-  #
   # * Silence asset logging
   #
   #     config.rails_semantic_logger.quiet_assets = false
-  #
-  # * Disable automatic logging to stderr when running a Rails console.
-  #
-  #     config.rails_semantic_logger.console_logger = false
-  #
-  #   DEPRECATED: declare a console appender explicitly via #appenders instead, or
-  #   declare none to disable it:
-  #     config.rails_semantic_logger.appenders { |appenders| appenders.add_console(...) }
-  #
-  # * Override the output format for the primary Rails log file.
-  #
-  #     Valid options:
-  #     * :default
-  #         Plain text output with no color.
-  #     * :color
-  #         Plain text output with color.
-  #     * :json
-  #         JSON output format.
-  #     * class
-  #
-  #     * Proc
-  #         A block that will be called to format the output.
-  #         It is supplied with the `log` entry and should return the formatted data.
-  #
-  #     Note:
-  #     * `:default` is automatically changed to `:color` if `config.colorize_logging` is `true`.
-  #
-  #     JSON Example, in `application.rb`:
-  #        config.rails_semantic_logger.format = :json
-  #
-  #     Custom Example, create `app/lib/my_formatter.rb`:
-  #
-  #       # My Custom colorized formatter
-  #       class MyFormatter < SemanticLogger::Formatters::Color
-  #         # Return the complete log level name in uppercase
-  #         def level
-  #           "#{color}log.level.upcase#{color_map.clear}"
-  #         end
-  #       end
-  #
-  #      # In application.rb:
-  #      config.rails_semantic_logger.format = MyFormatter.new
-  #
-  #
-  #      config.rails_semantic_logger.format = :default
-  #
-  # * Add a filter to the file logger [Regexp|Proc]
-  #   RegExp: Only include log messages where the class name matches the supplied
-  #           regular expression. All other messages will be ignored.
-  #   Proc: Only include log messages where the supplied Proc returns true.
-  #         The Proc must return true or false.
-  #
-  #     config.rails_semantic_logger.filter = nil
   #
   # * Change the message format of Action Controller action.
   #   A block that will be called to format the message.
@@ -168,9 +101,6 @@ module RailsSemanticLogger
 
     attr_reader(*LOGGER_INIT_SETTINGS, *POST_INIT_SETTINGS)
 
-    # DEPRECATED: configure these on the appender instead, via #appenders.
-    attr_reader :ap_options, :format, :filter, :console_logger, :add_file_appender
-
     LOGGER_INIT_SETTINGS.each do |setting|
       define_method("#{setting}=") do |value|
         warn_if_logger_initialized(setting)
@@ -191,12 +121,7 @@ module RailsSemanticLogger
       @started                    = false
       @processing                 = false
       @rendered                   = false
-      @ap_options                 = {multiline: false}
-      @add_file_appender          = true
       @quiet_assets               = false
-      @format                     = :default
-      @filter                     = nil
-      @console_logger             = true
       @action_message_format      = nil
       @replace_sidekiq_logger     = true
       @replace_solid_queue_logger = true
@@ -228,9 +153,8 @@ module RailsSemanticLogger
     #   on_booted { RailsSemanticLogger.add_server_appenders }
     #
     # Returns the underlying RailsSemanticLogger::Appenders collection. When at
-    # least one appender has been declared, the default file appender (and the
-    # `format`, `ap_options`, `filter`, and `add_file_appender` options) is no
-    # longer used.
+    # least one appender has been declared, the default file appender and the default
+    # screen appenders of `rails server` and `rails console` are no longer created.
     def appenders
       @appenders ||= RailsSemanticLogger::Appenders.new
       if block_given?
@@ -261,86 +185,7 @@ module RailsSemanticLogger
       @fully_initialized = true
     end
 
-    def ap_options=(value)
-      deprecate_appender_option(:ap_options)
-      warn_if_logger_initialized(:ap_options)
-      @ap_options = value
-    end
-
-    def format=(value)
-      deprecate_appender_option(:format)
-      warn_if_logger_initialized(:format)
-      @format = value
-    end
-
-    def filter=(value)
-      deprecate_appender_option(:filter)
-      warn_if_logger_initialized(:filter)
-      @filter = value
-    end
-
-    def console_logger=(value)
-      deprecate_appender_option(:console_logger, via: "appenders.add_console(...)")
-      @console_logger = value
-    end
-
-    def add_file_appender=(value)
-      deprecate_appender_option(:add_file_appender)
-      warn_if_logger_initialized(:add_file_appender)
-      @add_file_appender = value
-    end
-
-    # Emit the deprecation warnings recorded by the deprecated appender option
-    # setters, and warn immediately from any later call. Called by the engine once
-    # Rails has applied the application's deprecation configuration.
-    #
-    # The deprecated options are documented to be set in `config/application.rb` or
-    # `config/environments/*.rb`, which Rails reads in `load_environment_config`,
-    # long before `active_support.deprecation_behavior` applies
-    # `config.active_support.report_deprecations`, `config.active_support.deprecation`,
-    # and any per-deprecator settings. Warning from the setter itself would therefore
-    # land in a window where nothing the application configures can reach it. The
-    # setters record instead, and this flushes once the settings are in place.
-    #
-    # Each option is reported once, attributed to the first place it was set, so an
-    # application setting several deprecated options gets one warning per option
-    # rather than one per assignment.
-    def flush_deprecations!
-      @deprecations_flushed = true
-      pending = pending_deprecations
-      @pending_deprecations = {}
-      pending.each_value { |message, callstack| RailsSemanticLogger.deprecator.warn(message, callstack) }
-      nil
-    end
-
     private
-
-    def deprecate_appender_option(option, via: "appenders.add(...)")
-      message =
-        "`config.rails_semantic_logger.#{option}=` is deprecated and will be removed in a future release. " \
-        "Declare the destination and formatting directly instead, via " \
-        "`config.rails_semantic_logger.appenders { |appenders| #{via} }`."
-
-      # Skip this method and the setter that called it, so the warning is attributed
-      # to the application code that set the option, whether it is emitted now or
-      # flushed later by #flush_deprecations!.
-      callstack = caller_locations(2)
-
-      return RailsSemanticLogger.deprecator.warn(message, callstack) if deprecations_flushed?
-
-      pending_deprecations[option] ||= [message, callstack]
-      nil
-    end
-
-    # Deprecations recorded before Rails applied its deprecation configuration,
-    # keyed by option so that each is reported only once. See #flush_deprecations!.
-    def pending_deprecations
-      @pending_deprecations ||= {}
-    end
-
-    def deprecations_flushed?
-      defined?(@deprecations_flushed) && @deprecations_flushed
-    end
 
     # Warn when an init-time setting is changed after the logger and its
     # appenders have already been built. This is the classic footgun of putting

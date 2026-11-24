@@ -1,21 +1,6 @@
 require_relative "test_helper"
 
 class AppendersTest < Minitest::Test
-  # Run the block while capturing any deprecation warnings emitted by the gem's
-  # deprecator. The deprecated option setters record their warnings rather than
-  # emitting them (see Options#flush_deprecations!), so the supplied options are
-  # flushed afterwards, standing in for the engine initializer that does so at boot.
-  def self.capture_deprecations(options = nil)
-    collected = []
-    original  = RailsSemanticLogger.deprecator.behavior
-    RailsSemanticLogger.deprecator.behavior = ->(message, *) { collected << message }
-    yield
-    options&.flush_deprecations!
-    collected
-  ensure
-    RailsSemanticLogger.deprecator.behavior = original
-  end
-
   describe RailsSemanticLogger::Appenders do
     let(:appenders) { RailsSemanticLogger::Appenders.new }
 
@@ -144,80 +129,12 @@ class AppendersTest < Minitest::Test
       end
     end
 
-    describe "deprecated options" do
-      it "warns when assigning format but still sets it" do
-        messages = AppendersTest.capture_deprecations(options) { options.format = :json }
-
-        assert_match(/format/, messages.first)
-        assert_equal :json, options.format
-      end
-
-      it "warns when assigning ap_options but still sets it" do
-        messages = AppendersTest.capture_deprecations(options) { options.ap_options = {multiline: true} }
-
-        assert_match(/ap_options/, messages.first)
-        assert_equal({multiline: true}, options.ap_options)
-      end
-
-      it "warns when assigning filter but still sets it" do
-        filter   = /MyClass/
-        messages = AppendersTest.capture_deprecations(options) { options.filter = filter }
-
-        assert_match(/filter/, messages.first)
-        assert_same filter, options.filter
-      end
-
-      it "warns when assigning console_logger but still sets it" do
-        messages = AppendersTest.capture_deprecations(options) { options.console_logger = false }
-
-        assert_match(/console_logger/, messages.first)
-        refute options.console_logger
-      end
-
-      it "warns when assigning add_file_appender but still sets it" do
-        messages = AppendersTest.capture_deprecations(options) { options.add_file_appender = false }
-
-        assert_match(/add_file_appender/, messages.first)
-        refute options.add_file_appender
-      end
-
-      it "records the warning instead of emitting it until it is flushed" do
-        messages = AppendersTest.capture_deprecations { options.format = :json }
-
-        assert_empty messages
-      end
-
-      it "attributes the warning to the code that set the option, not to the setter" do
-        messages = AppendersTest.capture_deprecations(options) { options.format = :json }
-
-        assert_match(/appenders_test\.rb/, messages.first)
-        refute_match(/options\.rb/, messages.first)
-      end
-
-      it "reports each option once however often it is set" do
-        messages = AppendersTest.capture_deprecations(options) do
-          options.format     = :json
-          options.format     = :color
-          options.ap_options = {multiline: true}
+    describe "the appender options removed in v6" do
+      %i[format ap_options filter console_logger add_file_appender].each do |option|
+        it "no longer accepts #{option}" do
+          assert_raises(NoMethodError) { options.public_send(:"#{option}=", nil) }
+          refute_respond_to options, option
         end
-
-        assert_equal 1, messages.grep(/\.format=/).size
-        assert_equal 1, messages.grep(/\.ap_options=/).size
-      end
-
-      it "emits nothing on a second flush" do
-        AppendersTest.capture_deprecations(options) { options.format = :json }
-        messages = AppendersTest.capture_deprecations { options.flush_deprecations! }
-
-        assert_empty messages
-      end
-
-      it "warns immediately once flushed, so later assignments are not swallowed" do
-        options.flush_deprecations!
-
-        messages = AppendersTest.capture_deprecations { options.format = :json }
-
-        assert_match(/format/, messages.first)
       end
     end
 
@@ -232,14 +149,6 @@ class AppendersTest < Minitest::Test
 
         assert_operator registers, :<, names.index("load_environment_config"),
                         "the deprecator must be registered before config/environments/*.rb is read"
-      end
-
-      it "flushes after Rails has applied the deprecation configuration" do
-        names   = Rails.application.initializers.tsort.map { |i| i.name.to_s }
-        flushes = names.index("rails_semantic_logger.flush_deprecations")
-
-        assert_operator flushes, :>, names.index("active_support.deprecation_behavior"),
-                        "recorded deprecations must be flushed after config.active_support.* is applied"
       end
     end
 
@@ -270,16 +179,6 @@ class AppendersTest < Minitest::Test
         _out, err = capture_io { options.appenders }
 
         assert_empty err
-      end
-
-      it "warns when filter is set too late" do
-        options.logger_initialized!
-
-        _out, err = capture_io do
-          AppendersTest.capture_deprecations(options) { options.filter = /MyClass/ }
-        end
-
-        assert_match(/filter.*no effect/m, err)
       end
 
       it "warns when a logger-init setting (semantic) is set after logger initialization" do
@@ -413,15 +312,6 @@ class AppendersTest < Minitest::Test
       RailsSemanticLogger.add_console_appenders
 
       assert_predicate SemanticLogger.appenders, :console_output?
-    end
-
-    it "adds no appender when console_logger is disabled and no appenders are declared (legacy)" do
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:console_logger, false) do
-        RailsSemanticLogger.add_console_appenders
-      end
-
-      refute_predicate SemanticLogger.appenders, :console_output?
     end
 
     it "is idempotent when a console appender already exists" do

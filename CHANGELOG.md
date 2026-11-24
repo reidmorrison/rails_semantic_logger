@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [6.0.0.beta1] - Unreleased
+
+- Requires Semantic Logger 6.0.0.beta1 or later, and earlier than 7. The two gems keep their major
+  versions in step.
+
 ## [5.3.0] - 2026-11-20
 
 - Requires Semantic Logger 5.3 or later.

@@ -25,12 +25,9 @@ module RailsSemanticLogger
         SemanticLogger.tagged(queue: queue) do
           if perform_messages_enabled?
             # Latency is the time between when the job was enqueued and when it started executing.
-            logger.info(
-              "Start #perform",
-              metric:        "sidekiq.queue.latency",
-              metric_amount: job_latency_ms(item),
-              call_site:     false
-            )
+            latency = job_latency_ms(item)
+            logger.time("sidekiq.queue.latency", duration: latency) if latency
+            logger.info("Start #perform", call_site: false)
           end
 
           # Measure the duration of running the job
@@ -81,8 +78,8 @@ module RailsSemanticLogger
         (@config && @config[:logged_job_attributes]) || DEFAULT_LOGGED_JOB_ATTRIBUTES
       end
 
-      # Never negative: the clock of the host that enqueued the job can be ahead of this one's, and
-      # Semantic Logger 5.3 deprecates a negative metric_amount.
+      # Never negative: the clock of the host that enqueued the job can be ahead of this one's, and a
+      # negative duration is not a latency.
       def job_latency_ms(job)
         return unless job && job["enqueued_at"]
 

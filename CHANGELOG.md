@@ -25,6 +25,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   Deleting the line alone brings back `log/<environment>.log`, or the screen output.
 - The deprecator, `Rails.application.deprecators[:rails_semantic_logger]`, stays registered, so
   configuration that silences it keeps working.
+- Sidekiq: record `sidekiq.queue.latency` as a histogram in seconds, with `logger.time`, so that
+  metric appenders report its count, sum and percentiles. It was the `metric_amount` of the
+  `Start #perform` log entry, which Semantic Logger v6 would record as a counter. The `Start #perform`
+  entry no longer carries a `metric` or `metric_amount`. A job with no `enqueued_at` records no latency.
 
 ## [5.3.0] - 2026-11-20
 

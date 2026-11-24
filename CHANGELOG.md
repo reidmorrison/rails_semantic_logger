@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+- Sidekiq: log a job with no class through Sidekiq's logger. Inside `RailsSemanticLogger::Sidekiq`,
+  `Sidekiq.logger` named this gem's module rather than Sidekiq, so the job logger raised
+  `NoMethodError` for such a job.
+
 ## [5.3.0] - 2026-11-20
 
 - Requires Semantic Logger 5.3 or later.

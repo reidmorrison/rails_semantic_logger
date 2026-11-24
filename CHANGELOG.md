@@ -8,6 +8,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Sidekiq: log a job with no class through Sidekiq's logger. Inside `RailsSemanticLogger::Sidekiq`,
   `Sidekiq.logger` named this gem's module rather than Sidekiq, so the job logger raised
   `NoMethodError` for such a job.
+- Solid Queue: log the events that Solid Queue logs and this gem's subscriber, which replaces
+  Solid Queue's own, dropped: the Solid Queue 1.7+ batch events `finish_batch` (info),
+  `sweep_stalled_batches` (debug) and `batch_progress_error` (error, with the exception), and the
+  Solid Queue 1.5.1+ `fork_boot_timeout` (warn). A `finish_batch` or `fork_boot_timeout` whose block
+  raised is logged at error with the exception. The info, warn and error entries add the metrics
+  `rails.solid_queue.finish_batch`, `rails.solid_queue.batch_progress_error` and
+  `rails.solid_queue.fork_boot_timeout`. The `fail_many_claimed` warning now carries the error that
+  failed the jobs, and `release_blocked` the `failed` flag, as Solid Queue logs them.
 
 ## [5.3.0] - 2026-11-20
 

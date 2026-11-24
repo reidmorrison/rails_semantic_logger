@@ -105,6 +105,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `ActiveSupport::Cache` store, by `rails.cache.operation.name` (`read`, `write`, `fetch_hit`,
   `generate`, `delete`, `exist`, ...), `rails.cache.store`, and `rails.cache.hit` for a read. The
   cache had no metric before.
+- Solid Queue: record `solid_queue.operation.duration` (was `rails.solid_queue.<event>`), a histogram in
+  seconds of every operation Solid Queue instruments, by `solid_queue.operation.name` (`claim`,
+  `start_process`, ...) and `error.type`, whatever level it is logged at. The log entries no longer
+  carry a `metric`.
 
 ## [5.3.0] - 2026-11-20
 

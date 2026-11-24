@@ -57,7 +57,7 @@ class SolidQueueTest < Minitest::Test
           level:            :info,
           name:             "SolidQueue",
           message:          "Release claimed jobs",
-          metric:           "rails.solid_queue.release_many_claimed",
+          metric:           :nil,
           payload_includes: {size: 5}
         )
       end
@@ -79,7 +79,7 @@ class SolidQueueTest < Minitest::Test
           level:   :warn,
           name:    "SolidQueue",
           message: "Fail claimed jobs",
-          metric:  "rails.solid_queue.fail_many_claimed"
+          metric:  :nil
         )
       end
     end
@@ -100,7 +100,7 @@ class SolidQueueTest < Minitest::Test
           level:   :error,
           name:    "SolidQueue",
           message: "Error in thread",
-          metric:  "rails.solid_queue.thread_error"
+          metric:  :nil
         )
 
         exception = messages[0].exception
@@ -183,7 +183,7 @@ class SolidQueueTest < Minitest::Test
             level:            :error,
             name:             "SolidQueue",
             message:          "Error enqueuing recurring task",
-            metric:           "rails.solid_queue.enqueue_recurring_task",
+            metric:           :nil,
             payload_includes: {task: "my_task", enqueue_error: "boom"}
           )
         end

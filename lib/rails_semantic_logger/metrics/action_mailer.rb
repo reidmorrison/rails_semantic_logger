@@ -12,18 +12,21 @@ module RailsSemanticLogger
 
         dimensions = {}
         dimensions["rails.action_mailer.mailer"] = payload[:mailer].to_s if payload[:mailer]
-        dimensions["error.type"]                 = error.class.name if error
+        dimensions["error.type"]                 = error_type(error) if error
         time("rails.action_mailer.delivery.duration", event, dimensions)
       end
 
       # How long building a mail took, by its mailer action, such as "UserMailer#welcome".
+      # An anonymous mailer has no name, so it is recorded without one.
       def process(event)
-        payload = event.payload
-        time(
-          "rails.action_mailer.process.duration",
-          event,
-          "code.function.name" => "#{payload[:mailer]}##{payload[:action]}"
-        )
+        payload    = event.payload
+        dimensions = {}
+        if payload[:mailer] && payload[:action]
+          dimensions["code.function.name"] = "#{payload[:mailer]}##{payload[:action]}"
+        end
+        error = payload[:exception_object]
+        dimensions["error.type"] = error_type(error) if error
+        time("rails.action_mailer.process.duration", event, dimensions)
       end
     end
   end

@@ -35,6 +35,20 @@ module Metrics
         assert_empty record(:deliver, mailer: "UserMailer", perform_deliveries: false)
       end
 
+      it "records the error.type of building a mail that raised" do
+        assert_metric(
+          record(:process, mailer: "UserMailer", action: :welcome, exception_object: ArgumentError.new("boom")),
+          name:       "rails.action_mailer.process.duration",
+          dimensions: {"code.function.name" => "UserMailer#welcome", "error.type" => "ArgumentError"}
+        )
+      end
+
+      it "records an anonymous mailer without a function name" do
+        metrics = record(:process, mailer: nil, action: :welcome)
+
+        assert_metric(metrics, name: "rails.action_mailer.process.duration", dimensions: {})
+      end
+
       it "records how long building a mail took, by mailer action" do
         assert_metric(
           record(:process, mailer: "UserMailer", action: :welcome),

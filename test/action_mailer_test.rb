@@ -143,7 +143,7 @@ class ActionMailerTest < Minitest::Test
             level:            :debug,
             message_includes: "MyMailer#some_email: processed outbound mail"
           )
-          # process logs at :debug, so it carries no metric.
+          # No Action Mailer log entry carries a metric: Metrics::ActionMailer records them.
           assert_nil events.first.metric
         end
 

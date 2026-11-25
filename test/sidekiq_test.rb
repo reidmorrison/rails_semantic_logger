@@ -134,6 +134,21 @@ class SidekiqTest < Minitest::Test
         assert_empty(metrics.select { |metric| metric.name == "sidekiq.queue.duration" })
       end
 
+      it "records the job metrics through Sidekiq's logger, the meter of every job's metrics" do
+        sidekiq  = SemanticLogger::Logger.new(::Sidekiq)
+        recorded = []
+        sidekiq.define_singleton_method(:time) do |name, **options|
+          recorded << name
+          super(name, **options)
+        end
+        lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
+
+        SemanticLogger.stub(:[], lookup) { semantic_logger_metrics { processor.send(:process, uow) } }
+
+        assert_equal "Sidekiq", sidekiq.name
+        assert_equal %w[sidekiq.queue.duration messaging.process.duration], recorded
+      end
+
       it "records how long the job ran as messaging.process.duration" do
         metrics = semantic_logger_metrics { processor.send(:process, uow) }
 
@@ -160,6 +175,28 @@ class SidekiqTest < Minitest::Test
         assert_metric(metrics, name: "messaging.process.duration", kind: :histogram)
       ensure
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
+      end
+
+      it "times nothing while no metric appender collects the metrics" do
+        sidekiq  = SemanticLogger::Logger.new(::Sidekiq)
+        recorded = []
+        sidekiq.define_singleton_method(:collecting_metrics?) { false }
+        sidekiq.define_singleton_method(:time) { |name, **| recorded << name }
+        lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
+
+        SemanticLogger.stub(:[], lookup) { processor.send(:process, uow) }
+
+        assert_empty recorded
+      end
+
+      it "records no metrics when the Rails metrics are turned off" do
+        RailsSemanticLogger::Sidekiq::JobLogger.metrics = false
+
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        assert_empty metrics
+      ensure
+        RailsSemanticLogger::Sidekiq::JobLogger.metrics = true
       end
 
       it "does not emit perform messages when disabled" do

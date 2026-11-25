@@ -25,6 +25,7 @@ module RailsSemanticLogger
 
   module Rack
     autoload :Logger, "rails_semantic_logger/rack/logger"
+    autoload :Metrics, "rails_semantic_logger/rack/metrics"
   end
 
   module Sidekiq

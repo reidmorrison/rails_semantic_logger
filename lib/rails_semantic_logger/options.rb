@@ -37,6 +37,16 @@ module RailsSemanticLogger
   #       Example, change the default internal logger to log to stdout:
   #         SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
   #
+  # * Do not record the Rails metrics, such as `http.server.request.duration`, nor the Sidekiq job
+  #   metrics (`sidekiq.queue.duration` and `messaging.process.duration`).
+  #
+  #     They are named after the OpenTelemetry semantic conventions where one exists, recorded
+  #     whatever is logged, and cost almost nothing until a metric appender is added. Set it in
+  #     `config/application.rb` or `config/environments/*.rb`, since the request metrics middleware
+  #     is added while the logger is initialized.
+  #
+  #     config.rails_semantic_logger.metrics = false
+  #
   # * Silence asset logging
   #
   #     config.rails_semantic_logger.quiet_assets = false
@@ -91,7 +101,7 @@ module RailsSemanticLogger
     # Settings consumed while the logger itself is built, during Rails'
     # `:initialize_logger` initializer. Changing them after that (e.g. from
     # `config/initializers/*`, which Rails loads later) has no effect.
-    LOGGER_INIT_SETTINGS = %i[semantic replace_sidekiq_logger replace_solid_queue_logger].freeze
+    LOGGER_INIT_SETTINGS = %i[semantic metrics replace_sidekiq_logger replace_solid_queue_logger].freeze
 
     # Settings consumed as Rails finishes initializing (`config.after_initialize`),
     # which runs *after* `config/initializers/*`. They may still be set there, but
@@ -119,6 +129,7 @@ module RailsSemanticLogger
     # Setup default values
     def initialize
       @semantic                   = true
+      @metrics                    = true
       @started                    = false
       @processing                 = false
       @rendered                   = false

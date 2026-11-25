@@ -69,6 +69,10 @@ module RailsSemanticLogger
         config.middleware.swap(Rails::Rack::Logger, RailsSemanticLogger::Rack::Logger, config.log_tags)
       end
 
+      # Time every request for http.server.request.duration. First in the stack, so that it sees every
+      # request, and since an application can delete any other middleware.
+      config.middleware.unshift(RailsSemanticLogger::Rack::Metrics) if config.rails_semantic_logger.metrics
+
       # Existing loggers are ignored because servers like trinidad supply their
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger = config.logger =
@@ -152,6 +156,7 @@ module RailsSemanticLogger
         ::Sidekiq.configure_server do |config|
           config.logger       = ::SemanticLogger[::Sidekiq]
           config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
+          RailsSemanticLogger::Sidekiq::JobLogger.metrics = Rails.application.config.rails_semantic_logger.metrics
 
           # Add back the default console logger (unless the app declared its own appenders, or one exists)
           RailsSemanticLogger.add_server_appenders

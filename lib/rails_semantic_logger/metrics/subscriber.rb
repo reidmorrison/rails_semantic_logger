@@ -70,10 +70,15 @@ module RailsSemanticLogger
         self.class.logger.time(name, duration: duration_ms, dimensions: dimensions)
       end
 
-      # OpenTelemetry's error.type for an exception: its class, or "_OTHER" for an anonymous class,
-      # which has no name.
+      # OpenTelemetry's error.type for an exception: its class's name (see #class_name).
       def error_type(exception)
-        exception.class.name || "_OTHER"
+        class_name(exception.class)
+      end
+
+      # A class as a dimension: its name, or "_OTHER", OpenTelemetry's value for an unknown
+      # error.type, for an anonymous class, which has none.
+      def class_name(klass)
+        klass.name || "_OTHER"
       end
 
       # Adds `amount`, one by default, to the counter `name`, of what is counted in `unit`, in the

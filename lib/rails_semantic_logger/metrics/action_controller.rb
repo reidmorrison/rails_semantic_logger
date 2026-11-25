@@ -96,10 +96,10 @@ module RailsSemanticLogger
         increment("rails.action_controller.csrf_events", "{event}", "rails.action_controller.csrf.reason" => reason)
       end
 
-      # A callback named by a method keeps its name; any other, such as a block, is named by its class,
-      # so that the number of series stays bounded.
+      # A callback named by a method keeps its name; any other, such as a block, is named by its class
+      # (see #class_name), so that the number of series stays bounded.
       def filter(filter)
-        filter.is_a?(Symbol) || filter.is_a?(String) ? filter.to_s : filter.class.name
+        filter.is_a?(Symbol) || filter.is_a?(String) ? filter.to_s : class_name(filter.class)
       end
 
       # "ArticlesController#show": the controller and action handling the request, when known.

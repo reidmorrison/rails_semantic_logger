@@ -116,7 +116,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Each counter has a unit: `{redirect}`, `{callback}`, `{exception}`, `{event}`, `{message}`, `{retry}`,
   `{job}`, `{interrupt}`, and `{resume}`.
 - Without a metric appender the Rails metrics do no work, not even building their dimensions: each
-  recorder asks `collecting_metrics?` first.
+  recorder asks `collecting_metrics?` first. The metric subscribers are then also silenced (they
+  answer `silenced?`), so that Active Support builds no event for them, and skips an event whose
+  other listeners are all silenced too, such as a cache read.
 - Each component's metrics are recorded through its own logger, whose name Semantic Logger 6.0
   sends as the metrics' meter (the OTLP instrumentation scope): `Rack`, `ActionController::Base`,
   `ActionView::Base`, `ActiveRecord::Base`, `ActiveJob::Base`, `ActionMailer::Base`,

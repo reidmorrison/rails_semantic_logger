@@ -4,6 +4,9 @@ module RailsSemanticLogger
     # OpenTelemetry convention covers template rendering. Each render is recorded whatever level its
     # log entry is logged at.
     class ActionView < Subscriber
+      # The logger of Action View, whose name is the meter of its metrics.
+      LOGGER_NAME = "ActionView::Base".freeze
+
       NAME = "rails.action_view.render.duration".freeze
 
       # The directory that holds the templates, of the application, a gem, or an engine.

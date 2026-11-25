@@ -3,6 +3,10 @@ require_relative "../test_helper"
 module Metrics
   class ActionViewTest < ActionDispatch::IntegrationTest
     describe RailsSemanticLogger::Metrics::ActionView do
+      it "records through the logger of Action View, whose name is the meter" do
+        assert_equal "ActionView::Base", RailsSemanticLogger::Metrics::ActionView.logger.name
+      end
+
       # Emits the notification that the subscriber listens to, as Action View does when it renders.
       def instrument(name, payload)
         semantic_logger_metrics do

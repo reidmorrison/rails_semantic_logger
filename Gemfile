@@ -2,6 +2,10 @@ source "https://rubygems.org"
 
 gemspec
 
+# Semantic Logger v6 is not released yet. Until it is, take it from its v6 branch; then remove this
+# line and run `appraisal generate`, since CI installs from the gemfiles/ that it generates.
+gem "semantic_logger", github: "reidmorrison/semantic_logger", branch: "v6"
+
 gem "appraisal"
 gem "puma"
 

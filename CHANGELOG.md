@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [6.0.0] - Unreleased
+
+- Requires Semantic Logger v6. The two gems keep their major versions in step. See
+  [Upgrading to Semantic Logger v6](https://logger.reidmorrison.com/upgrading.html#upgrading-to-semantic-logger-v6):
+  it records a `metric:` at every log level once a metric appender is added, and its metric
+  appenders send a snapshot each interval.
+
 ## [5.3.0] - 2026-11-20
 
 - Requires Semantic Logger 5.3 or later.

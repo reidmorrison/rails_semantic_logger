@@ -64,7 +64,6 @@ module RailsSemanticLogger
           "Rendered",
           payload:   payload,
           duration:  event.duration,
-          metric:    "rails.view.render.template",
           call_site: call_site
         )
       end
@@ -85,7 +84,6 @@ module RailsSemanticLogger
           "Rendered",
           payload:   payload,
           duration:  event.duration,
-          metric:    "rails.view.render.partial",
           call_site: call_site
         )
       end
@@ -104,7 +102,6 @@ module RailsSemanticLogger
           "Rendered layout",
           payload:   payload,
           duration:  event.duration,
-          metric:    "rails.view.render.layout",
           call_site: call_site
         )
       end
@@ -127,7 +124,6 @@ module RailsSemanticLogger
           "Rendered",
           payload:   payload,
           duration:  event.duration,
-          metric:    "rails.view.render.collection",
           call_site: call_site
         )
       end
@@ -181,15 +177,31 @@ module RailsSemanticLogger
       end
 
       def self.attach_to(*)
-        ActiveSupport::Notifications.unsubscribe("render_template.action_view")
-        ActiveSupport::Notifications.unsubscribe("render_layout.action_view")
-        ActiveSupport::Notifications.subscribe("render_template.action_view",
-                                               RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
-        ActiveSupport::Notifications.subscribe("render_layout.action_view",
-                                               RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
+        %w[render_template.action_view render_layout.action_view].each do |name|
+          detach_start_listeners(name)
+          ActiveSupport::Notifications.subscribe(name, RailsSemanticLogger::ActionView::LogSubscriber::Start.new)
+        end
 
         super
       end
+
+      # Detaches the listeners that log "Rendering" when a render starts, Rails' own and any this
+      # subscriber attached before, and no other: the render events also reach the metrics, Rails'
+      # structured event subscriber, and any the application or another gem attached.
+      def self.detach_start_listeners(name)
+        ActiveSupport::Notifications.notifier.all_listeners_for(name).each do |listener|
+          next unless start_listener?(listener.instance_variable_get(:@delegate))
+
+          ActiveSupport::Notifications.unsubscribe(listener)
+        end
+      end
+
+      def self.start_listener?(delegate)
+        delegate.is_a?(RailsSemanticLogger::ActionView::LogSubscriber::Start) ||
+          (defined?(::ActionView::LogSubscriber::Start) && delegate.is_a?(::ActionView::LogSubscriber::Start))
+      end
+
+      private_class_method :detach_start_listeners, :start_listener?
 
       EMPTY = "".freeze
 

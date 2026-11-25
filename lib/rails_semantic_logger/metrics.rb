@@ -8,6 +8,7 @@ module RailsSemanticLogger
   # meter for each component, never one for each controller or job class, which are dimensions.
   module Metrics
     autoload :ActionController, "rails_semantic_logger/metrics/action_controller"
+    autoload :ActionView, "rails_semantic_logger/metrics/action_view"
     autoload :Subscriber, "rails_semantic_logger/metrics/subscriber"
 
     # Attaches the subscribers that record the metrics of each Rails component. Called once, by the
@@ -15,6 +16,7 @@ module RailsSemanticLogger
     # none of it, so it is safe for a component the application does not use.
     def self.attach
       ActionController.attach_to(:action_controller)
+      ActionView.attach_to(:action_view)
     end
   end
 end

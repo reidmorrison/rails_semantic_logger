@@ -30,7 +30,7 @@ module RailsSemanticLogger
 
       def initialize(app)
         @app    = app
-        @mounts = Concurrent::Map.new
+        @mounts = [nil, Concurrent::Map.new]
       end
 
       # Times nothing while no metric appender collects the metrics.
@@ -38,6 +38,28 @@ module RailsSemanticLogger
         return @app.call(env) unless logger.collecting_metrics?
 
         timed_call(env)
+      end
+
+      # Returns the routes that it keeps for the application's routes (see Arrival), so that each is
+      # searched for once, as long as Rails has not drawn them again. Rails draws the routes again as it
+      # reloads them, as in development or through `Rails.application.reload_routes!`, into the same
+      # route sets, one route at a time, as new routes: so the application's last route is another one
+      # once it has drawn any, and those kept while it was drawing them are dropped once it has drawn
+      # them all.
+      #
+      # Asked for as a request's route is recorded, once the request, which may have reloaded the
+      # routes, has been served: a request that the routes served before another request reloaded them
+      # is recorded with the new routes, and its route left out when they no longer have it. On Rails
+      # 8, while another request reloads the routes, it waits until they are drawn, as in development.
+      def mounts_for(routes)
+        drawn        = Arrival.last_route(routes)
+        kept, mounts = @mounts
+        return mounts if kept.equal?(drawn)
+
+        # Two requests that read different routes while Rails draws them may each replace it: the one
+        # whose routes are not the last drawn is replaced again by the next request, at the cost of
+        # searching for its routes again.
+        (@mounts = [drawn, Concurrent::Map.new]).last
       end
 
       private
@@ -51,7 +73,7 @@ module RailsSemanticLogger
 
       def timed_call(env)
         start                 = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-        arrival               = Arrival.new(env, @mounts)
+        arrival               = Arrival.new(env, self)
         status, headers, body = @app.call(env)
         # A hijacked connection, such as a WebSocket, has no HTTP response to time.
         return [status, headers, body] if status.to_i < 100
@@ -125,13 +147,19 @@ module RailsSemanticLogger
       # that the route recorded is built only from route templates, never from the path that a mount
       # matched, which can hold values, such as a locale.
       class Arrival
-        # mounts: kept by the middleware, so that each is searched for once: the application's routes
-        # that mount each engine, by the engine's routes, and the engine's route of each template, by the
-        # engine's routes and the template.
-        def initialize(env, mounts)
-          @root   = env["SCRIPT_NAME"].to_s
-          @routes = env["action_dispatch.routes"]
-          @mounts = mounts
+        # The last of the route set's routes, which is another once its routes are drawn again, or
+        # while they are being drawn.
+        def self.last_route(routes)
+          routes&.routes&.last
+        end
+
+        # middleware: keeps the routes that it searches for (see Metrics#mounts_for): the application's
+        # routes that mount each engine, by the engine's routes, and the engine's route of each template,
+        # by the engine's routes and the template.
+        def initialize(env, middleware)
+          @root       = env["SCRIPT_NAME"].to_s
+          @routes     = env["action_dispatch.routes"]
+          @middleware = middleware
         end
 
         # The route template that served the request, such as "/articles/:id", from the application's
@@ -172,8 +200,9 @@ module RailsSemanticLogger
         # that the engine mounts. Otherwise the engine passed the request on and another mount served
         # it, whose template is not known: no route is recorded.
         def mount_template(inner, mounted, pattern)
-          served = served_by(inner, pattern)
-          mounts = @mounts.compute_if_absent(inner) { mounts_of(inner) }
+          kept   = @middleware.mounts_for(@routes)
+          served = served_by(kept, inner, pattern)
+          mounts = kept.compute_if_absent(inner) { mounts_of(inner) }
           mount  = mounts.find do |route|
             match = route.path.match(mounted)
             match && served.any? { |candidate| below?(candidate, match.post_match) }
@@ -183,9 +212,10 @@ module RailsSemanticLogger
         end
 
         # The engine's routes with the template `pattern`: several when they differ only in their
-        # constraints.
-        def served_by(inner, pattern)
-          @mounts.compute_if_absent([inner, pattern]) do
+        # constraints. Kept by the engine's last route too, as Rails may draw them after the
+        # application's.
+        def served_by(kept, inner, pattern)
+          kept.compute_if_absent([inner, Arrival.last_route(inner), pattern]) do
             inner.routes.select { |route| route.path.spec.to_s == pattern }
           end
         end

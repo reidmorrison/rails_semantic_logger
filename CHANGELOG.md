@@ -130,6 +130,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `ActionView::Base`, `ActiveRecord::Base`, `ActiveJob::Base`, `ActionMailer::Base`,
   `ActiveSupport::Cache::Store`, `SolidQueue` and `Sidekiq`. Controllers and jobs share their
   component's meter, and their class is a dimension.
+- Action View: the `Rendering` entry of a template rendered within a layout includes the layout,
+  as `within`, as Rails' own `Rendering ... within ...` line does. It was always left out.
+- Solid Queue: its log subscriber logs through `SolidQueue.logger`, so that a level set on it
+  applies to the subscriber's entries too. It logged through a logger of its own of the same name.
 
 ## [5.3.0] - 2026-11-20
 

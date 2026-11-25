@@ -130,28 +130,15 @@ module RailsSemanticLogger
         )
       end
 
-      def start(name, id, payload)
-        if ["render_template.action_view", "render_layout.action_view"].include?(name) && should_log?
-          qualifier        = " layout" if name == "render_layout.action_view"
-          payload          = {template: from_rails_root(payload[:identifier])}
-          payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
-
-          logger.send(self.class.rendered_log_level, message: "Rendering#{qualifier}", payload: payload,
-                                                     call_site: call_site)
-        end
-
-        super
-      end
-
       class Start
         def start(name, _id, payload)
           return unless %w[render_template.action_view render_layout.action_view].include?(name)
 
-          qualifier        = " layout" if name == "render_layout.action_view"
-          payload          = {template: from_rails_root(payload[:identifier])}
-          payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
+          qualifier      = " layout" if name == "render_layout.action_view"
+          entry          = {template: from_rails_root(payload[:identifier])}
+          entry[:within] = from_rails_root(payload[:layout]) if payload[:layout]
 
-          logger.debug(message: "Rendering#{qualifier}", payload: payload, call_site: call_site)
+          logger.debug(message: "Rendering#{qualifier}", payload: entry, call_site: call_site)
         end
 
         def finish(name, id, payload)

@@ -113,13 +113,12 @@ module RailsSemanticLogger
         handled && error.cause ? error.cause : error
       end
 
-      # The logger that records the job metrics: Sidekiq's, since the name of the logger that records a
-      # metric is its meter, so that every job's metrics share one meter, with the job's class as a
-      # dimension. Not the job's logger, which logs its entries: one meter for each job class would
-      # split each metric across them. Found by its name, as an application can make Sidekiq's logger
-      # one that records no metrics.
+      # The logger that records the job metrics: Sidekiq's, the instance that the engine gave Sidekiq,
+      # through which Sidekiq's own entries are logged, and whose name is the meter
+      # of every job's metrics, with the job's class as a dimension. Not the job's logger, which logs
+      # its entries: one meter for each job class would split each metric across them.
       def metrics_logger
-        @metrics_logger ||= SemanticLogger[::Sidekiq]
+        ::Sidekiq.logger
       end
 
       # Whether to record the job metrics: they are turned on, and a metric appender collects them.

@@ -31,7 +31,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
         assert_semantic_logger_event(
           messages[1],
           level:   :debug,
-          name:    "Rails",
+          name:    "ActionController::Base",
           message: "Processing #show",
           payload: nil
         )
@@ -39,7 +39,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
         assert_semantic_logger_event(
           messages[2],
           level:            :info,
-          name:             "Rails",
+          name:             "ActionController::Base",
           message:          "Completed #show",
           payload_includes: {
             controller:     "DashboardController",

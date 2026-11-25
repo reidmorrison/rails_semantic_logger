@@ -19,6 +19,37 @@ class RailsTest < Minitest::Test
       end
     end
 
+    describe ".give_logger" do
+      def component(logger)
+        Class.new do
+          class << self
+            attr_accessor :logger
+          end
+          self.logger = logger
+        end
+      end
+
+      it "gives a component that has Rails' logger its own, as it loads, and keeps another" do
+        own      = SemanticLogger::Logger.new("Component")
+        defaults = component(Rails.logger)
+        chosen   = component(SemanticLogger::Logger.new("Chosen"))
+        before   = chosen.logger
+
+        RailsSemanticLogger.give_logger(:rails_semantic_logger_give_logger_test, own)
+        ActiveSupport.run_load_hooks(:rails_semantic_logger_give_logger_test, defaults)
+        ActiveSupport.run_load_hooks(:rails_semantic_logger_give_logger_test, chosen)
+
+        assert_same own, defaults.logger
+        assert_same before, chosen.logger
+      end
+
+      it "gives Action Controller and Active Job a logger of their own name" do
+        assert_equal "ActionController::Base", ActionController::Base.logger.name
+        assert_same ActionController::Base.logger, ActionController::API.logger
+        assert_equal "ActiveJob::Base", ActiveJob::Base.logger.name
+      end
+    end
+
     describe "SemanticLogger.backtrace_cleaner" do
       it "is the application's backtrace cleaner" do
         assert_same Rails.backtrace_cleaner, SemanticLogger.backtrace_cleaner

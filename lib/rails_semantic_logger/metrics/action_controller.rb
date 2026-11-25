@@ -9,7 +9,9 @@ module RailsSemanticLogger
     # named under `rails.action_controller`.
     class ActionController < Subscriber
       # The logger of Action Controller, whose name is the meter of its metrics.
-      LOGGER_NAME = "ActionController::Base".freeze
+      def self.logger
+        ::ActionController::Base.logger
+      end
 
       # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
       DIMENSION_KEYS = %w[

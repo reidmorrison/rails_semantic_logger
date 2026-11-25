@@ -6,7 +6,9 @@ module RailsSemanticLogger
     # named under `solid_queue`. The jobs it runs are recorded by Active Job's metrics.
     class SolidQueue < Subscriber
       # The logger of Solid Queue, whose name is the meter of its metrics.
-      LOGGER_NAME = "SolidQueue".freeze
+      def self.logger
+        ::SolidQueue.logger
+      end
 
       # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
       DIMENSION_KEYS = %w[solid_queue.operation.name error.type].freeze

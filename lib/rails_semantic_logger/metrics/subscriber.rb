@@ -6,20 +6,26 @@ module RailsSemanticLogger
     # subclass owns the metrics of one Rails component: which events it records, their names, and
     # their dimensions. It records them whatever is logged, apart from the log subscribers.
     #
-    # Each subclass names, as LOGGER_NAME, the logger of its component, through which it records them:
-    # the name of the logger that records a metric is its meter.
+    # Each subclass records them through the logger of its component (.logger), the instance that the
+    # engine gave the component and through which its log entries are logged: the name of the logger
+    # that records a metric is its meter. A metric is recorded whatever the logger's level.
     class Subscriber < ::ActiveSupport::Subscriber
-      # Returns [SemanticLogger::Logger] the logger that records the component's metrics. Found by its
-      # name, rather than as the component's logger, which an application can replace with one that
-      # records no metrics, or with nil to log nothing.
+      # Returns [SemanticLogger::Logger] the logger of the component, through which its metrics are
+      # recorded, such as ActiveRecord::Base.logger. Each subclass gives its own, read on each event
+      # rather than kept, as the engine may give the component its logger after it has attached.
       def self.logger
-        @logger ||= SemanticLogger[self::LOGGER_NAME]
+        raise NotImplementedError, "#{name} must define self.logger, the logger of its component"
       end
 
-      # Refuses, at boot, a subscriber that names no logger, which would otherwise record nothing,
-      # reporting it only once, on its first event: finding its logger raises a NameError.
+      # Refuses, at boot, a subscriber that gives no logger, which would otherwise record nothing,
+      # reporting it only once, on its first event. Asks no logger, as finding one can load the
+      # component before the application has initialized.
       def self.attach_to(...)
-        logger
+        if method(:logger).owner == Subscriber.singleton_class
+          raise NotImplementedError,
+                "#{name} must define self.logger"
+        end
+
         super
       end
 

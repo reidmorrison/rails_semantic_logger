@@ -187,6 +187,12 @@ module RailsSemanticLogger
     SemanticLogger::Processor.logger = internal_logger if internal_logger
   end
 
+  # Gives the framework that loads as `load_hook`, such as :active_job, the logger, as it loads,
+  # unless the application configured one of its own: only while it has Rails' logger.
+  def self.give_logger(load_hook, logger)
+    ActiveSupport.on_load(load_hook) { self.logger = logger if self.logger.equal?(::Rails.logger) }
+  end
+
   # Swap an existing subscriber with a new one
   def self.swap_subscriber(old_class, new_class, notifier)
     subscribers = ActiveSupport::LogSubscriber.subscribers.grep(old_class)

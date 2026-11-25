@@ -130,6 +130,19 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `ActionView::Base`, `ActiveRecord::Base`, `ActiveJob::Base`, `ActionMailer::Base`,
   `ActiveSupport::Cache::Store`, `SolidQueue` and `Sidekiq`. Controllers and jobs share their
   component's meter, and their class is a dimension.
+- Each component's metrics are recorded through the component's own logger, the instance that its
+  log entries use, such as `ActiveRecord::Base.logger` and `Sidekiq.logger`, rather than another
+  logger of the same name.
+- Action Controller and Active Job get a logger of their own, `ActionController::Base` and
+  `ActiveJob::Base`, in place of `Rails.logger`, unless the application configured one with
+  `config.action_controller.logger` or `config.active_job.logger`. Active Job's entries, and those of
+  a controller without a logger of its own, such as an `ActionController::Metal` one, are named after
+  it rather than `Rails`, and `Rails.logger.level` no longer applies to them: set their own logger's
+  level. A controller under `ActionController::Base` already logged through its own logger.
+- The cache store gets the logger `ActiveSupport::Cache::Store`, through which Rails also logs each
+  cache operation at `:debug`.
+- With `replace_solid_queue_logger = false`, no Solid Queue metrics are recorded, as no Sidekiq ones
+  are with `replace_sidekiq_logger = false`: they are recorded through its logger.
 - Action View: the `Rendering` entry of a template rendered within a layout includes the layout,
   as `within`, as Rails' own `Rendering ... within ...` line does. It was always left out.
 - Action View: the `Rendering` entries are logged at the rendered level, as the `Rendered` entries

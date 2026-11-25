@@ -31,8 +31,13 @@ module RailsSemanticLogger
     # Attaches the subscribers that record the metrics of each Rails component. Called once, by the
     # engine, unless `config.rails_semantic_logger.metrics` is false. Attaching to a component loads
     # none of it, so it is safe for a component the application does not use.
-    def self.attach
-      SUBSCRIBERS.each { |subscriber, namespace| const_get(subscriber).attach_to(namespace) }
+    #
+    # solid_queue: whether to record Solid Queue's metrics, which are recorded through its logger, a
+    # Semantic Logger one only while Rails Semantic Logger replaces it, as the Sidekiq job metrics are
+    # recorded only while Sidekiq's is.
+    def self.attach(solid_queue: true)
+      subscribers = solid_queue ? SUBSCRIBERS : SUBSCRIBERS.except("SolidQueue")
+      subscribers.each { |subscriber, namespace| const_get(subscriber).attach_to(namespace) }
     end
 
     # Returns [Array<Class>] the recorders of the Rails metrics, each of which names the dimension keys

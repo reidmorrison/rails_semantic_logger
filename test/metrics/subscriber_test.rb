@@ -6,7 +6,7 @@ module Metrics
       let(:subscriber_class) do
         Class.new(RailsSemanticLogger::Metrics::Subscriber) do
           def self.name = "BrokenMetrics"
-          const_set(:LOGGER_NAME, "BrokenMetrics")
+          def self.logger = @logger ||= SemanticLogger::Logger.new("BrokenMetrics")
 
           def broken(_event)
             raise ArgumentError, "boom"
@@ -14,11 +14,11 @@ module Metrics
         end
       end
 
-      it "refuses to attach a subscriber that names no logger" do
+      it "refuses to attach a subscriber that gives no logger" do
         unnamed = Class.new(RailsSemanticLogger::Metrics::Subscriber) { def self.name = "UnnamedMetrics" }
 
-        error = assert_raises(NameError) { unnamed.attach_to(:unnamed_metrics_test) }
-        assert_match(/LOGGER_NAME/, error.message)
+        error = assert_raises(NotImplementedError) { unnamed.attach_to(:unnamed_metrics_test) }
+        assert_match(/UnnamedMetrics must define self.logger/, error.message)
       end
 
       it "does not read the event while no metric appender collects the metrics" do
@@ -49,7 +49,7 @@ module Metrics
 
       it "leaves Active Support no event to build while no metric appender collects the metrics" do
         counting = Class.new(RailsSemanticLogger::Metrics::Subscriber) do
-          const_set(:LOGGER_NAME, "CountingMetrics")
+          def self.logger = @logger ||= SemanticLogger::Logger.new("CountingMetrics")
           attr_reader :events
 
           def counted(_event)

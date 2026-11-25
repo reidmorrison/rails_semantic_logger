@@ -1,0 +1,27 @@
+# OpenTelemetry Collector: receives OTLP/HTTP from Semantic Logger on port 4318 and writes the log
+# records and metrics into ClickHouse, in the otel database that the ClickHouse exporter creates.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  clickhouse:
+    endpoint: tcp://clickhouse:9000?dial_timeout=10s
+    username: dev
+    password: dev
+    database: otel
+    ttl: 72h # keep 3 days of development data
+    sending_queue:
+      batch:
+        flush_timeout: 1s # show new data within seconds
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [clickhouse]
+    metrics:
+      receivers: [otlp]
+      exporters: [clickhouse]

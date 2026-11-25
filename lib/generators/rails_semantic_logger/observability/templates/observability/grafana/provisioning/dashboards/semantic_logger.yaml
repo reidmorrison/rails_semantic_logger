@@ -1,0 +1,10 @@
+# Loads the Semantic Logger dashboards from files when Grafana starts.
+apiVersion: 1
+
+providers:
+  - name: Semantic Logger
+    folder: Semantic Logger
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

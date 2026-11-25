@@ -1,0 +1,25 @@
+# The ClickHouse data source, loaded when Grafana starts. Its OpenTelemetry settings point the
+# plugin's Logs Explorer at the otel_logs table that the Collector writes.
+apiVersion: 1
+
+datasources:
+  - name: ClickHouse
+    uid: clickhouse
+    type: grafana-clickhouse-datasource
+    isDefault: true
+    jsonData:
+      host: clickhouse
+      port: 8123
+      protocol: http
+      username: dev
+      defaultDatabase: otel
+      logs:
+        defaultDatabase: otel
+        defaultTable: otel_logs
+        otelEnabled: true
+      traces:
+        defaultDatabase: otel
+        defaultTable: otel_traces
+        otelEnabled: true
+    secureJsonData:
+      password: dev

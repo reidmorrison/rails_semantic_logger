@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [6.0.0] - Unreleased
 
+- Add `rails generate rails_semantic_logger:observability`, which adds a local observability stack
+  for development: an OpenTelemetry Collector, ClickHouse and Grafana in `compose.observability.yml`,
+  with Grafana's ClickHouse data source and the Rails, Jobs and Logs dashboards provisioned. It adds
+  the `:otlp` log appender and the `metric: :otlp` appender to `config/environments/development.rb`
+  only, and a `semantic_logger:traffic` task that sends sample data.
+- Add a demo app in `demo/`, generated with `rails new` and the observability generator, that runs in
+  Docker Compose with sample traffic. CI runs it end to end and checks that every dashboard panel
+  returns data.
 - Requires Semantic Logger v6 (`~> 6.0`). The two gems keep their major versions in step. See
   [Upgrading to Semantic Logger v6](https://logger.reidmorrison.com/upgrading.html#upgrading-to-semantic-logger-v6):
   it records a `metric:` at every log level once a metric appender is added, and its metric

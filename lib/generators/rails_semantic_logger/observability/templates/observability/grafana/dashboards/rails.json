@@ -1,0 +1,406 @@
+{
+  "uid": "semantic-logger-rails",
+  "title": "Rails",
+  "description": "Requests, views, cache and database, from the Rails metrics that Rails Semantic Logger records.",
+  "tags": [
+    "semantic_logger",
+    "rails"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 41,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "query": "SELECT DISTINCT ServiceName FROM otel.otel_logs WHERE Timestamp > now() - INTERVAL 1 DAY ORDER BY ServiceName",
+        "definition": "SELECT DISTINCT ServiceName FROM otel.otel_logs WHERE Timestamp > now() - INTERVAL 1 DAY ORDER BY ServiceName",
+        "refresh": 2,
+        "sort": 1,
+        "current": {}
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Semantic Logger",
+      "type": "dashboards",
+      "tags": [
+        "semantic_logger"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Requests",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "Request rate by status",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, concat(substring(Attributes['http.response.status_code'], 1, 1), 'xx') AS status, sum(Count) / $__interval_s AS rate\nFROM otel.otel_metrics_exponential_histogram\nWHERE MetricName = 'http.server.request.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\nGROUP BY time, status\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Requests per second, from http.server.request.duration, by status class.",
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "Request latency",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT time, q[1] AS p50, q[2] AS p95, q[3] AS p99\nFROM (\n  SELECT $__timeInterval(TimeUnix) AS time,\n         quantilesExactWeighted(0.5, 0.95, 0.99)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) AS q\n  FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'http.server.request.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND c > 0\n  GROUP BY time\n)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "p50, p95 and p99 of http.server.request.duration: the whole request, middleware included.",
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Server errors",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time,\n       sumIf(Count, Attributes['error.type'] != '') / sum(Count) AS error_ratio\nFROM otel.otel_metrics_exponential_histogram\nWHERE MetricName = 'http.server.request.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\nGROUP BY time\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Share of requests with error.type set: a 5xx response, or an exception that escaped.",
+      "id": 4
+    },
+    {
+      "type": "table",
+      "title": "Slowest routes",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "table",
+          "format": 1,
+          "rawSql": "SELECT concat(Attributes['http.request.method'], ' ', Attributes['http.route']) AS route,\n       sumIf(Count, i = 1) AS calls,\n       round(quantileExactWeighted(0.95)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) * 1000, 1) AS p95_ms,\n       round(sumIf(Sum, i = 1) / sumIf(Count, i = 1) * 1000, 1) AS mean_ms\nFROM (\n  SELECT Attributes, PositiveOffset, Scale, Count, Sum, c, i FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'http.server.request.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND Attributes['http.route'] != ''\n)\nGROUP BY route\nORDER BY p95_ms DESC\nLIMIT 10"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Routes by p95 of http.server.request.duration. Requests that matched no route are left out.",
+      "id": 5
+    },
+    {
+      "type": "table",
+      "title": "Slowest controller actions",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "table",
+          "format": 1,
+          "rawSql": "SELECT Attributes['code.function.name'] AS action,\n       sumIf(Count, i = 1) AS calls,\n       round(quantileExactWeighted(0.95)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) * 1000, 1) AS p95_ms,\n       round(sumIf(Sum, i = 1) / sumIf(Count, i = 1) * 1000, 1) AS mean_ms\nFROM (\n  SELECT Attributes, PositiveOffset, Scale, Count, Sum, c, i FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'rails.action_controller.process_action.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\n)\nGROUP BY action\nORDER BY p95_ms DESC\nLIMIT 10"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Controller actions by p95 of rails.action_controller.process_action.duration.",
+      "id": 6
+    },
+    {
+      "type": "row",
+      "title": "Views and cache",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Render latency p95 by kind",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT time, kind, q[1] AS p95\nFROM (\n  SELECT $__timeInterval(TimeUnix) AS time, Attributes['rails.action_view.render.kind'] AS kind,\n         quantilesExactWeighted(0.95)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) AS q\n  FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'rails.action_view.render.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND c > 0\n  GROUP BY time, kind\n)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache reads",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time,\n       if(Attributes['rails.cache.hit'] = 'true', 'hit', 'miss') AS result,\n       sum(Count) / $__interval_s AS reads\nFROM otel.otel_metrics_exponential_histogram\nWHERE MetricName = 'rails.cache.operation.duration' AND Attributes['rails.cache.operation.name'] = 'read'\n  AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\nGROUP BY time, result\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Cache reads per second from rails.cache.operation.duration, hits against misses.",
+      "id": 9
+    },
+    {
+      "type": "row",
+      "title": "Database",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "Queries by operation",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, Attributes['db.operation.name'] AS operation, sum(Count) / $__interval_s AS rate\nFROM otel.otel_metrics_exponential_histogram\nWHERE MetricName = 'db.client.operation.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\nGROUP BY time, operation\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Queries per second from db.client.operation.duration. Cached and schema queries are not counted.",
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Query latency p95 by operation",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT time, operation, q[1] AS p95\nFROM (\n  SELECT $__timeInterval(TimeUnix) AS time, Attributes['db.operation.name'] AS operation,\n         quantilesExactWeighted(0.95)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) AS q\n  FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'db.client.operation.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND c > 0\n  GROUP BY time, operation\n)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "id": 12
+    }
+  ]
+}

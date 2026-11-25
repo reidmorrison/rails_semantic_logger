@@ -1,0 +1,60 @@
+# The local observability stack for development, written by `rails generate rails_semantic_logger:observability`:
+#   Rails (Semantic Logger) -> OpenTelemetry Collector -> ClickHouse <- Grafana
+#
+# Start it:   docker compose -f compose.observability.yml up -d
+# Grafana:    http://localhost:3001 (no login)
+# ClickHouse: http://localhost:8123/play (user dev, password dev)
+#
+# Development only: nothing here is authenticated, and the Collector keeps no disk queue.
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.46.6
+    environment:
+      CLICKHOUSE_USER: dev
+      CLICKHOUSE_PASSWORD: dev
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "dev", "--password", "dev", "--query", "SELECT 1"]
+      interval: 2s
+      retries: 30
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.166.0
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4318:4318"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:13.3.2
+    environment:
+      GF_PLUGINS_PREINSTALL_SYNC: grafana-clickhouse-datasource@4.24.0
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/rails.json
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+volumes:
+  clickhouse-data:
+  grafana-data:

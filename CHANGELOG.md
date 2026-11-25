@@ -77,6 +77,25 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   (`postgresql`, `mysql`, `sqlite`, ...), `db.namespace`, `db.operation.name` (the statement's leading
   keyword, for a single statement), and `error.type`. Queries served from the query cache, and
   `SCHEMA` and `EXPLAIN` queries, are left out. Active Record had no metric before.
+- Active Job: record its metrics apart from its log entries, which no longer carry a `metric` (was
+  `rails.job.<event>`). Enqueuing and performing follow OpenTelemetry's messaging conventions, with
+  `messaging.system.name` `active_job`, `messaging.destination.name` (the queue) and
+  `messaging.active_job.job.class`:
+  - `messaging.client.sent.messages`, a counter of the jobs enqueued, and
+    `messaging.client.operation.duration`, how long enqueuing took, by `messaging.operation.name`
+    (`enqueue`, `enqueue_at`, `enqueue_all`), the adapter, and `error.type` (for `enqueue_all`,
+    `failed` when no job was enqueued and `partial` when only some were). When an adapter such as
+    Sidekiq's enqueued only some jobs without saying which, they are counted by their queue and
+    class if all share them, else by `messaging.system.name` alone.
+  - `messaging.process.duration`, how long the job ran, with `error.type` when it raised (`aborted`
+    when a callback halted it).
+  - `active_job.queue.duration`, how long a job taken from its queue waited, from when it was due
+    until it started.
+  - Counters `active_job.retries`, `active_job.exhausted_retries`, `active_job.discards` (by
+    `error.type`), `active_job.interrupts` and `active_job.resumes`, and the histogram
+    `active_job.step.duration` (by `active_job.step.name`, `active_job.step.interrupted`, and
+    `error.type`).
+  A job that Active Job runs on Sidekiq is recorded under both systems, `active_job` and `sidekiq`.
 
 ## [5.3.0] - 2026-11-20
 

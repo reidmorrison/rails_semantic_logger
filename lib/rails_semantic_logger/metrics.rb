@@ -9,6 +9,7 @@ module RailsSemanticLogger
   module Metrics
     autoload :ActionController, "rails_semantic_logger/metrics/action_controller"
     autoload :ActionView, "rails_semantic_logger/metrics/action_view"
+    autoload :ActiveJob, "rails_semantic_logger/metrics/active_job"
     autoload :ActiveRecord, "rails_semantic_logger/metrics/active_record"
     autoload :Subscriber, "rails_semantic_logger/metrics/subscriber"
 
@@ -19,6 +20,7 @@ module RailsSemanticLogger
       ActionController.attach_to(:action_controller)
       ActionView.attach_to(:action_view)
       ActiveRecord.attach_to(:active_record)
+      ActiveJob.attach_to(:active_job)
     end
   end
 end

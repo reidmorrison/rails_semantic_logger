@@ -255,7 +255,7 @@ module RailsSemanticLogger
         # No call site when no application code enqueued the jobs, rather than Active Support's frame.
         call_site        = frame&.call_site || false if RailsSemanticLogger.call_site?(logger, :info)
 
-        logger.info(message: message, metric: "rails.job.enqueue_all", payload: payload, call_site: call_site)
+        logger.info(message: message, payload: payload, call_site: call_site)
       end
 
       private
@@ -367,9 +367,6 @@ module RailsSemanticLogger
         fmt   = EventFormatter.new(**kw_args)
         msg   = yield fmt
         extra = msg.delete(:payload) || {}
-        # Emit a metric for every info/warn/error entry, named after the notification
-        # (e.g. "enqueue.active_job" -> "rails.job.enqueue"). Debug entries are excluded.
-        msg[:metric] ||= "rails.job.#{kw_args[:event].name.split('.').first}" unless level == :debug
         frame  = application_frame(level)
         source = frame&.source if enqueue_source?(level)
         extra  = extra.merge(source: source) if source

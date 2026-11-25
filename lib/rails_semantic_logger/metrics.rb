@@ -12,6 +12,7 @@ module RailsSemanticLogger
     autoload :ActionView, "rails_semantic_logger/metrics/action_view"
     autoload :ActiveJob, "rails_semantic_logger/metrics/active_job"
     autoload :ActiveRecord, "rails_semantic_logger/metrics/active_record"
+    autoload :Cache, "rails_semantic_logger/metrics/cache"
     autoload :Subscriber, "rails_semantic_logger/metrics/subscriber"
 
     # Attaches the subscribers that record the metrics of each Rails component. Called once, by the
@@ -23,6 +24,7 @@ module RailsSemanticLogger
       ActiveRecord.attach_to(:active_record)
       ActiveJob.attach_to(:active_job)
       ActionMailer.attach_to(:action_mailer)
+      Cache.attach_to(:active_support)
     end
   end
 end

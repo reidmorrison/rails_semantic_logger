@@ -37,17 +37,16 @@ class SidekiqTest < Minitest::Test
           level:      :info,
           name:       "SimpleJob",
           message:    "Start #perform",
-          metric:     "sidekiq.queue.latency",
+          metric:     :nil,
           named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
-        assert_kind_of Float, messages[0].metric_amount
 
         assert_semantic_logger_event(
           messages[1],
           level:      :info,
           name:       "SimpleJob",
           message:    "Completed #perform",
-          metric:     "sidekiq.job.perform",
+          metric:     :nil,
           named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[1].duration
@@ -70,24 +69,48 @@ class SidekiqTest < Minitest::Test
           level:      :info,
           name:       "SimpleJob",
           message:    "Start #perform",
-          metric:     "sidekiq.queue.latency",
+          metric:     :nil,
           named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
-        # Sidekiq 8+ returns Integer latency, whereas earlier versions return Float
-        assert_kind_of Numeric, messages[0].metric_amount
 
         assert_semantic_logger_event(
           messages[1],
           level:      :info,
           name:       "SimpleJob",
           message:    "Completed #perform",
-          metric:     "sidekiq.job.perform",
+          metric:     :nil,
           named_tags: {jid: nil, class: "SimpleJob", queue: "default"}
         )
         assert_kind_of Float, messages[1].duration
       end
 
-      it "logs a latency of zero when the job was enqueued by a host whose clock is ahead" do
+      it "records the queue latency in seconds, as a histogram" do
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        latency = assert_metric(
+          metrics,
+          name:       "sidekiq.queue.duration",
+          kind:       :histogram,
+          unit:       "s",
+          dimensions: {"messaging.system.name" => "sidekiq", "messaging.destination.name" => "default"}
+        )
+
+        assert_in_delta 60, latency.value, 5
+      end
+
+      it "records the queue latency in seconds when Sidekiq 8+ enqueued it in milliseconds" do
+        enqueued_at_ms = Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) - 60_000
+        msg            = Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => enqueued_at_ms})
+        unit_of_work   = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg)
+
+        metrics = semantic_logger_metrics { processor.send(:process, unit_of_work) }
+
+        latency = assert_metric(metrics, name: "sidekiq.queue.duration", kind: :histogram, unit: "s")
+
+        assert_in_delta 60, latency.value, 5
+      end
+
+      it "records a latency of zero when the job was enqueued by a host whose clock is ahead" do
         ahead = [
           Time.now.to_f + 60,
           Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) + 60_000
@@ -96,13 +119,47 @@ class SidekiqTest < Minitest::Test
           msg = Sidekiq.dump_json({"class" => job.to_s, "args" => args, "enqueued_at" => enqueued_at})
           unit_of_work = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg)
 
-          messages = semantic_logger_events do
-            processor.send(:process, unit_of_work)
-          end
+          metrics = semantic_logger_metrics { processor.send(:process, unit_of_work) }
 
-          assert_equal "sidekiq.queue.latency", messages[0].metric
-          assert_equal 0, messages[0].metric_amount, enqueued_at.class
+          assert_metric(metrics, name: "sidekiq.queue.duration", kind: :histogram, value: 0)
         end
+      end
+
+      it "records no queue latency for a job with no enqueued_at" do
+        msg          = Sidekiq.dump_json({"class" => job.to_s, "args" => args})
+        unit_of_work = Sidekiq::BasicFetch::UnitOfWork.new("queue:default", msg)
+
+        metrics = semantic_logger_metrics { processor.send(:process, unit_of_work) }
+
+        assert_empty(metrics.select { |metric| metric.name == "sidekiq.queue.duration" })
+      end
+
+      it "records how long the job ran as messaging.process.duration" do
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        assert_metric(
+          metrics,
+          name:       "messaging.process.duration",
+          kind:       :histogram,
+          unit:       "s",
+          dimensions: {
+            "messaging.system.name"       => "sidekiq",
+            "messaging.destination.name"  => "default",
+            "messaging.operation.name"    => "process",
+            "messaging.sidekiq.job.class" => "SimpleJob"
+          }
+        )
+      end
+
+      it "records the metrics when perform messages are disabled" do
+        RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false
+
+        metrics = semantic_logger_metrics { processor.send(:process, uow) }
+
+        assert_metric(metrics, name: "sidekiq.queue.duration", kind: :histogram)
+        assert_metric(metrics, name: "messaging.process.duration", kind: :histogram)
+      ensure
+        RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
       end
 
       it "does not emit perform messages when disabled" do
@@ -174,18 +231,17 @@ class SidekiqTest < Minitest::Test
             level:      :info,
             name:       "BadJob",
             message:    "Start #perform",
-            metric:     "sidekiq.queue.latency",
+            metric:     :nil,
             named_tags: {jid: nil, class: "BadJob", queue: "default"},
             exception:  :nil
           )
-          assert_kind_of Float, messages[0].metric_amount
 
           assert_semantic_logger_event(
             messages[1],
             level:      :error,
             name:       "BadJob",
             message:    "Completed #perform",
-            metric:     "sidekiq.job.perform",
+            metric:     :nil,
             named_tags: {jid: nil, class: "BadJob", queue: "default"},
             exception:  ArgumentError
           )
@@ -201,6 +257,34 @@ class SidekiqTest < Minitest::Test
           )
           assert_equal "BadJob", messages[2].payload[:job]["class"]
           assert_equal [], messages[2].payload[:job]["args"]
+        end
+
+        it "records the class that a retried job raised, not Sidekiq's Handled" do
+          job_logger = RailsSemanticLogger::Sidekiq::JobLogger.new(config)
+          item       = {"class" => "BadJob", "jid" => "1", "enqueued_at" => Time.now.to_f}
+
+          metrics = semantic_logger_metrics do
+            assert_raises(Sidekiq::JobRetry::Handled) do
+              job_logger.call(item, "default") do
+                raise ArgumentError, "boom"
+              rescue ArgumentError
+                raise Sidekiq::JobRetry::Handled
+              end
+            end
+          end
+
+          assert_equal "ArgumentError",
+                       assert_metric(metrics, name: "messaging.process.duration").dimensions["error.type"]
+        end
+
+        it "records the exception class as the error.type of the job's duration" do
+          metrics = semantic_logger_metrics do
+            assert_raises(ArgumentError) { processor.send(:process, uow) }
+          end
+
+          duration = assert_metric(metrics, name: "messaging.process.duration", kind: :histogram)
+
+          assert_equal "ArgumentError", duration.dimensions["error.type"]
         end
       end
     end

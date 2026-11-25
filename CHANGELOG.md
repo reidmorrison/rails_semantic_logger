@@ -25,6 +25,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   Deleting the line alone brings back `log/<environment>.log`, or the screen output.
 - The deprecator, `Rails.application.deprecators[:rails_semantic_logger]`, stays registered, so
   configuration that silences it keeps working.
+- Sidekiq: record its metrics under OpenTelemetry names, with dimensions, whether or not the
+  `Start #perform` and `Completed #perform` entries are logged:
+  - `sidekiq.queue.duration` (was `sidekiq.queue.latency`): how long the job waited in its queue, a
+    histogram in seconds, with `messaging.system.name` (`sidekiq`) and `messaging.destination.name`
+    (the queue). It was the `metric_amount` of the `Start #perform` entry, which Semantic Logger v6
+    would record as a counter. A job with no `enqueued_at` records none.
+  - `messaging.process.duration` (was `sidekiq.job.perform`): how long the job ran, a histogram in
+    seconds, with the same dimensions plus `messaging.operation.name` (`process`),
+    `messaging.sidekiq.job.class`, and `error.type`, the exception class, when the job raises.
+  - `RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false` and Sidekiq 8's
+    `skip_default_job_logging` turn off only the log entries now. The entries no longer carry a
+    `metric`.
 
 ## [5.3.0] - 2026-11-20
 

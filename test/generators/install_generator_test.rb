@@ -101,7 +101,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_file "config/environments/#{environment}.rb" do |config|
         assert_includes config, "config.rails_semantic_logger.appenders do |appenders|"
         assert_includes config,
-                        "    appenders.add(file_name: \"log/\#{Rails.env}.log\", " \
+                        "    appenders.add(file_name: config.paths[\"log\"].first, " \
                         "formatter: {color: {ap: {multiline: false}}})\n"
         assert_includes config, "    appenders.add_server(io: $stdout, formatter: :color)\n"
         assert_includes config, "    appenders.add_console(io: $stderr, formatter: :color)\n"
@@ -189,12 +189,13 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       refute_includes config, "rails_semantic_logger"
       assert_match(/class Application < Rails::Application\n    config.load_defaults/, config)
     end
-    development = "appenders.add(file_name: \"log/\#{Rails.env}.log\", formatter: {color: {ap: {multiline: true}}}, " \
+    development = "appenders.add(file_name: config.paths[\"log\"].first, " \
+                  "formatter: {color: {ap: {multiline: true}}}, " \
                   "filter: /Healthcheck/)"
 
     assert_file "config/environments/development.rb", Regexp.new(Regexp.escape(development))
     assert_file "config/environments/production.rb" do |config|
-      assert_includes config, "    appenders.add(file_name: \"log/\#{Rails.env}.log\", formatter: :json, " \
+      assert_includes config, "    appenders.add(file_name: config.paths[\"log\"].first, formatter: :json, " \
                               "filter: /Healthcheck/)\n"
       assert_includes config, "    # appenders.add_server(io: $stdout, formatter: :color)\n"
       assert_includes config, "    # appenders.add_console(io: $stderr, formatter: :color)\n"
@@ -208,7 +209,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
     run_generator
 
-    assert_file "config/environments/test.rb", %r{    # appenders\.add\(file_name: "log/\#\{Rails\.env\}\.log"}
+    assert_file "config/environments/test.rb", %r{    # appenders\.add\(file_name: config\.paths\["log"\]\.first}
   end
 
   test "writes the log file as plain text when colorized logging is off" do
@@ -218,7 +219,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     run_generator
 
     assert_file "config/environments/development.rb",
-                %r{appenders\.add\(file_name: "log/\#\{Rails\.env\}\.log", formatter: :default\)}
+                /appenders\.add\(file_name: config\.paths\["log"\]\.first, formatter: :default\)/
   end
 
   test "leaves alone an environment that declares its own appenders" do
@@ -311,7 +312,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
     assert_file "config/environments/production.rb" do |config|
       refute_includes config, "config.semantic_logger.add_appender"
-      assert_includes config, "    # appenders.add(file_name: \"log/\#{Rails.env}.log\""
+      assert_includes config, "    # appenders.add(file_name: config.paths[\"log\"].first"
       assert_includes config, "    appenders.add(io: $stdout, formatter: :json)\n"
       assert_includes config, "    # appenders.add_server(io: $stdout, formatter: :color)\n"
       assert_valid_ruby config
@@ -646,6 +647,85 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_includes output, "config/environments/development.rb: left unchanged"
     assert_file "config/environments/development.rb", development
     assert_file "config/environments/test.rb", /formatter: \{color: \{ap: \{multiline: false\}\}\}/
+  end
+
+  {
+    "assigned"                   => 'config.paths["log"] = "/var/log/shop.log"',
+    "without config"             => 'paths["log"] = "/var/log/shop.log"',
+    "through Rails.application"  => 'Rails.application.config.paths["log"] = "/var/log/shop.log"',
+    "unshifted"                  => 'config.paths["log"].unshift("/var/log/shop.log")',
+    "added"                      => 'config.paths.add "log", with: "/var/log/shop.log"',
+    "added over several lines"   => %(config.paths.add(\n    "log", with: "/var/log/shop.log"\n  )),
+    "added on the next line"     => %(config.paths\n    .add("log", with: "/var/log/shop.log")),
+    "globbed"                    => 'config.paths["log"].glob = "*.log"',
+    "tapped"                     => 'config.paths["log"].tap { |path| path.unshift("/var/log/shop.log") }',
+    "set inside a tap of paths"  => 'config.paths.tap { |paths| paths["log"] = "/var/log/shop.log" }',
+    "set inside a then of paths" => 'config.paths.then { |all| all["log"] = "/var/log/shop.log" }',
+    "set through a variable"     => %(all = config.paths\n  all["log"] = "/var/log/shop.log"),
+    "added through safe nav"     => 'config.paths&.add("log", with: "/var/log/shop.log")'
+  }.each do |how, setting|
+    test "leaves unchanged an environment that sets where the log file goes: #{how}" do
+      production = ENVIRONMENT.sub("config.enable_reloading = true", setting)
+      write("config/environments/production.rb", production)
+
+      output = run_generator
+
+      assert_includes output, "production.rb: left unchanged: it sets config.paths[\"log\"]"
+      assert_file "config/environments/production.rb", production
+    end
+  end
+
+  {
+    "a read"                     => 'config.x.log_file = config.paths["log"].first',
+    "a chained read"             => 'config.x.log_dir = File.dirname(config.paths["log"].expanded.first)',
+    "another path added"         => 'config.paths.add "app/services", eager_load: true',
+    "a comment that mentions it" => 'config.log_level = :info # the log file is config.paths["log"]',
+    "a block comment"            => %(config.x.a = 1\n=begin\nconfig.paths["log"] = "/var/log/shop.log"\n=end),
+    "another named path"         => 'config.paths["config/routes"] << "config/admin_routes.rb"',
+    "another read"               => 'config.x.log_dirs = config.paths["log"].existent_directories'
+  }.each do |what, line|
+    test "converts an environment whose file holds #{what} of the log path" do
+      write("config/environments/production.rb", ENVIRONMENT.sub("config.enable_reloading = true", line))
+
+      run_generator
+
+      assert_file "config/environments/production.rb", /config\.rails_semantic_logger\.appenders do/
+    end
+  end
+
+  test "follows the loads to an environment that sets where the log file goes" do
+    write("config/environments/staging.rb", %(require_relative "production"\n))
+    qa = %(require_relative "staging"\n\nRails.application.configure do\n  ) +
+         %(config.paths["log"] = "/var/log/qa.log"\nend\n)
+    write("config/environments/qa.rb", qa)
+    production = File.read(File.join(destination_root, "config/environments/production.rb"))
+
+    output = run_generator
+
+    assert_includes output, "production.rb: left unchanged: config/environments/qa.rb loads it " \
+                            "(through config/environments/staging.rb), and sets config.paths"
+    assert_file "config/environments/production.rb", production
+  end
+
+  test "names the log path as the reason when the environment that loads this one sets it" do
+    staging = %(require_relative "production"\n\nRails.application.configure do\n  ) +
+              %(config.paths["log"] = "/var/log/staging.log"\nend\n)
+    write("config/environments/staging.rb", staging)
+
+    output = run_generator
+
+    assert_includes output, "production.rb: left unchanged: config/environments/staging.rb loads it, " \
+                            "and sets config.paths[\"log\"]"
+  end
+
+  test "reads the log file that config/application.rb sets, in each environment's block" do
+    log_path = 'config.paths["log"] = "/var/log/shop.log"'
+    write("config/application.rb", APPLICATION.sub("config.load_defaults 8.1", log_path))
+
+    run_generator
+
+    assert_file "config/application.rb", %r{config\.paths\["log"\] = "/var/log/shop\.log"}
+    assert_file "config/environments/production.rb", /appenders\.add\(file_name: config\.paths\["log"\]\.first, /
   end
 
   test "leaves unchanged an environment that turns off both the log file and the screen" do

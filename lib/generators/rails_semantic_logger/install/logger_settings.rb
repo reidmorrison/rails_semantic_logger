@@ -45,6 +45,19 @@ module RailsSemanticLogger
       APPENDERS        = /config\.rails_semantic_logger\.appenders\b/
       COLORIZE_OFF     = /\A\s*config\.colorize_logging\s*=\s*false\b/
       COLORIZE         = /\A\s*config\.colorize_logging\s*=/
+      # What may set where the log file goes: any use of `paths` (`config.paths`, or `paths`, which the
+      # application delegates to its config), such as `paths["log"] = ...`, `.unshift`, `.add("log")`, or
+      # `paths` given to a block or a variable, except a read of `paths["log"]`, a use of another named
+      # path, and a `paths.add` of another one. It is matched against the whole file without its
+      # comments, so that a call continued on the next line counts. Erring toward a setting only leaves
+      # an environment unchanged, and reported.
+      LOG_PATH = /
+        \bpaths\b
+        (?!\s*\[\s*["']log["']\s*\]\s*&?\.\s*
+          (?:first|last|expanded|existent|existent_directories|to_a|each|glob|paths|children)\b(?!\s*=[^=]))
+        (?!\s*\[\s*["'](?!log["'])[^"']*["']\s*\])
+        (?!\s*&?\.\s*add\b[ \t]*\(?[ \t]*["'](?!log["']))
+      /x
       # The start of an environment's settings, `Rails.application.configure do` or
       # `MyApp::Application.configure do`, with the comment that Rails writes first, if any.
       CONFIGURE = /
@@ -71,6 +84,9 @@ module RailsSemanticLogger
         "# Log to STDOUT with the current request id as a default log tag." =>
           "# Tag every log entry with the current request id."
       }.freeze
+
+      # The tokens of a comment, `# ...` or `=begin ... =end`.
+      COMMENT_TOKENS = %i[on_comment on_embdoc_beg on_embdoc on_embdoc_end].freeze
 
       def initialize(text)
         @lines = text.lines
@@ -126,13 +142,20 @@ module RailsSemanticLogger
       end
 
       # Whether the file decides anything about its appenders: declares them, sets a deprecated appender
-      # option, adds an appender that writes to the screen, or sets `config.colorize_logging` to any
-      # value, anywhere (even `true` overrides a `false` in the file that it loads).
+      # option, adds an appender that writes to the screen, sets where the log file goes, or sets
+      # `config.colorize_logging` to any value, anywhere (even `true` overrides a `false` in the file
+      # that it loads).
       # An appenders block in a file that it loads, such as production.rb for a staging.rb that starts
       # with `require_relative "production"`, would add to, override or repeat them.
       def sets_own_appenders?
-        declares_appenders? ||
+        declares_appenders? || sets_log_path? ||
           @lines.each_index.any? { |index| appender_setting?(index) || @lines[index].match?(COLORIZE) }
+      end
+
+      # Whether the file sets where the log file goes, `config.paths["log"]`, which an appenders block
+      # above it would read before it is set.
+      def sets_log_path?
+        without_comments(@lines.join).match?(LOG_PATH)
       end
 
       # Whether the file turns colorized logging off, which makes the default log file plain text.
@@ -286,7 +309,7 @@ module RailsSemanticLogger
 
       # The source of a statement, without its comments.
       def without_comments(source)
-        Ripper.lex(source).reject { |token| token[1] == :on_comment }.map { |token| token[2] }.join.strip
+        Ripper.lex(source).reject { |token| COMMENT_TOKENS.include?(token[1]) }.map { |token| token[2] }.join.strip
       end
 
       # Removes the comment lines directly above each removed setting, such as "# Log to STDOUT by

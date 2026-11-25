@@ -5,7 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [6.0.0] - Unreleased
 
-- Requires Semantic Logger v6. The two gems keep their major versions in step. See
+- Requires Semantic Logger v6 (`~> 6.0`). The two gems keep their major versions in step. See
   [Upgrading to Semantic Logger v6](https://logger.reidmorrison.com/upgrading.html#upgrading-to-semantic-logger-v6):
   it records a `metric:` at every log level once a metric appender is added, and its metric
   appenders send a snapshot each interval.
@@ -109,7 +109,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   seconds of every operation Solid Queue instruments, by `solid_queue.operation.name` (`claim`,
   `start_process`, ...) and `error.type`, whatever level it is logged at. The log entries no longer
   carry a `metric`.
-- Requires Semantic Logger `~> 6.0`.
 - The Rails metrics declare their dimension keys with `SemanticLogger.safe_dimension_keys`, so that
   an application whose `config.filter_parameters` holds `:name` or `:type`, which match keys by
   substring, no longer redacts `messaging.destination.name` or `error.type`, merging every series of
@@ -118,6 +117,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `{job}`, `{interrupt}`, and `{resume}`.
 - Without a metric appender the Rails metrics do no work, not even building their dimensions: each
   recorder asks `collecting_metrics?` first.
+- Each component's metrics are recorded through its own logger, whose name Semantic Logger 6.0
+  sends as the metrics' meter (the OTLP instrumentation scope): `Rack`, `ActionController::Base`,
+  `ActionView::Base`, `ActiveRecord::Base`, `ActiveJob::Base`, `ActionMailer::Base`,
+  `ActiveSupport::Cache::Store`, `SolidQueue` and `Sidekiq`. Controllers and jobs share their
+  component's meter, and their class is a dimension.
 
 ## [5.3.0] - 2026-11-20
 

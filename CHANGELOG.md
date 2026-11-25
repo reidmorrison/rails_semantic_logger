@@ -72,6 +72,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Action View: attaching the log subscriber no longer detaches every listener to the
   `render_template` and `render_layout` events, such as an APM gem's, the application's own, and on
   Rails 8.1+ Rails' structured event subscriber: only the listeners that log "Rendering".
+- Active Record: record `db.client.operation.duration`, OpenTelemetry's stable database client
+  metric, a histogram in seconds of each query sent to the database, with `db.system.name`
+  (`postgresql`, `mysql`, `sqlite`, ...), `db.namespace`, `db.operation.name` (the statement's leading
+  keyword, for a single statement), and `error.type`. Queries served from the query cache, and
+  `SCHEMA` and `EXPLAIN` queries, are left out. Active Record had no metric before.
 
 ## [5.3.0] - 2026-11-20
 

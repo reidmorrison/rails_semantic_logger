@@ -168,14 +168,77 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  test "leaves development alone when it already sends its metrics to OTLP" do
+  test "adds only the OTLP log appender when development already sends its metrics to OTLP" do
     metrics = "Rails.application.configure do\n  " \
               "config.rails_semantic_logger.appenders { |a| a.add(metric: :otlp) }\nend\n"
     write("config/environments/development.rb", metrics)
 
     run_generator
 
-    assert_file "config/environments/development.rb", metrics
+    assert_file "config/environments/development.rb" do |config|
+      assert_includes config, "appenders.add(appender: :otlp)\n"
+      assert_equal 1, config.scan("metric: :otlp").size
+    end
+  end
+
+  test "adds no OTLP appender of a kind that development sends only sometimes, and says so" do
+    sometimes = <<~RUBY
+      Rails.application.configure do
+        config.rails_semantic_logger.appenders do |appenders|
+          appenders.add(file_name: "log/development.log")
+          appenders.add(appender: :otlp) if ENV["OTLP"]
+          appenders.add_server(metric: :otlp)
+        end
+      end
+    RUBY
+    write("config/environments/development.rb", sometimes)
+
+    output = run_generator
+
+    assert_includes output, "sends its logs and metrics to OTLP only sometimes"
+    assert_file "config/environments/development.rb", sometimes
+  end
+
+  test "counts a one-line block's add_server or conditional OTLP appender as sending only sometimes" do
+    one_line = "Rails.application.configure do\n  " \
+               "config.rails_semantic_logger.appenders { |a| a.add_server(metric: :otlp) }\nend\n"
+    write("config/environments/development.rb", one_line)
+
+    output = run_generator
+
+    assert_includes output, "sends its metrics to OTLP only sometimes"
+    assert_file "config/environments/development.rb" do |config|
+      assert_includes config, "appenders.add(appender: :otlp)\n"
+      assert_equal 1, config.scan("metric: :otlp").size
+      assert_includes config, "# Send the logs to the local observability stack"
+    end
+  end
+
+  test "adds nothing to an appenders block with a condition on its end" do
+    conditional = <<~RUBY
+      Rails.application.configure do
+        config.rails_semantic_logger.appenders do |appenders|
+          appenders.add(io: $stdout, formatter: :json)
+        end if ENV["JSON"]
+      end
+    RUBY
+    write("config/environments/development.rb", conditional)
+
+    run_generator
+
+    assert_file "config/environments/development.rb", conditional
+  end
+
+  test "adds no OTLP appenders a second time, beside a conditional line of the block" do
+    run_generator
+    conditional = "    appenders.add(io: $stdout) if ENV[\"STDOUT\"]\n"
+    first       = File.read(destination_path("config/environments/development.rb")).
+                  sub("    appenders.add_server(", "#{conditional}    appenders.add_server(")
+    write("config/environments/development.rb", first)
+
+    run_generator
+
+    assert_file "config/environments/development.rb", first
   end
 
   test "keeps development's settings when destroyed" do
@@ -195,6 +258,132 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
     run_generator
 
     assert_file "config/environments/development.rb", configured
+  end
+
+  test "changes no file with --pretend, nor lets the install generator change one" do
+    run_generator %w[--pretend]
+
+    assert_file "config/environments/development.rb", DEVELOPMENT
+    assert_file "config/environments/production.rb", DEVELOPMENT
+    assert_no_file "compose.observability.yml"
+  end
+
+  test "drops the hint to run it from the block that rails_semantic_logger:install wrote before" do
+    Rails::Generators.invoke("rails_semantic_logger:install", [], destination_root: destination_root, behavior: :invoke,
+                                                                  quiet: true)
+
+    assert_file "config/environments/development.rb", %r{bin/rails generate rails_semantic_logger:observability}
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      refute_includes config, "#   bin/rails generate rails_semantic_logger:observability"
+      assert_includes config, "    appenders.add(appender: :otlp)\n"
+      refute_nil Ripper.sexp(config)
+    end
+  end
+
+  test "adds nothing to an appenders block inside a condition, and does not say the logs go to the stack" do
+    conditional = <<~RUBY
+      Rails.application.configure do
+        config.enable_reloading = true
+        if ENV["JSON"]
+          config.rails_semantic_logger.appenders do |appenders|
+            appenders.add(io: $stdout, formatter: :json)
+          end
+        end
+      end
+    RUBY
+    write("config/environments/development.rb", conditional)
+
+    output = run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      refute_includes config, "appender: :otlp"
+    end
+    assert_includes output, "Development does not send to the stack yet"
+    refute_includes output, "now goes to the stack"
+  end
+
+  test "adds no OTLP appenders when config/application.rb already sends to OTLP" do
+    write("config/application.rb", <<~RUBY)
+      module Shop
+        class Application < Rails::Application
+          config.rails_semantic_logger.appenders do |appenders|
+            appenders.add(appender: :otlp)
+            appenders.add(metric: :otlp)
+          end
+        end
+      end
+    RUBY
+
+    run_generator
+
+    assert_file "config/environments/development.rb", DEVELOPMENT
+  end
+
+  test "keeps the application name that config/application.rb sets" do
+    write("config/application.rb", <<~RUBY)
+      module Shop
+        class Application < Rails::Application
+          config.semantic_logger.application = "storefront"
+        end
+      end
+    RUBY
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      refute_includes config, "config.semantic_logger.application ="
+      assert_includes config, "appenders.add(appender: :otlp)"
+    end
+  end
+
+  test "does not take OTLP appenders that config/application.rb adds under a condition as sending" do
+    write("config/application.rb", <<~RUBY)
+      module Shop
+        class Application < Rails::Application
+          if Rails.env.production?
+            config.rails_semantic_logger.appenders do |appenders|
+              appenders.add(appender: :otlp)
+            end
+          end
+        end
+      end
+    RUBY
+
+    output = run_generator
+
+    refute_includes output, "already sends to OTLP"
+    refute_includes output, "now goes to the stack"
+  end
+
+  test "prints no next steps when destroyed" do
+    run_generator
+    output = run_generator [], behavior: :revoke
+
+    refute_includes output, "Development does not send"
+    refute_includes output, "now goes to the stack"
+  end
+
+  test "says, when pretending, that the OTLP appenders go in the block that the install step writes" do
+    output = run_generator %w[--pretend]
+
+    refute_includes output, "found no appenders block"
+    assert_includes output, "rails_semantic_logger:install writes"
+  end
+
+  test "keeps the application name that development already sets" do
+    write("config/environments/development.rb",
+          DEVELOPMENT.sub("config.enable_reloading = true", "config.enable_reloading = true\n  " \
+                                                            'config.semantic_logger.application = "storefront"'))
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      assert_includes config, 'config.semantic_logger.application = "storefront"'
+      assert_equal 1, config.scan("config.semantic_logger.application =").size
+    end
   end
 
   private

@@ -199,6 +199,16 @@ class SidekiqTest < Minitest::Test
         RailsSemanticLogger::Sidekiq::JobLogger.metrics = true
       end
 
+      it "logs a job with no class through Sidekiq's logger" do
+        job_logger = RailsSemanticLogger::Sidekiq::JobLogger.new(config)
+
+        messages = semantic_logger_events do
+          job_logger.call({"jid" => "1"}, "default") { nil }
+        end
+
+        assert_equal %w[Sidekiq Sidekiq], messages.map(&:name), -> { messages.collect(&:to_h).ai }
+      end
+
       it "does not emit perform messages when disabled" do
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = false
 

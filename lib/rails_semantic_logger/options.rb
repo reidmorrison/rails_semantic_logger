@@ -19,6 +19,7 @@ module RailsSemanticLogger
   #     config.rails_semantic_logger.processing = false
   #
   # * Change Action View render log messages to debug so that they do not appear in production
+  #   (true logs them at info). It applies to both the "Rendering" and the "Rendered" messages.
   #
   #     ActionView::Base --   Rendered data/search/_user.html.haml (46.7ms)
   #

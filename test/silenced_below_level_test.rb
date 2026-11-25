@@ -153,16 +153,42 @@ class SilencedBelowLevelTest < Minitest::Test
     describe RailsSemanticLogger::ActionView::LogSubscriber::Start do
       let(:start) { RailsSemanticLogger::ActionView::LogSubscriber::Start.new }
 
-      it "is silenced while Action View does not log at :debug" do
-        at_level(::ActionView::Base.logger, :info) { assert start.silenced?("render_template.action_view") }
-        at_level(::ActionView::Base.logger, :debug) { refute start.silenced?("render_template.action_view") }
+      # Runs the block with the rendered level at the level, then sets it back.
+      def at_rendered_level(level)
+        rendered = RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = level
+        yield
+      ensure
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = rendered
+      end
+
+      it "is silenced while Action View does not log at the rendered level" do
+        at_rendered_level(:debug) do
+          at_level(::ActionView::Base.logger, :info) { assert start.silenced?("render_template.action_view") }
+          at_level(::ActionView::Base.logger, :debug) { refute start.silenced?("render_template.action_view") }
+        end
       end
 
       it "is silenced without an Action View logger" do
         ::ActionView::Base.stub(:logger, nil) { assert start.silenced?("render_template.action_view") }
       end
 
-      it "listens when Action View's logger cannot tell whether it logs at :debug" do
+      it "follows the rendered level, as it is set now" do
+        at_rendered_level(:info) do
+          at_level(::ActionView::Base.logger, :info) { refute start.silenced?("render_template.action_view") }
+          at_level(::ActionView::Base.logger, :warn) { assert start.silenced?("render_template.action_view") }
+        end
+      end
+
+      it "is given only a level that Semantic Logger knows, as a symbol" do
+        assert_raises(ArgumentError) { at_rendered_level(:inf) { nil } }
+        assert_raises(ArgumentError) { at_rendered_level(nil) { nil } }
+        at_rendered_level("info") do
+          assert_equal :info, RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level
+        end
+      end
+
+      it "listens when Action View's logger cannot tell whether it logs at the rendered level" do
         ::ActionView::Base.stub(:logger, Object.new) { refute start.silenced?("render_template.action_view") }
       end
     end

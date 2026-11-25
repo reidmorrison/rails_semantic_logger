@@ -6,7 +6,7 @@ module RailsSemanticLogger
     # The explicit `config.rails_semantic_logger.appenders` block of one environment, as Ruby source.
     #
     # Its active lines create exactly the appenders that Rails Semantic Logger creates when an
-    # application declares none: the log file, log/<environment>.log, with the formatter that
+    # application declares none: the log file, config.paths["log"], with the formatter that
     # RailsSemanticLogger.default_file_formatter gives, the screen under `rails server` and Sidekiq,
     # and the screen under `rails console`. Listing them lets the application see, and change, where
     # its logs go. A deployed environment also lists, commented out, the usual alternatives.
@@ -66,9 +66,10 @@ module RailsSemanticLogger
       end
 
       def file_arguments
-        # Rails.env, as the engine's default log file follows it, also when another environment's file
-        # loads this one, such as a staging.rb that starts with `require_relative "production"`.
-        arguments = %(file_name: "log/\#{Rails.env}.log", formatter: #{file_formatter})
+        # The engine's default log file: absolute, under Rails.root, as config/application.rb sets it, and
+        # of the environment that runs, also when another environment's file loads this one, such as a
+        # staging.rb that starts with `require_relative "production"`.
+        arguments = %(file_name: config.paths["log"].first, formatter: #{file_formatter})
         arguments += ", filter: #{@options[:filter]}" if @options[:filter]
         arguments
       end

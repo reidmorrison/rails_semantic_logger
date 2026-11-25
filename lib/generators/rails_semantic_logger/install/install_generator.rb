@@ -32,6 +32,7 @@ module RailsSemanticLogger
                      "or adding them would not be valid Ruby".freeze
       UNMOVED      = "an appenders block would override or repeat the settings left in place: " \
                      "move them into config.rails_semantic_logger.appenders".freeze
+      LOG_PATH     = "it sets config.paths[\"log\"], which its appenders block would read before it is set".freeze
       EMPTY        = "its appenders block would declare no appender, so the engine would create its " \
                      "default appenders instead".freeze
 
@@ -77,6 +78,16 @@ module RailsSemanticLogger
         plan_block(Plan.new(path: path, result: result, declared: false), settings, app_result, screen)
       end
 
+      # Why the environment cannot take an appenders block, if it cannot: settings that stay in place,
+      # in its file or another that it shares, would be overridden by the block, or read too late.
+      def unlistable(plan, settings, app_result)
+        return UNMOVED if (app_result.unmoved + plan.result.unmoved).any?
+        return LOG_PATH if settings.sets_log_path?
+
+        loader = loader_with_own_appenders(plan.path)
+        "#{loader} loads it, and an appenders block would override its settings" if loader
+      end
+
       # The environment whose file loads this one's and keeps settings that this one's appenders block
       # would override or repeat, if any, such as a staging.rb that requires production.rb and sets
       # `config.rails_semantic_logger.format`.
@@ -92,12 +103,8 @@ module RailsSemanticLogger
       # reason it cannot take one.
       def plan_block(plan, settings, app_result, screen)
         result = plan.result
-        return plan.tap { plan.reason = UNMOVED } if (app_result.unmoved + result.unmoved).any?
-
-        loader = loader_with_own_appenders(plan.path)
-        if loader
-          return plan.tap { plan.reason = "#{loader} loads it, and an appenders block would override its settings" }
-        end
+        reason = unlistable(plan, settings, app_result)
+        return plan.tap { plan.reason = reason } if reason
 
         block = AppendersBlock.new(
           environment: File.basename(plan.path, ".rb"),

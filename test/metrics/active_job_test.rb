@@ -12,6 +12,10 @@ module Metrics
     end
 
     describe RailsSemanticLogger::Metrics::ActiveJob do
+      it "records through the logger of Active Job, whose name is the meter" do
+        assert_equal "ActiveJob::Base", RailsSemanticLogger::Metrics::ActiveJob.logger.name
+      end
+
       let(:job_dimensions) do
         {
           "messaging.system.name"          => "active_job",

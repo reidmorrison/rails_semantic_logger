@@ -8,6 +8,9 @@ module RailsSemanticLogger
     # A job that Active Job runs on Sidekiq is also recorded by Sidekiq's job logger, under the
     # messaging system `sidekiq`: sum one system or the other, never both.
     class ActiveJob < Subscriber
+      # The logger of Active Job, whose name is the meter of its metrics.
+      LOGGER_NAME = "ActiveJob::Base".freeze
+
       SYSTEM = "active_job".freeze
 
       def enqueue(event)

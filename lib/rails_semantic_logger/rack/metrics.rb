@@ -31,19 +31,23 @@ module RailsSemanticLogger
       def initialize(app)
         @app    = app
         @mounts = Concurrent::Map.new
-        # The logger of Rack, whose requests it measures: the name of the logger that records a metric
-        # is its meter.
-        @logger = SemanticLogger[::Rack]
       end
 
       # Times nothing while no metric appender collects the metrics.
       def call(env)
-        return @app.call(env) unless @logger.collecting_metrics?
+        return @app.call(env) unless logger.collecting_metrics?
 
         timed_call(env)
       end
 
       private
+
+      # The logger of Rack, whose requests it measures, which Rack::Logger owns: the one instance through
+      # which the requests are logged too, while `config.rails_semantic_logger.semantic` puts Rack::Logger
+      # in place of Rails' own. The name of the logger that records a metric is its meter.
+      def logger
+        RailsSemanticLogger::Rack::Logger.logger
+      end
 
       def timed_call(env)
         start                 = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
@@ -64,7 +68,7 @@ module RailsSemanticLogger
       # exception that it raised.
       def record(env, start, status, exception, arrival:, route: true)
         duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
-        @logger.time(NAME, duration: duration_ms, dimensions: dimensions(env, status, exception, arrival, route))
+        logger.time(NAME, duration: duration_ms, dimensions: dimensions(env, status, exception, arrival, route))
       rescue StandardError
         nil
       end

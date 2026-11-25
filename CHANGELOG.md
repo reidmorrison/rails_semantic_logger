@@ -162,14 +162,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `filter`, `add_file_appender` and `console_logger`, and the appenders added with
   `config.semantic_logger.add_appender`, into appenders, and writes an explicit
   `config.rails_semantic_logger.appenders` block into each environment: the appenders that Rails
-  Semantic Logger created, so nothing changes until the application edits them. Deployed
+  Semantic Logger created, so nothing changes until the application edits them: the log file is
+  `config.paths["log"].first`, under `Rails.root` wherever the process starts. Deployed
   environments also list, commented out, JSON on stdout for containers. It leaves alone an
   environment that already declares its appenders, or loads another environment's settings, and
   leaves unchanged, and reports, one whose appenders it cannot list: a deprecated option inside a
-  condition or set to a computed value, an appender to the screen inside a condition, or both the log
-  file and the screen turned off. One change: an appender that the application added with a
-  formatter of its own now keeps it, where the default log file replaced it with the log file's
-  formatter.
+  condition or set to a computed value, an appender to the screen inside a condition,
+  `config.paths["log"]` set in the environment's file or in one that loads it, or both the log file
+  and the screen turned off. One change: an appender that the application added with a formatter of
+  its own now keeps it, where the default log file replaced it with the log file's formatter.
 - A log file declared in `config.rails_semantic_logger.appenders` has its directory created, as the
   default log file did, so that `appenders.add(file_name: "log/production.log")` works where the
   `log/` directory does not exist yet.

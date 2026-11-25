@@ -177,6 +177,18 @@ class SidekiqTest < Minitest::Test
         RailsSemanticLogger::Sidekiq::JobLogger.perform_messages = true
       end
 
+      it "times nothing while no metric appender collects the metrics" do
+        sidekiq  = SemanticLogger::Logger.new(::Sidekiq)
+        recorded = []
+        sidekiq.define_singleton_method(:collecting_metrics?) { false }
+        sidekiq.define_singleton_method(:time) { |name, **| recorded << name }
+        lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
+
+        SemanticLogger.stub(:[], lookup) { processor.send(:process, uow) }
+
+        assert_empty recorded
+      end
+
       it "records no metrics when the Rails metrics are turned off" do
         RailsSemanticLogger::Sidekiq::JobLogger.metrics = false
 

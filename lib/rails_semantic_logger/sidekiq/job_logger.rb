@@ -35,12 +35,10 @@ module RailsSemanticLogger
         logger = klass ? SemanticLogger[klass] : Sidekiq.logger
 
         SemanticLogger.tagged(queue: queue) do
-          dimensions = {"messaging.system.name" => "sidekiq", "messaging.destination.name" => queue}
-
-          latency = job_latency_ms(item)
-          if latency && self.class.metrics
-            metrics_logger.time(QUEUE_DURATION, duration: latency, dimensions: dimensions)
-          end
+          # Nil while no metric appender collects the metrics, so that the job's metrics cost nothing.
+          dimensions = {"messaging.system.name" => "sidekiq", "messaging.destination.name" => queue} if record_metrics?
+          latency    = job_latency_ms(item) if dimensions
+          metrics_logger.time(QUEUE_DURATION, duration: latency, dimensions: dimensions) if latency
           logger.info("Start #perform", call_site: false) if perform_messages_enabled?
 
           process(logger, klass, dimensions, &block)
@@ -62,6 +60,8 @@ module RailsSemanticLogger
 
       # Runs the job, logging it unless perform messages are turned off, and records how long it ran
       # whether or not it is logged: the settings that turn off the perform messages are about logging.
+      # Times the job and records its duration with the dimensions, unless they are nil: no metric was
+      # collected when the job started, which decides for the whole job.
       def process(logger, klass, dimensions, &block)
         start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
         error = nil
@@ -80,7 +80,7 @@ module RailsSemanticLogger
         error = e
         raise
       ensure
-        if self.class.metrics
+        if dimensions
           duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
           metrics_logger.time(PROCESS_DURATION, duration:   duration_ms,
                                                 dimensions: process_dimensions(dimensions, klass, error))
@@ -110,6 +110,11 @@ module RailsSemanticLogger
       # one that records no metrics.
       def metrics_logger
         @metrics_logger ||= SemanticLogger[::Sidekiq]
+      end
+
+      # Whether to record the job metrics: they are turned on, and a metric appender collects them.
+      def record_metrics?
+        self.class.metrics && metrics_logger.collecting_metrics?
       end
 
       def perform_messages_enabled?

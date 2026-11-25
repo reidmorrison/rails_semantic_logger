@@ -39,7 +39,6 @@ module RailsSemanticLogger
   end
 
   autoload :ApplicationFrame, "rails_semantic_logger/application_frame"
-  autoload :Metrics, "rails_semantic_logger/metrics"
   autoload :Appenders, "rails_semantic_logger/appenders"
   autoload :Options, "rails_semantic_logger/options"
 

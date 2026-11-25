@@ -33,7 +33,16 @@ module RailsSemanticLogger
         @logger = SemanticLogger[::Rack]
       end
 
+      # Times nothing while no metric appender collects the metrics.
       def call(env)
+        return @app.call(env) unless @logger.collecting_metrics?
+
+        timed_call(env)
+      end
+
+      private
+
+      def timed_call(env)
         start                 = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
         arrival               = Arrival.new(env, @mounts)
         status, headers, body = @app.call(env)
@@ -47,8 +56,6 @@ module RailsSemanticLogger
         record(env, start, nil, e, arrival: arrival)
         raise
       end
-
-      private
 
       # Records the request. Never raises, so that a metric cannot fail the request, nor hide the
       # exception that it raised.

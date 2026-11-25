@@ -22,6 +22,15 @@ class RackMetricsTest < Minitest::Test
       end
     end
 
+    it "leaves the response untouched while no metric appender collects the metrics" do
+      body = ["body"]
+      app  = ->(_env) { [200, {}, body] }
+
+      _status, _headers, returned = RailsSemanticLogger::Rack::Metrics.new(app).call(::Rack::MockRequest.env_for("http://example.com/"))
+
+      assert_same body, returned
+    end
+
     it "records the request duration in seconds once the body is closed" do
       env     = ::Rack::MockRequest.env_for("http://example.com/articles/1")
       metrics = semantic_logger_metrics { @body = middleware.call(env)[2] }

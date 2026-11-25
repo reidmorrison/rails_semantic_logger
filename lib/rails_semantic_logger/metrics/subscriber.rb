@@ -25,9 +25,11 @@ module RailsSemanticLogger
 
       # Whether Active Support may leave this subscriber out of the event `name`: while no metric
       # appender collects the metrics. Asked by ActiveSupport::Notifications each time an event starts,
-      # so that, once every other listener is silenced too, as a log subscriber is below its level, it
-      # does not build the event at all, nor time it. Never raises, as it is asked from the code that
-      # it instruments: when the answer is not known, it listens, and #call decides.
+      # so that the event is built for it only while its metrics are collected. Active Support skips
+      # the event only when every one of its listeners is silenced, as Rails' log subscribers are
+      # below their level; a listener that cannot be silenced, such as the one that adds up Active
+      # Record's runtime, still times it. Never raises, as it is asked from the code that it
+      # instruments: when the answer is not known, it listens, and #call decides.
       def silenced?(_name)
         !self.class.logger.collecting_metrics?
       rescue StandardError

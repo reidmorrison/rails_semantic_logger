@@ -50,6 +50,21 @@ class RailsTest < Minitest::Test
       end
     end
 
+    describe "ActiveSupport::Cache::Store.logger" do
+      it "logs each cache operation at :trace, so not at :debug" do
+        logger = ActiveSupport::Cache::Store.logger
+        store  = ActiveSupport::Cache::MemoryStore.new
+        quiet  = logger.with_level(:debug) { semantic_logger_events { store.read("key") } }
+        traced = logger.with_level(:trace) { semantic_logger_events { store.read("key") } }
+        cache  = ->(logs) { logs.select { |log| log.name == "ActiveSupport::Cache::Store" } }
+
+        assert_kind_of SemanticLogger::DebugAsTraceLogger, logger
+        assert_empty cache.call(quiet)
+        assert_equal [:trace], cache.call(traced).map(&:level)
+        assert_match(/\ACache read: key/, cache.call(traced).first.message)
+      end
+    end
+
     describe "SemanticLogger.backtrace_cleaner" do
       it "is the application's backtrace cleaner" do
         assert_same Rails.backtrace_cleaner, SemanticLogger.backtrace_cleaner

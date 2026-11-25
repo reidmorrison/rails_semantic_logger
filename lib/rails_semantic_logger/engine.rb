@@ -138,8 +138,10 @@ module RailsSemanticLogger
       ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger[::ActionCable] }
 
       # The cache store has no logger: give it one of its own name, through which its entries are logged
-      # and its metrics recorded.
-      ActiveSupport::Cache::Store.logger ||= SemanticLogger["ActiveSupport::Cache::Store"]
+      # and its metrics recorded. Rails logs a line for every cache operation at :debug once a store has
+      # a logger, which this one logs at :trace, so that they appear only when asked for, as they did
+      # not before; its errors are logged as they are.
+      ActiveSupport::Cache::Store.logger ||= SemanticLogger::DebugAsTraceLogger.new("ActiveSupport::Cache::Store")
     end
 
     # Rails gives Action Controller and Active Job its own logger as each loads, from hooks that its

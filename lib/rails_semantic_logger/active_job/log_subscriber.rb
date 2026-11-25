@@ -28,8 +28,18 @@ require "active_job"
 module RailsSemanticLogger
   module ActiveJob
     class LogSubscriber < ::ActiveSupport::LogSubscriber
+      include RailsSemanticLogger::SilencedBelowLevel
+
       # The application's, as Rails gives its own Active Job log subscriber.
       class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
+
+      # The highest level at which each event can be logged: :error for an event whose failure is
+      # logged as an error, such as a job that raised, though it is logged at :info otherwise. Rails
+      # silences some of these below :info, which drops their errors; this subscriber does not.
+      LOG_LEVELS = {
+        error: %w[enqueue enqueue_at perform retry_stopped discard step],
+        info:  %w[enqueue_all perform_start enqueue_retry interrupt resume step_skipped step_started]
+      }.flat_map { |level, events| events.map { |event| ["#{event}.active_job", level] } }.to_h.freeze
 
       def enqueue(event)
         ex = enqueue_error(event)
@@ -406,6 +416,10 @@ module RailsSemanticLogger
 
       def logger
         ::ActiveJob::Base.logger
+      end
+
+      def log_level_of(name)
+        LOG_LEVELS[name]
       end
     end
   end

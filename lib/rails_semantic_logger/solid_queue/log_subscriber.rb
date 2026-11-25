@@ -1,6 +1,35 @@
 module RailsSemanticLogger
   module SolidQueue
     class LogSubscriber < ::ActiveSupport::LogSubscriber
+      include RailsSemanticLogger::SilencedBelowLevel
+
+      # The highest level at which each event can be logged, such as :warn for a process that failed
+      # to register, though it is logged at :debug otherwise.
+      LOG_LEVELS = {
+        "dispatch_scheduled.solid_queue"     => :debug,
+        "claim.solid_queue"                  => :debug,
+        "release_many_claimed.solid_queue"   => :info,
+        "fail_many_claimed.solid_queue"      => :warn,
+        "release_claimed.solid_queue"        => :info,
+        "retry_all.solid_queue"              => :debug,
+        "retry.solid_queue"                  => :debug,
+        "discard_all.solid_queue"            => :debug,
+        "discard.solid_queue"                => :debug,
+        "release_many_blocked.solid_queue"   => :debug,
+        "release_blocked.solid_queue"        => :debug,
+        "enqueue_recurring_task.solid_queue" => :error,
+        "start_process.solid_queue"          => :info,
+        "shutdown_process.solid_queue"       => :info,
+        "register_process.solid_queue"       => :warn,
+        "deregister_process.solid_queue"     => :warn,
+        "prune_processes.solid_queue"        => :debug,
+        "thread_error.solid_queue"           => :error,
+        "graceful_termination.solid_queue"   => :warn,
+        "immediate_termination.solid_queue"  => :info,
+        "unhandled_signal_error.solid_queue" => :error,
+        "replace_fork.solid_queue"           => :warn
+      }.freeze
+
       def dispatch_scheduled(event)
         log_event(event, :debug, "Dispatch scheduled jobs", **event.payload.slice(:batch_size, :size))
       end
@@ -176,6 +205,10 @@ module RailsSemanticLogger
 
       def logger
         @logger ||= SemanticLogger[::SolidQueue]
+      end
+
+      def log_level_of(name)
+        LOG_LEVELS[name]
       end
     end
   end

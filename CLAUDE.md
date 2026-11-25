@@ -62,6 +62,8 @@ Each Rails component subscriber (action_controller, action_view, active_record, 
 
 These are the files most affected by the "track Rails' log subscribers" maintenance task described in the Overview — they are reimplementations of upstream Rails subscribers and must be kept in sync with each supported Rails version.
 
+Each log subscriber except Action Controller's includes `RailsSemanticLogger::SilencedBelowLevel`, which answers Active Support's `silenced?` so that an event it would not log is not built for it, as Rails' own subscribers are silenced through `subscribe_log_level`. Each gives, in a private `log_level_of(name)`, the **highest** level at which it can log the event (`:error` for a job's `perform`, which logs a failure as an error), never the level of its usual entry, or an error would be dropped. A new handler in Active Job or Solid Queue needs its event in `LOG_LEVELS` (a test checks); an event without a level is never silenced. Action Controller logs through each controller's own logger, which `silenced?` cannot know, as it is given only the event's name, so it is not silenced.
+
 Log entries carry **no** `metric:`: the metrics are recorded apart from the logs (below), so a log entry's level never decides a metric. Do not add `metric:` to a log call.
 
 ### Metrics (`lib/rails_semantic_logger/metrics/`, `rack/metrics.rb`)

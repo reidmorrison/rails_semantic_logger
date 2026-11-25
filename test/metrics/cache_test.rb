@@ -3,6 +3,10 @@ require_relative "../test_helper"
 module Metrics
   class CacheTest < Minitest::Test
     describe RailsSemanticLogger::Metrics::Cache do
+      it "records through the logger of Active Support's cache, whose name is the meter" do
+        assert_equal "ActiveSupport::Cache::Store", RailsSemanticLogger::Metrics::Cache.logger.name
+      end
+
       let(:store) { ActiveSupport::Cache::MemoryStore.new }
 
       def cache_metrics(&)

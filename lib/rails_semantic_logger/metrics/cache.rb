@@ -3,6 +3,9 @@ module RailsSemanticLogger
     # Records how long each operation on an ActiveSupport::Cache store takes, as
     # `rails.cache.operation.duration`, since no OpenTelemetry convention covers caches yet.
     class Cache < Subscriber
+      # The logger of Active Support's cache, whose name is the meter of its metrics.
+      LOGGER_NAME = "ActiveSupport::Cache::Store".freeze
+
       NAME = "rails.cache.operation.duration".freeze
 
       # The cache events that Active Support instruments, each "<event>.active_support".

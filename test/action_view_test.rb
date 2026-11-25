@@ -147,6 +147,13 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         messages.select { |m| m.name == "ActionView::Base" }
       end
 
+      it "logs the layout that a template is rendering within, as Rails does" do
+        messages  = semantic_logger_events { get "/welcome/index" }
+        rendering = action_view_events(messages).find { |m| m.message == "Rendering" }
+
+        assert_equal "layouts/application", rendering&.payload&.dig(:within)
+      end
+
       it "logs the layout and template render" do
         messages = semantic_logger_events do
           get "/welcome/index"

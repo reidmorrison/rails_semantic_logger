@@ -203,8 +203,10 @@ module RailsSemanticLogger
         end
       end
 
+      # Solid Queue's logger, which the engine makes a Semantic Logger one, so that the level that an
+      # application sets on it applies here too, as it does to Solid Queue's own log entries.
       def logger
-        @logger ||= SemanticLogger[::SolidQueue]
+        ::SolidQueue.logger
       end
 
       def log_level_of(name)

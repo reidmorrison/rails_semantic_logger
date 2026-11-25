@@ -4,7 +4,9 @@ module RailsSemanticLogger
     # `rails.cache.operation.duration`, since no OpenTelemetry convention covers caches yet.
     class Cache < Subscriber
       # The logger of Active Support's cache, whose name is the meter of its metrics.
-      LOGGER_NAME = "ActiveSupport::Cache::Store".freeze
+      def self.logger
+        ::ActiveSupport::Cache::Store.logger
+      end
 
       # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
       DIMENSION_KEYS = %w[rails.cache.operation.name rails.cache.store rails.cache.hit].freeze

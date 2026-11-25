@@ -130,6 +130,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `ActionView::Base`, `ActiveRecord::Base`, `ActiveJob::Base`, `ActionMailer::Base`,
   `ActiveSupport::Cache::Store`, `SolidQueue` and `Sidekiq`. Controllers and jobs share their
   component's meter, and their class is a dimension.
+- Each component's metrics are recorded through the component's own logger, the instance that its
+  log entries use, such as `ActiveRecord::Base.logger` and `Sidekiq.logger`, rather than another
+  logger of the same name. Action Controller and Active Job get a logger of their own,
+  `ActionController::Base` and `ActiveJob::Base`, so that their log entries are named after them
+  rather than `Rails`, and their level can be set apart from Rails'. The cache store gets
+  `ActiveSupport::Cache::Store`, through which Rails also logs each cache operation at `:debug`.
 
 ## [5.3.0] - 2026-11-20
 

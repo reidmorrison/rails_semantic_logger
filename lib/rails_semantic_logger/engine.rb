@@ -135,6 +135,22 @@ module RailsSemanticLogger
         ActiveSupport.on_load(name) { include SemanticLogger::Loggable }
       end
       ActiveSupport.on_load(:action_cable) { self.logger = SemanticLogger[::ActionCable] }
+
+      # The cache store has no logger: give it one of its own name, through which its entries are logged
+      # and its metrics recorded.
+      ActiveSupport::Cache::Store.logger ||= SemanticLogger["ActiveSupport::Cache::Store"]
+
+      # Rails gives Action Controller and Active Job its own logger, from hooks that run as they load,
+      # so give each a logger of its own name from hooks registered once those have been, which run
+      # after them: the one instance through which its entries are logged, whose level silences them,
+      # and its metrics recorded. Named by a String, and set as each loads, so that no framework is
+      # loaded before the application has initialized. Action Controller's API controllers share it.
+      config.after_initialize do
+        action_controller = SemanticLogger["ActionController::Base"]
+        ActiveSupport.on_load(:action_controller) { self.logger = action_controller }
+        active_job = SemanticLogger["ActiveJob::Base"]
+        ActiveSupport.on_load(:active_job) { self.logger = active_job }
+      end
     end
 
     # Before any initializers run, but after the gems have been loaded

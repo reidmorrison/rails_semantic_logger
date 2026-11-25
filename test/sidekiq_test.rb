@@ -141,9 +141,7 @@ class SidekiqTest < Minitest::Test
           recorded << name
           super(name, **options, &block)
         end
-        lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
-
-        metrics = SemanticLogger.stub(:[], lookup) { semantic_logger_metrics { processor.send(:process, uow) } }
+        metrics = ::Sidekiq.stub(:logger, sidekiq) { semantic_logger_metrics { processor.send(:process, uow) } }
 
         assert_equal "Sidekiq", sidekiq.name
         assert_equal %w[sidekiq.queue.duration messaging.process.duration], recorded
@@ -186,9 +184,7 @@ class SidekiqTest < Minitest::Test
           recorded << name
           block&.call
         end
-        lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
-
-        SemanticLogger.stub(:[], lookup) { processor.send(:process, uow) }
+        ::Sidekiq.stub(:logger, sidekiq) { processor.send(:process, uow) }
 
         assert_empty recorded
       end

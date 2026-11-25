@@ -9,7 +9,9 @@ module RailsSemanticLogger
     # messaging system `sidekiq`: sum one system or the other, never both.
     class ActiveJob < Subscriber
       # The logger of Active Job, whose name is the meter of its metrics.
-      LOGGER_NAME = "ActiveJob::Base".freeze
+      def self.logger
+        ::ActiveJob::Base.logger
+      end
 
       # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
       DIMENSION_KEYS = %w[

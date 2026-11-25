@@ -130,7 +130,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :error,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Error performing ActiveJobTest::MyJob",
             metric:           :nil,
             payload_includes: {
@@ -169,7 +169,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :error,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Failed enqueuing ActiveJobTest::MyJob",
             metric:           :nil,
             payload_includes: {
@@ -210,7 +210,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :info,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Failed enqueuing ActiveJobTest::MyJob",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
@@ -245,7 +245,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :error,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Failed enqueuing ActiveJobTest::MyJob",
             metric:           :nil,
             payload_includes: {
@@ -286,7 +286,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :info,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Failed enqueuing ActiveJobTest::MyJob",
             payload_includes: {
               job_class:  "ActiveJobTest::MyJob",
@@ -331,7 +331,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :info,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Enqueued 2 jobs to Inline",
             metric:           :nil,
             payload_includes: {
@@ -407,7 +407,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :info,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Retrying ActiveJobTest::MyJob"
           )
           assert_match(/in 5 seconds, due to a StandardError \(boom\)\./, messages[0].message)
@@ -438,7 +438,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :error,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Stopped retrying ActiveJobTest::MyJob"
           )
           assert_instance_of StandardError, messages[0].exception
@@ -467,7 +467,7 @@ class ActiveJobTest < Minitest::Test
           assert_semantic_logger_event(
             messages[0],
             level:            :error,
-            name:             "Rails",
+            name:             "ActiveJob::Base",
             message_includes: "Discarded ActiveJobTest::MyJob"
           )
           assert_instance_of StandardError, messages[0].exception

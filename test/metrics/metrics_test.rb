@@ -11,6 +11,25 @@ module Metrics
         assert_includes safe, "http.route"
       end
 
+      it "records each component's metrics through the component's own logger, named after it" do
+        loggers = {
+          RailsSemanticLogger::Metrics::ActionController => ::ActionController::Base.logger,
+          RailsSemanticLogger::Metrics::ActionView       => ::ActionView::Base.logger,
+          RailsSemanticLogger::Metrics::ActiveRecord     => ::ActiveRecord::Base.logger,
+          RailsSemanticLogger::Metrics::ActiveJob        => ::ActiveJob::Base.logger,
+          RailsSemanticLogger::Metrics::ActionMailer     => ::ActionMailer::Base.logger,
+          RailsSemanticLogger::Metrics::Cache            => ::ActiveSupport::Cache::Store.logger
+        }
+        loggers[RailsSemanticLogger::Metrics::SolidQueue] = ::SolidQueue.logger if defined?(::SolidQueue)
+
+        loggers.each do |subscriber, logger|
+          assert_same logger, subscriber.logger, subscriber.name
+        end
+        assert_equal %w[ActionController::Base ActionView::Base ActiveRecord::Base ActiveJob::Base ActionMailer::Base
+                        ActiveSupport::Cache::Store],
+                     loggers.values.first(6).map(&:name)
+      end
+
       it "keeps a dimension key that a sensitive key matches" do
         original = SemanticLogger.sensitive_keys
         SemanticLogger.sensitive_keys = %i[name type]

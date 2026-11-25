@@ -5,7 +5,9 @@ module RailsSemanticLogger
     # reach the database (served from the query cache) and those that Rails runs to read the schema.
     class ActiveRecord < Subscriber
       # The logger of Active Record, whose name is the meter of its metrics.
-      LOGGER_NAME = "ActiveRecord::Base".freeze
+      def self.logger
+        ::ActiveRecord::Base.logger
+      end
 
       # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
       DIMENSION_KEYS = %w[db.system.name db.namespace db.operation.name error.type].freeze

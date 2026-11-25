@@ -161,7 +161,8 @@ module ActionDispatch
         log      = messages.find { |entry| entry.message&.include?("RoutingError") }
         output   = SemanticLogger::Formatters::Default.new.call(log, nil)
 
-        assert_includes output, "Rails -- 404 Not Found -- Exception: ActionController::RoutingError: No route matches"
+        assert_includes output, "ActionController::Base -- 404 Not Found -- " \
+                                "Exception: ActionController::RoutingError: No route matches"
         assert_equal 1, output.lines.count, output
       ensure
         env_config.merge!(settings)

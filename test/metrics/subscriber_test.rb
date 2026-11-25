@@ -33,6 +33,49 @@ module Metrics
         assert_empty internal.events
       end
 
+      it "is silenced while no metric appender collects the metrics" do
+        subscriber = subscriber_class.new
+
+        subscriber_class.logger.stub(:collecting_metrics?, false) { assert subscriber.silenced?("broken.test") }
+        subscriber_class.logger.stub(:collecting_metrics?, true) { refute subscriber.silenced?("broken.test") }
+      end
+
+      it "listens when it cannot tell whether the metrics are collected" do
+        subscriber = subscriber_class.new
+        failing    = -> { raise ArgumentError, "boom" }
+
+        subscriber_class.logger.stub(:collecting_metrics?, failing) { refute subscriber.silenced?("broken.test") }
+      end
+
+      it "leaves Active Support no event to build while no metric appender collects the metrics" do
+        counting = Class.new(RailsSemanticLogger::Metrics::Subscriber) do
+          const_set(:LOGGER_NAME, "CountingMetrics")
+          attr_reader :events
+
+          def counted(_event)
+            @events = (@events || 0) + 1
+          end
+        end
+        subscriber   = counting.new
+        notifier     = ActiveSupport::Notifications::Fanout.new
+        instrumenter = ActiveSupport::Notifications::Instrumenter.new(notifier)
+        notifier.subscribe("counted.test", subscriber)
+
+        counting.logger.stub(:collecting_metrics?, false) do
+          refute notifier.listening?("counted.test")
+          instrumenter.instrument("counted.test") { nil }
+        end
+
+        assert_nil subscriber.events
+
+        counting.logger.stub(:collecting_metrics?, true) do
+          assert notifier.listening?("counted.test")
+          instrumenter.instrument("counted.test") { nil }
+        end
+
+        assert_equal 1, subscriber.events
+      end
+
       it "never raises into the code that it instruments, and reports the first failure" do
         subscriber = subscriber_class.new
         event      = ActiveSupport::Notifications::Event.new("broken.test", Time.now, Time.now, "1", {})

@@ -27,7 +27,11 @@ module RailsSemanticLogger
         "graceful_termination.solid_queue"   => :warn,
         "immediate_termination.solid_queue"  => :info,
         "unhandled_signal_error.solid_queue" => :error,
-        "replace_fork.solid_queue"           => :warn
+        "replace_fork.solid_queue"           => :warn,
+        "fork_boot_timeout.solid_queue"      => :error,
+        "finish_batch.solid_queue"           => :error,
+        "sweep_stalled_batches.solid_queue"  => :debug,
+        "batch_progress_error.solid_queue"   => :error
       }.freeze
 
       def dispatch_scheduled(event)

@@ -115,7 +115,7 @@ class SolidQueueTest < Minitest::Test
           level:   :warn,
           name:    "SolidQueue",
           message: "Fail claimed jobs",
-          metric:  "rails.solid_queue.fail_many_claimed",
+          metric:  :nil,
           payload: {job_ids: [1], process_ids: [10]}
         )
         assert_equal "pruned", messages[0].exception.message
@@ -136,7 +136,7 @@ class SolidQueueTest < Minitest::Test
           level:   :info,
           name:    "SolidQueue",
           message: "Finish batch",
-          metric:  "rails.solid_queue.finish_batch",
+          metric:  :nil,
           payload: {batch_id: "b1", total_jobs: 3, completed_jobs: 2, failed_jobs: 1}
         )
       end
@@ -156,7 +156,7 @@ class SolidQueueTest < Minitest::Test
           level:   :error,
           name:    "SolidQueue",
           message: "Error finishing batch",
-          metric:  "rails.solid_queue.finish_batch",
+          metric:  :nil,
           payload: {batch_id: "b1"}
         )
         assert_equal "boom", messages[0].exception.message
@@ -197,7 +197,7 @@ class SolidQueueTest < Minitest::Test
           level:   :error,
           name:    "SolidQueue",
           message: "Error updating batch progress",
-          metric:  "rails.solid_queue.batch_progress_error",
+          metric:  :nil,
           payload: {batch_id: "b1", job_id: 7}
         )
         assert_kind_of ArgumentError, messages[0].exception
@@ -219,7 +219,7 @@ class SolidQueueTest < Minitest::Test
           level:   :warn,
           name:    "SolidQueue",
           message: "Terminate Worker that failed to boot in time",
-          metric:  "rails.solid_queue.fork_boot_timeout",
+          metric:  :nil,
           payload: {pid: 42, hostname: "host.local", name: "worker-1"}
         )
       end
@@ -240,7 +240,7 @@ class SolidQueueTest < Minitest::Test
           level:   :error,
           name:    "SolidQueue",
           message: "Error terminating Worker that failed to boot in time",
-          metric:  "rails.solid_queue.fork_boot_timeout",
+          metric:  :nil,
           payload: {pid: 42, hostname: "host.local", name: "worker-1"}
         )
         assert_kind_of Errno::ESRCH, messages[0].exception

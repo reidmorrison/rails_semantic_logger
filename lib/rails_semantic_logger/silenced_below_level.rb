@@ -13,12 +13,22 @@ module RailsSemanticLogger
   # An event is silenced only when its handler would log nothing at all: the subscriber gives the
   # highest level that the handler can log it at, such as :error for a job that may fail, never the
   # level of its usual entry. An event that it gives no level for is never silenced.
+  #
+  # It never raises, as Active Support asks it from the code that it instruments, which would fail
+  # instead: when the answer is not known, such as from a logger that has no method for the level,
+  # it listens.
   module SilencedBelowLevel
+    # The method that tells whether a logger logs at each level, so that no name is built for each
+    # event.
+    PREDICATES = %i[trace debug info warn error fatal].to_h { |level| [level, :"#{level}?"] }.freeze
+
     def silenced?(name)
       level = log_level_of(name)
       return false unless level
 
-      logger.nil? || !logger.public_send(:"#{level}?")
+      logger.nil? || !logger.public_send(PREDICATES.fetch(level) { :"#{level}?" })
+    rescue StandardError
+      false
     end
   end
 end

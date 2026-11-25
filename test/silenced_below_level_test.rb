@@ -43,6 +43,13 @@ class SilencedBelowLevelTest < Minitest::Test
       assert subscriber_class.new.silenced?("known.test")
     end
 
+    it "listens when its logger cannot tell whether it logs at the level" do
+      silenceable        = subscriber_class.new
+      silenceable.logger = Object.new
+
+      refute silenceable.silenced?("known.test")
+    end
+
     it "is never silenced for an event that it gives no level for" do
       silenceable        = subscriber_class.new
       silenceable.logger = SemanticLogger::Logger.new("SilencedBelowLevelTest")
@@ -83,6 +90,11 @@ class SilencedBelowLevelTest < Minitest::Test
         assert_equal handled_events(RailsSemanticLogger::ActiveJob::LogSubscriber, "active_job"),
                      RailsSemanticLogger::ActiveJob::LogSubscriber::LOG_LEVELS.keys.sort
       end
+
+      it "gives only levels that a logger can be asked about" do
+        assert_empty RailsSemanticLogger::ActiveJob::LogSubscriber::LOG_LEVELS.values -
+                     RailsSemanticLogger::SilencedBelowLevel::PREDICATES.keys
+      end
     end
 
     describe RailsSemanticLogger::SolidQueue::LogSubscriber do
@@ -101,6 +113,11 @@ class SilencedBelowLevelTest < Minitest::Test
       it "gives a level for every event that it logs" do
         assert_equal handled_events(RailsSemanticLogger::SolidQueue::LogSubscriber, "solid_queue"),
                      RailsSemanticLogger::SolidQueue::LogSubscriber::LOG_LEVELS.keys.sort
+      end
+
+      it "gives only levels that a logger can be asked about" do
+        assert_empty RailsSemanticLogger::SolidQueue::LogSubscriber::LOG_LEVELS.values -
+                     RailsSemanticLogger::SilencedBelowLevel::PREDICATES.keys
       end
     end
 
@@ -143,6 +160,10 @@ class SilencedBelowLevelTest < Minitest::Test
 
       it "is silenced without an Action View logger" do
         ::ActionView::Base.stub(:logger, nil) { assert start.silenced?("render_template.action_view") }
+      end
+
+      it "listens when Action View's logger cannot tell whether it logs at :debug" do
+        ::ActionView::Base.stub(:logger, Object.new) { refute start.silenced?("render_template.action_view") }
       end
     end
 

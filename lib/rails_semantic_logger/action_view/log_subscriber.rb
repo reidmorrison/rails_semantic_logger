@@ -160,9 +160,12 @@ module RailsSemanticLogger
         # Whether Active Support may leave it out of the render events: while Action View logs nothing
         # at :debug, the level of its "Rendering" entries. Asked each time an event starts, so that a
         # render below the log level builds no event when its other listeners are silenced too, as in
-        # Rails' own Start.
+        # Rails' own Start. Never raises, as it is asked from the code that renders: when the answer is
+        # not known, it listens.
         def silenced?(_name)
           logger.nil? || !logger.debug?
+        rescue StandardError
+          false
         end
 
         private
@@ -237,8 +240,8 @@ module RailsSemanticLogger
         self.class.logger
       end
 
-      # Every render, and its "Rendering" entry, is logged at the rendered level, which the
-      # application can change at any time.
+      # Every render is logged at the rendered level, which the application can change at any time.
+      # The "Rendering" entries are Start's, which answers for itself.
       def log_level_of(_name)
         self.class.rendered_log_level
       end

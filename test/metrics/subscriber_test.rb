@@ -27,7 +27,7 @@ module Metrics
         internal   = SemanticLogger::Test::CaptureLogEvents.new
 
         subscriber_class.logger.stub(:collecting_metrics?, false) do
-          SemanticLogger::Processor.stub(:logger, internal) { subscriber.call(event) }
+          SemanticLogger.stub(:internal_logger, internal) { subscriber.call(event) }
         end
 
         assert_empty internal.events
@@ -82,7 +82,7 @@ module Metrics
         internal   = SemanticLogger::Test::CaptureLogEvents.new
 
         subscriber_class.logger.stub(:collecting_metrics?, true) do
-          SemanticLogger::Processor.stub(:logger, internal) do
+          SemanticLogger.stub(:internal_logger, internal) do
             subscriber.call(event)
             subscriber.call(event)
           end

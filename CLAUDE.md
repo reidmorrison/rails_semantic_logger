@@ -30,6 +30,7 @@ This gem does **not** switch to `StructuredEventSubscriber`: it only exists in 8
 
 - The companion `semantic_logger` gem is usually checked out locally at **`../semantic_logger`** — reference it when you need to understand appender/formatter behavior.
 - The two libraries are kept **in lock step at the major-version level**, so breaking changes in `semantic_logger` are paired with a matching `rails_semantic_logger` major version. Keep this in mind when bumping versions or relying on new `semantic_logger` features.
+- Use only Semantic Logger's public API, such as `SemanticLogger.normalize_level`, `call_site?`, `backtrace?`, `application_backtrace` and `internal_logger`, never its internals (`Levels`, `Utils`, `Processor.logger`, the `*_level_index` accessors). When this gem needs something that only an internal gives, ask for a public method in `semantic_logger`.
 
 ## Commands
 

@@ -93,8 +93,7 @@ module RailsSemanticLogger
           {
             message:  action_message("Completed", event.payload),
             duration: event.duration,
-            payload:  payload,
-            metric:   "rails.controller.process_action"
+            payload:  payload
           }
         end
       end
@@ -103,8 +102,7 @@ module RailsSemanticLogger
         logger = controller_logger(event)
         logger&.info(call_site: call_site(event, logger, :info, from_stack: false)) do
           {
-            message: "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected",
-            metric:  "rails.controller.halted_callback"
+            message: "Filter chain halted as #{event.payload[:filter].inspect} rendered or redirected"
           }
         end
       end
@@ -126,8 +124,7 @@ module RailsSemanticLogger
               exception:         exception.class.name,
               exception_message: exception.message,
               backtrace:         backtrace
-            },
-            metric:  "rails.controller.rescue_from_callback"
+            }
           }
         end
       end
@@ -135,7 +132,7 @@ module RailsSemanticLogger
       def send_file(event)
         logger = controller_logger(event)
         logger&.info(message: "Sent file", payload: {path: event.payload[:path]}, duration: event.duration,
-                     metric: "rails.controller.send_file", call_site: call_site(event, logger, :info))
+                     call_site: call_site(event, logger, :info))
       end
 
       def redirect_to(event)
@@ -150,7 +147,7 @@ module RailsSemanticLogger
         end
 
         logger = controller_logger(event)
-        logger&.info(message: "Redirected to", payload: payload, metric: "rails.controller.redirect_to",
+        logger&.info(message: "Redirected to", payload: payload,
                      call_site: call_site(event, logger, :info, frame: frame))
       end
 
@@ -169,8 +166,7 @@ module RailsSemanticLogger
             location:       event.payload[:location],
             request_method: request&.method,
             request_path:   request&.path
-          }.compact,
-          metric:  "rails.controller.open_redirect"
+          }.compact
         )
       end
 
@@ -181,15 +177,14 @@ module RailsSemanticLogger
         log_redirect_warning(
           event,
           message: event.payload[:message],
-          payload: {url: event.payload[:url]},
-          metric:  "rails.controller.unsafe_redirect"
+          payload: {url: event.payload[:url]}
         )
       end
 
       def send_data(event)
         logger = controller_logger(event)
         logger&.info(message: "Sent data", payload: {file_name: event.payload[:filename]}, duration: event.duration,
-                     metric: "rails.controller.send_data", call_site: call_site(event, logger, :info))
+                     call_site: call_site(event, logger, :info))
       end
 
       def unpermitted_parameters(event)
@@ -213,15 +208,15 @@ module RailsSemanticLogger
       # directly from RequestForgeryProtection. On earlier Rails versions the events are never
       # instrumented, so these handlers are dormant.
       def csrf_token_fallback(event)
-        log_csrf_warning(__method__, event, "Falling back to CSRF token verification")
+        log_csrf_warning(event, "Falling back to CSRF token verification")
       end
 
       def csrf_request_blocked(event)
-        log_csrf_warning(__method__, event, event.payload[:message])
+        log_csrf_warning(event, event.payload[:message])
       end
 
       def csrf_javascript_blocked(event)
-        log_csrf_warning(__method__, event, event.payload[:message])
+        log_csrf_warning(event, event.payload[:message])
       end
 
       %w[write_fragment read_fragment exist_fragment?
@@ -232,7 +227,7 @@ module RailsSemanticLogger
             logger = controller_logger(event)
             logger&.info(call_site: call_site(event, logger, :info)) do
               key_or_path = event.payload[:key] || event.payload[:path]
-              {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration, metric: "rails.controller.#{method.delete('?')}"}
+              {message: "#{method.to_s.humanize} \#{key_or_path}", duration: event.duration}
             end
           end
         METHOD
@@ -332,19 +327,18 @@ module RailsSemanticLogger
       # result: since semantic_logger 5.2 a block cannot replace a backtrace the entry already has,
       # and the entry captures this subscriber's own stack whenever :warn is at or above the
       # `backtrace_level`, as it is in the Rails console.
-      def log_redirect_warning(event, message:, payload:, metric:)
+      def log_redirect_warning(event, message:, payload:)
         logger = controller_logger(event)
         return unless logger&.warn?
 
         controller = event.payload[:request]&.controller_instance
         logger.warn(message:   message,
                     payload:   payload,
-                    backtrace: clean_backtrace(event.payload[:stack_trace], controller),
-                    metric:    metric)
+                    backtrace: clean_backtrace(event.payload[:stack_trace], controller))
       end
 
       # Rails logs every CSRF event at :warn, and only while log_warning_on_csrf_failure is on.
-      def log_csrf_warning(event_name, event, message)
+      def log_csrf_warning(event, message)
         return unless ::ActionController::Base.log_warning_on_csrf_failure
 
         logger = controller_logger(event)
@@ -356,8 +350,7 @@ module RailsSemanticLogger
               controller:     payload[:controller],
               action:         payload[:action],
               sec_fetch_site: payload[:sec_fetch_site]
-            }.compact,
-            metric:  "rails.controller.#{event_name}"
+            }.compact
           }
         end
       end

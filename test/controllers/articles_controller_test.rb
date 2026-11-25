@@ -349,7 +349,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
               request_method: "GET",
               request_path:   "/articles/open_redirector"
             },
-            metric:  "rails.controller.open_redirect"
+            metric:  :nil
           )
           refute_empty open_redirect.backtrace.to_a, "expected the redirect's stack trace as the backtrace"
         ensure
@@ -370,7 +370,7 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
             get path_relative_redirector_articles_url
           end
 
-          unsafe_redirect = messages.find { |m| m.metric == "rails.controller.unsafe_redirect" }
+          unsafe_redirect = messages.find { |m| m.message&.start_with?("Path relative URL redirect") }
 
           assert unsafe_redirect, messages
           assert_semantic_logger_event(

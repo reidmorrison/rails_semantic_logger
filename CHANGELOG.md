@@ -5,6 +5,26 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Add `bin/rails generate rails_semantic_logger:install`, which configures an existing application for
+  Rails Semantic Logger and moves it off the deprecated appender options. It removes the logger
+  settings that Rails Semantic Logger ignores (`config.logger`, `config.log_formatter`, the
+  `RAILS_LOG_TO_STDOUT` block), converts `config.rails_semantic_logger.format`, `ap_options`,
+  `filter`, `add_file_appender` and `console_logger`, and the appenders added with
+  `config.semantic_logger.add_appender`, into appenders, and writes an explicit
+  `config.rails_semantic_logger.appenders` block into each environment: the appenders that Rails
+  Semantic Logger created, so nothing changes until the application edits them. Deployed
+  environments also list, commented out, JSON on stdout for containers. It leaves alone an
+  environment that already declares its appenders, or loads another environment's settings, and
+  leaves unchanged, and reports, one whose appenders it cannot list: a deprecated option inside a
+  condition or set to a computed value, an appender to the screen inside a condition, or both the log
+  file and the screen turned off. One change: an appender that the application added with a
+  formatter of its own now keeps it, where the default log file replaced it with the log file's
+  formatter.
+- A log file declared in `config.rails_semantic_logger.appenders` has its directory created, as the
+  default log file did, so that `appenders.add(file_name: "log/production.log")` works where the
+  `log/` directory does not exist yet.
+- The deprecation warnings of the appender options name the install generator, and are not emitted
+  while `rails generate` runs.
 - Sidekiq: log a job with no class through Sidekiq's logger. Inside `RailsSemanticLogger::Sidekiq`,
   `Sidekiq.logger` named this gem's module rather than Sidekiq, so the job logger raised
   `NoMethodError` for such a job.

@@ -5,6 +5,10 @@ module Metrics
     describe RailsSemanticLogger::Metrics::ActionController do
       let(:subscriber) { RailsSemanticLogger::Metrics::ActionController.new }
 
+      it "records through the logger of Action Controller, whose name is the meter" do
+        assert_equal "ActionController::Base", RailsSemanticLogger::Metrics::ActionController.logger.name
+      end
+
       def event(name, payload)
         ActiveSupport::Notifications::Event.new("#{name}.action_controller", 5.seconds.ago, Time.zone.now,
                                                 SecureRandom.uuid, payload)

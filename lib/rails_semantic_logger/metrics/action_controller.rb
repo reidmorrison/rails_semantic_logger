@@ -8,6 +8,9 @@ module RailsSemanticLogger
     # itself is http.server.request.duration, see RailsSemanticLogger::Rack::Metrics), so they are
     # named under `rails.action_controller`.
     class ActionController < Subscriber
+      # The logger of Action Controller, whose name is the meter of its metrics.
+      LOGGER_NAME = "ActionController::Base".freeze
+
       # How long the controller took to process the action, without the middleware.
       def process_action(event)
         payload    = event.payload

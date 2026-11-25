@@ -16,11 +16,5 @@ module RailsSemanticLogger
     def self.attach
       ActionController.attach_to(:action_controller)
     end
-
-    # Returns [SemanticLogger::Logger] the logger that records the metrics. A metric does not depend
-    # on the name of the logger that records it.
-    def self.logger
-      @logger ||= SemanticLogger["RailsSemanticLogger::Metrics"]
-    end
   end
 end

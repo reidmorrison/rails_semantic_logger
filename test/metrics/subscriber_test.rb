@@ -13,6 +13,13 @@ module Metrics
         end
       end
 
+      it "refuses to attach a subscriber that names no logger" do
+        unnamed = Class.new(RailsSemanticLogger::Metrics::Subscriber) { def self.name = "UnnamedMetrics" }
+
+        error = assert_raises(NameError) { unnamed.attach_to(:unnamed_metrics_test) }
+        assert_match(/LOGGER_NAME/, error.message)
+      end
+
       it "never raises into the code that it instruments, and reports the first failure" do
         subscriber = subscriber_class.new
         event      = ActiveSupport::Notifications::Event.new("broken.test", Time.now, Time.now, "1", {})

@@ -3,6 +3,9 @@ module RailsSemanticLogger
     # Records the metrics of Action Mailer. No OpenTelemetry convention covers email, so they are
     # named under `rails.action_mailer`.
     class ActionMailer < Subscriber
+      # The logger of Action Mailer, whose name is the meter of its metrics.
+      LOGGER_NAME = "ActionMailer::Base".freeze
+
       # How long delivering a mail took. A mail skipped because perform_deliveries is false was not
       # delivered, so it is not recorded.
       def deliver(event)

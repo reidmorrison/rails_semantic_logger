@@ -3,6 +3,10 @@ require_relative "../test_helper"
 module Metrics
   class ActionMailerTest < Minitest::Test
     describe RailsSemanticLogger::Metrics::ActionMailer do
+      it "records through the logger of Action Mailer, whose name is the meter" do
+        assert_equal "ActionMailer::Base", RailsSemanticLogger::Metrics::ActionMailer.logger.name
+      end
+
       let(:subscriber) { RailsSemanticLogger::Metrics::ActionMailer.new }
 
       def record(name, payload)

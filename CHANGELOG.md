@@ -14,9 +14,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   `config.rails_semantic_logger.appenders` block into each environment: the appenders that Rails
   Semantic Logger created, so nothing changes until the application edits them. Deployed
   environments also list, commented out, JSON on stdout for containers. It leaves alone an
-  environment that already declares its appenders, and reports each setting it could not move, such
-  as one inside a condition. One change: an appender that the application added with a formatter of
-  its own now keeps it, where the default log file replaced it with the log file's formatter.
+  environment that already declares its appenders, or loads another environment's settings, and
+  leaves unchanged, and reports, one whose appenders it cannot list: a deprecated option inside a
+  condition or set to a computed value, an appender to the screen inside a condition, or both the log
+  file and the screen turned off. One change: an appender that the application added with a
+  formatter of its own now keeps it, where the default log file replaced it with the log file's
+  formatter.
+- A log file declared in `config.rails_semantic_logger.appenders` has its directory created, as the
+  default log file did, so that `appenders.add(file_name: "log/production.log")` works where the
+  `log/` directory does not exist yet.
 - The deprecation warnings of the appender options name the install generator, and are not emitted
   while `rails generate` runs.
 - Sidekiq: log a job with no class through Sidekiq's logger. Inside `RailsSemanticLogger::Sidekiq`,

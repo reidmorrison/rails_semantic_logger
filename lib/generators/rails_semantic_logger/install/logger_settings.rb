@@ -1,4 +1,5 @@
 require "ripper"
+require_relative "arguments"
 
 module RailsSemanticLogger
   module Generators
@@ -11,10 +12,9 @@ module RailsSemanticLogger
     # - the `if ENV["RAILS_LOG_TO_STDOUT"].present?` block of Rails 6 and 7.0, when it does nothing else;
     # - commented-out examples of another Rails logger, such as Syslog::Logger, and the comments
     #   directly above each removed setting;
-    # - the deprecated appender options (Options::DEPRECATED_APPENDER_OPTIONS), keeping the value each
-    #   was set to;
-    # - and, when asked to, `config.semantic_logger.add_appender(...)`, keeping its arguments, since an
-    #   application that lists its appenders lists those too.
+    # - and, when asked to convert them, the deprecated appender options
+    #   (Options::DEPRECATED_APPENDER_OPTIONS) and `config.semantic_logger.add_appender(...)`, keeping
+    #   the value of each, since an application that lists its appenders lists those too.
     #
     # It keeps `config.log_level` and `config.log_tags`, which Rails Semantic Logger reads. It removes
     # only the settings of the file's top level: one inside a condition, or with a condition of its
@@ -26,7 +26,13 @@ module RailsSemanticLogger
       # options:   [Hash] the value of each deprecated appender option, by name, as Ruby source.
       # appenders: [Array<String>] the arguments of each `config.semantic_logger.add_appender` it removed.
       # left:      [Array<String>] each setting it left in place, for the application to move.
-      Result = Struct.new(:text, :removed, :options, :appenders, :left, keyword_init: true)
+      # unmoved:   [Array<String>] those of them that an appenders block would override or repeat: a
+      #            deprecated appender option, which the engine ignores once appenders are declared, or
+      #            an appender that writes to the screen, as the block's screen lines do.
+      Result = Struct.new(:text, :removed, :options, :appenders, :left, :unmoved, keyword_init: true)
+
+      # The options that turn an appender on or off, converted only when set to a literal true or false.
+      SWITCHES = %i[add_file_appender console_logger].freeze
 
       IGNORED = /\A\s*config\.(?:logger|log_formatter)\s*(?:\|\|)?=/
       DEPRECATED_OPTION =
@@ -38,6 +44,7 @@ module RailsSemanticLogger
       COMMENTED_CODE   = /\A\s*#\s*config\./
       APPENDERS        = /config\.rails_semantic_logger\.appenders\b/
       COLORIZE_OFF     = /\A\s*config\.colorize_logging\s*=\s*false\b/
+      COLORIZE         = /\A\s*config\.colorize_logging\s*=/
       # The start of an environment's settings, `Rails.application.configure do` or
       # `MyApp::Application.configure do`, with the comment that Rails writes first, if any.
       CONFIGURE = /
@@ -118,19 +125,33 @@ module RailsSemanticLogger
         end
       end
 
+      # Whether the file decides anything about its appenders: declares them, sets a deprecated appender
+      # option, adds an appender that writes to the screen, or sets `config.colorize_logging` to any
+      # value, anywhere (even `true` overrides a `false` in the file that it loads).
+      # An appenders block in a file that it loads, such as production.rb for a staging.rb that starts
+      # with `require_relative "production"`, would add to, override or repeat them.
+      def sets_own_appenders?
+        declares_appenders? ||
+          @lines.each_index.any? { |index| appender_setting?(index) || @lines[index].match?(COLORIZE) }
+      end
+
       # Whether the file turns colorized logging off, which makes the default log file plain text.
       def colorize_logging_off?
-        @lines.any? { |line| line.match?(COLORIZE_OFF) }
+        @lines.each_index.any? do |index|
+          @lines[index].match?(COLORIZE_OFF) && top_level?(index) &&
+            !conditional?(without_comments(@lines[index..statement_end(index)].join))
+        end
       end
 
       # Returns [Result] the text without the settings that Rails Semantic Logger ignores or refuses.
       #
-      # convert_appenders: [true|false] whether to remove each `config.semantic_logger.add_appender`,
-      # keeping its arguments for the appenders that the application will list.
-      def clean(convert_appenders: false)
+      # convert: [true|false] whether the file's appenders will be listed, so that it removes each
+      # deprecated appender option and `config.semantic_logger.add_appender`, keeping their values for
+      # the list. Otherwise it leaves the options in place, and reports them, since they still apply.
+      def clean(convert: false)
         @removed = Array.new(@lines.size, false)
-        @result  = Result.new(removed: [], options: {}, appenders: [], left: [])
-        @convert = convert_appenders
+        @result  = Result.new(removed: [], options: {}, appenders: [], left: [], unmoved: [])
+        @convert = convert
         index    = 0
         index    = visit(index) + 1 while index < @lines.size
         remove_comments_above_removed
@@ -151,6 +172,8 @@ module RailsSemanticLogger
           log_to_stdout(index, match[1])
         elsif line.match?(IGNORED) || line.match?(DEPRECATED_OPTION) || (@convert && line.match?(ADD_APPENDER))
           setting(index)
+        elsif line.match?(COLORIZE)
+          colorize(index)
         else
           remove(index, index) if line.match?(COMMENTED_LOGGER)
           index
@@ -171,14 +194,32 @@ module RailsSemanticLogger
         return leave(index, last) if !top_level?(index) || conditional?(statement)
 
         if (option = statement.match(DEPRECATED_OPTION))
-          @result.options[option[1].to_sym] = option[2].strip
+          name  = option[1].to_sym
+          value = option[2].strip
+          return leave(index, last) unless @convert && convertible?(name, value)
+
+          @result.options[name] = value
         elsif statement.match?(ADD_APPENDER)
           args = statement.match(APPENDER_ARGS)&.[](:args)
-          return leave(index, last) unless args && Ripper.sexp("f(#{args})") && !local_reference?(args)
+          return leave(index, last) unless args && Arguments.new(args).movable?
 
           @result.appenders << args.strip
         end
         remove(index, last)
+      end
+
+      # Leaves `config.colorize_logging` in place. One that does not plainly turn colors on or off
+      # everywhere, such as `= false if ENV["CI"]`, decides the log file's formatter only sometimes,
+      # which the formatter written in the appenders block cannot follow.
+      def colorize(index)
+        last      = statement_end(index)
+        statement = without_comments(@lines[index..last].join)
+        literal   = statement.match?(/\Aconfig\.colorize_logging\s*=\s*(?:true|false)\z/)
+        return last if top_level?(index) && !conditional?(statement) && literal
+
+        leave(index, last)
+        @result.unmoved << @result.left.last
+        last
       end
 
       def remove(first, last)
@@ -187,8 +228,29 @@ module RailsSemanticLogger
       end
 
       def leave(first, last)
-        @result.left << @lines[first..last].join.strip
+        setting = @lines[first..last].join.strip
+        @result.left << setting
+        @result.unmoved << setting if (first..last).any? { |index| appender_setting?(index) }
         last
+      end
+
+      # Whether the line sets a deprecated appender option, or starts a statement that adds an appender
+      # that writes to the screen, either of which an appenders block would override or repeat.
+      def appender_setting?(index)
+        line = @lines[index]
+        return false if comment?(line)
+        return true if line.match?(DEPRECATED_OPTION)
+
+        line.match?(ADD_APPENDER) &&
+          self.class.screen_appender?(without_comments(@lines[index..statement_end(index)].join))
+      end
+
+      # Whether the value of a deprecated option can be carried into the appenders block: a switch only
+      # when it is a literal true or false, and any value only when it names no local variable.
+      def convertible?(name, value)
+        return %w[true false].include?(value) if SWITCHES.include?(name)
+
+        Arguments.new(value).movable?
       end
 
       # The last line of the statement that starts at the line: the first one at which the lines so far
@@ -199,25 +261,6 @@ module RailsSemanticLogger
           return last unless @lines[last + 1]&.lstrip&.start_with?(".")
         end
         index
-      end
-
-      # Whether the arguments name a local variable, or call a method without a receiver, such as
-      # `file_name: log_path` or `log_file("app")`, which the appenders block may not see, since it
-      # moves to the start of the environment's settings. That includes `config`: the block runs before
-      # the settings below it, so `level: config.log_level` would read the level before it is set.
-      def local_reference?(args)
-        locals = lambda do |node|
-          next false unless node.is_a?(Array)
-
-          ident = node[1] if node[1].is_a?(Array) && node[1][0] == :@ident
-          # `lambda { ... }` and `proc { ... }` are Ruby's own; what they read is checked below.
-          kernel = %i[fcall command].include?(node[0]) && %w[lambda proc].include?(ident&.[](1))
-          next true if ident && %i[vcall var_ref fcall command].include?(node[0]) && !kernel
-
-          node.any?(&locals)
-        end
-        # The arguments of `f(...)`, without the call to `f` that wraps them to parse them.
-        locals.call(Ripper.sexp("f(#{args})")&.dig(1, 0, 2))
       end
 
       # Whether the statement has a condition of its own, such as `... if ENV["JSON"]`.

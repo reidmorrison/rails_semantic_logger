@@ -101,7 +101,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_file "config/environments/#{environment}.rb" do |config|
         assert_includes config, "config.rails_semantic_logger.appenders do |appenders|"
         assert_includes config,
-                        "    appenders.add(file_name: \"log/#{environment}.log\", " \
+                        "    appenders.add(file_name: \"log/\#{Rails.env}.log\", " \
                         "formatter: {color: {ap: {multiline: false}}})\n"
         assert_includes config, "    appenders.add_server(io: $stdout, formatter: :color)\n"
         assert_includes config, "    appenders.add_console(io: $stderr, formatter: :color)\n"
@@ -189,13 +189,13 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       refute_includes config, "rails_semantic_logger"
       assert_match(/class Application < Rails::Application\n    config.load_defaults/, config)
     end
-    development = 'appenders.add(file_name: "log/development.log", formatter: {color: {ap: {multiline: true}}}, ' \
+    development = "appenders.add(file_name: \"log/\#{Rails.env}.log\", formatter: {color: {ap: {multiline: true}}}, " \
                   "filter: /Healthcheck/)"
 
     assert_file "config/environments/development.rb", Regexp.new(Regexp.escape(development))
     assert_file "config/environments/production.rb" do |config|
-      assert_includes config,
-                      %(    appenders.add(file_name: "log/production.log", formatter: :json, filter: /Healthcheck/)\n)
+      assert_includes config, "    appenders.add(file_name: \"log/\#{Rails.env}.log\", formatter: :json, " \
+                              "filter: /Healthcheck/)\n"
       assert_includes config, "    # appenders.add_server(io: $stdout, formatter: :color)\n"
       assert_includes config, "    # appenders.add_console(io: $stderr, formatter: :color)\n"
       refute_includes config, "config.rails_semantic_logger.format"
@@ -208,7 +208,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
     run_generator
 
-    assert_file "config/environments/test.rb", %r{    # appenders\.add\(file_name: "log/test\.log"}
+    assert_file "config/environments/test.rb", %r{    # appenders\.add\(file_name: "log/\#\{Rails\.env\}\.log"}
   end
 
   test "writes the log file as plain text when colorized logging is off" do
@@ -218,7 +218,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     run_generator
 
     assert_file "config/environments/development.rb",
-                %r{appenders\.add\(file_name: "log/development\.log", formatter: :default\)}
+                %r{appenders\.add\(file_name: "log/\#\{Rails\.env\}\.log", formatter: :default\)}
   end
 
   test "leaves alone an environment that declares its own appenders" do
@@ -274,10 +274,8 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     output = run_generator
 
     assert_includes output, "left in place"
-    assert_file "config/environments/production.rb" do |config|
-      assert_includes config, container.lines[1..4].join
-      assert_valid_ruby config
-    end
+    assert_includes output, "config/environments/production.rb: left unchanged: an appenders block would override"
+    assert_file "config/environments/production.rb", container
   end
 
   test "leaves a setting that has a condition of its own, or is inside one" do
@@ -290,14 +288,14 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       end
     RUBY
 
-    run_generator
+    output = run_generator
 
+    # An appenders block would turn off the deprecated option that stays, so the file is left unchanged.
+    assert_includes output, "config/environments/production.rb: left unchanged"
     assert_file "config/environments/production.rb" do |config|
       assert_includes config, 'config.rails_semantic_logger.format = :json if ENV["JSON"]'
       assert_includes config, 'config.logger = Syslog::Logger.new("shop")'
-      assert_includes config,
-                      'appenders.add(file_name: "log/production.log", formatter: {color: {ap: {multiline: false}}})'
-      assert_valid_ruby config
+      refute_includes config, "config.rails_semantic_logger.appenders"
     end
   end
 
@@ -313,7 +311,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
     assert_file "config/environments/production.rb" do |config|
       refute_includes config, "config.semantic_logger.add_appender"
-      assert_includes config, "    # appenders.add(file_name: \"log/production.log\""
+      assert_includes config, "    # appenders.add(file_name: \"log/\#{Rails.env}.log\""
       assert_includes config, "    appenders.add(io: $stdout, formatter: :json)\n"
       assert_includes config, "    # appenders.add_server(io: $stdout, formatter: :color)\n"
       assert_valid_ruby config
@@ -456,8 +454,7 @@ class InstallGeneratorTest < Rails::Generators::TestCase
 
     assert_file "config/environments/staging.rb" do |config|
       assert_includes config, "    config.rails_semantic_logger.format = :json\n"
-      assert_includes config,
-                      'appenders.add(file_name: "log/staging.log", formatter: {color: {ap: {multiline: false}}})'
+      refute_includes config, "config.rails_semantic_logger.appenders"
     end
   end
 
@@ -516,15 +513,197 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file "config/environments/development.rb", /    # appenders\.add_server\(io: \$stdout, formatter: :color\)\n/
   end
 
-  test "keeps the screen when an appender that writes to it has a condition" do
+  test "leaves unchanged an environment whose screen appender has a condition" do
     conditional = 'config.semantic_logger.add_appender(io: $stdout, formatter: :json) if ENV["JSON"]'
-    write("config/environments/development.rb", ENVIRONMENT.sub("config.enable_reloading = true", conditional))
+    development = ENVIRONMENT.sub("config.enable_reloading = true", conditional)
+    write("config/environments/development.rb", development)
+
+    output = run_generator
+
+    # The block's screen lines would print every entry a second time whenever JSON is set.
+    assert_includes output, "config/environments/development.rb: left unchanged"
+    assert_file "config/environments/development.rb", development
+  end
+
+  test "leaves alone the appenders of an environment that loads another one" do
+    staging = <<~RUBY
+      require_relative "production"
+
+      Rails.application.configure do
+        config.semantic_logger.add_appender(appender: :syslog)
+        config.rails_semantic_logger.format = :json
+      end
+    RUBY
+    write("config/environments/staging.rb", staging)
 
     run_generator
 
-    assert_file "config/environments/development.rb" do |config|
-      assert_includes config, "    appenders.add_server(io: $stdout, formatter: :color)\n"
-      assert_includes config, 'config.semantic_logger.add_appender(io: $stdout, formatter: :json) if ENV["JSON"]'
+    assert_file "config/environments/staging.rb", staging
+  end
+
+  test "leaves unchanged an environment that another one loads and keeps its own appender settings" do
+    staging = <<~RUBY
+      require_relative "production"
+
+      Rails.application.configure do
+        config.rails_semantic_logger.format = :json
+      end
+    RUBY
+    write("config/environments/staging.rb", staging)
+    production = File.read(File.join(destination_root, "config/environments/production.rb"))
+
+    output = run_generator
+
+    assert_includes output, "config/environments/production.rb: left unchanged: config/environments/staging.rb loads it"
+    assert_file "config/environments/production.rb", production
+    assert_file "config/environments/staging.rb", staging
+  end
+
+  test "leaves unchanged an environment whose screen appender over several lines has a condition" do
+    conditional = "config.semantic_logger.add_appender(\n    io: $stdout, formatter: :json\n  ) if ENV[\"JSON\"]"
+    development = ENVIRONMENT.sub("config.enable_reloading = true", conditional)
+    write("config/environments/development.rb", development)
+
+    output = run_generator
+
+    assert_includes output, "config/environments/development.rb: left unchanged"
+    assert_file "config/environments/development.rb", development
+  end
+
+  test "moves an appender whose filter is a lambda with a keyword parameter, or the implicit one" do
+    added = "config.semantic_logger.add_appender(appender: :syslog, filter: ->(log:) { log.level == :error })\n  " \
+            "config.semantic_logger.add_appender(appender: :bugsnag, filter: proc { it.level == :error })"
+    write("config/environments/production.rb", ENVIRONMENT.sub("config.enable_reloading = true", added))
+
+    run_generator
+
+    assert_file "config/environments/production.rb" do |config|
+      assert_includes config, "    appenders.add(appender: :syslog, filter: ->(log:) { log.level == :error })\n"
+      assert_includes config, "    appenders.add(appender: :bugsnag, filter: proc { it.level == :error })\n"
+      refute_includes config, "config.semantic_logger.add_appender"
+    end
+  end
+
+  {
+    "declares its own appenders" =>
+      "config.rails_semantic_logger.appenders { |appenders| appenders.add(io: $stdout, formatter: :json) }",
+    "turns colorized logging off" => "config.colorize_logging = false"
+  }.each do |what, setting|
+    test "leaves unchanged an environment that another one loads and #{what}" do
+      staging = %(require_relative "production"\n\nRails.application.configure do\n  #{setting}\nend\n)
+      write("config/environments/staging.rb", staging)
+      production = File.read(File.join(destination_root, "config/environments/production.rb"))
+
+      run_generator
+
+      assert_file "config/environments/production.rb", production
+      assert_file "config/environments/development.rb", /config\.rails_semantic_logger\.appenders do/
+    end
+  end
+
+  {
+    "a local variable beside a block parameter of the same name" =>
+      %(log = "log/x.log"\n  config.semantic_logger.add_appender(file_name: log, filter: ->(log) { true })),
+    "a local variable named as an implicit block parameter" =>
+      "config.semantic_logger.add_appender(appender: :syslog, level: it)",
+    "a local variable in a parameter's default value" =>
+      "config.semantic_logger.add_appender(appender: :syslog, filter: ->(log, min = threshold) { log.level == min })",
+    "a local variable in a keyword parameter's default value" =>
+      "config.semantic_logger.add_appender(appender: :syslog, filter: ->(log, level: threshold) { true })",
+    "a call chained onto its result" =>
+      "config.semantic_logger.add_appender(appender: :syslog).name = Name.new(1)"
+  }.each do |what, added|
+    test "keeps in place an appender that reads #{what}" do
+      write("config/environments/production.rb", ENVIRONMENT.sub("config.enable_reloading = true", added))
+
+      run_generator
+
+      assert_file "config/environments/production.rb" do |config|
+        assert_includes config, added.lines.last
+        assert_includes config, "config.rails_semantic_logger.appenders do"
+      end
+    end
+  end
+
+  test "moves an appender whose filter has a block-local variable" do
+    added = "config.semantic_logger.add_appender(appender: :syslog, filter: proc { |log; level| level = log.level })"
+    write("config/environments/production.rb", ENVIRONMENT.sub("config.enable_reloading = true", added))
+
+    run_generator
+
+    assert_file "config/environments/production.rb" do |config|
+      assert_includes config, "    appenders.add(appender: :syslog, filter: proc { |log; level| level = log.level })\n"
+      refute_includes config, "config.semantic_logger.add_appender"
+    end
+  end
+
+  test "leaves unchanged an environment that turns colors off only sometimes" do
+    development = ENVIRONMENT.sub("config.enable_reloading = true", 'config.colorize_logging = false if ENV["CI"]')
+    write("config/environments/development.rb", development)
+
+    output = run_generator
+
+    assert_includes output, "config/environments/development.rb: left unchanged"
+    assert_file "config/environments/development.rb", development
+    assert_file "config/environments/test.rb", /formatter: \{color: \{ap: \{multiline: false\}\}\}/
+  end
+
+  test "leaves unchanged an environment that turns off both the log file and the screen" do
+    off = "config.rails_semantic_logger.add_file_appender = false\n  " \
+          "config.rails_semantic_logger.console_logger = false"
+    production = ENVIRONMENT.sub("config.enable_reloading = true", off)
+    write("config/environments/production.rb", production)
+
+    output = run_generator
+
+    assert_includes output, "production.rb: left unchanged: its appenders block would declare no appender"
+    assert_file "config/environments/production.rb", production
+  end
+
+  test "converts add_file_appender and console_logger only when set to true or false" do
+    computed   = 'config.rails_semantic_logger.add_file_appender = ENV["LOG_TO_FILE"].present?'
+    production = ENVIRONMENT.sub("config.enable_reloading = true", computed)
+    write("config/environments/production.rb", production)
+
+    output = run_generator
+
+    assert_includes output, "left in place, move it into the appenders: #{computed}"
+    assert_file "config/environments/production.rb", production
+  end
+
+  test "leaves an option whose value names a local variable" do
+    local      = "formatter = :json\n  config.rails_semantic_logger.format = formatter"
+    production = ENVIRONMENT.sub("config.enable_reloading = true", local)
+    write("config/environments/production.rb", production)
+
+    run_generator
+
+    assert_file "config/environments/production.rb", production
+  end
+
+  test "moves an appender whose filter is a lambda with a parameter" do
+    added = "config.semantic_logger.add_appender(appender: :syslog, filter: ->(log) { log.level == :error })"
+    write("config/environments/production.rb", ENVIRONMENT.sub("config.enable_reloading = true", added))
+
+    run_generator
+
+    assert_file "config/environments/production.rb" do |config|
+      assert_includes config, "    appenders.add(appender: :syslog, filter: ->(log) { log.level == :error })\n"
+      refute_includes config, "config.semantic_logger.add_appender"
+      assert_valid_ruby config
+    end
+  end
+
+  test "keeps the options of config/application.rb when an environment cannot take its block" do
+    application = APPLICATION.sub("config.load_defaults 8.1", "config.rails_semantic_logger.format = :json")
+    write("config/application.rb", application)
+    write("config/environments/staging.rb", "config = Rails.application.config\nconfig.eager_load = true\n")
+
+    run_generator
+
+    assert_file "config/application.rb", application
+    assert_file "config/environments/production.rb" do |config|
+      refute_includes config, "config.rails_semantic_logger.appenders"
     end
   end
 

@@ -25,15 +25,22 @@ module RailsSemanticLogger
       APPLICATION = "config/application.rb".freeze
 
       # What it will write to one environment's file: the text, or nil when the file cannot take its
-      # appenders, and the cleaning that produced it.
-      Plan = Struct.new(:path, :text, :result, :declared, :inherits, keyword_init: true)
+      # appenders, with the reason, and the cleaning that produced it.
+      Plan = Struct.new(:path, :text, :reason, :result, :declared, :inherits, keyword_init: true)
+
+      NO_CONFIGURE = "found no `.configure do` block to add the appenders to, " \
+                     "or adding them would not be valid Ruby".freeze
+      UNMOVED      = "an appenders block would override or repeat the settings left in place: " \
+                     "move them into config.rails_semantic_logger.appenders".freeze
+      EMPTY        = "its appenders block would declare no appender, so the engine would create its " \
+                     "default appenders instead".freeze
 
       desc "Remove the Rails logger settings that Rails Semantic Logger ignores, and list each " \
            "environment's appenders in config.rails_semantic_logger.appenders."
 
-      # Plans every file before writing any: the appenders that config/application.rb adds move into
-      # each environment's block, so only when no file declares appenders and every environment can
-      # take its block.
+      # Plans every file before writing any. The deprecated options and appenders of
+      # config/application.rb move into each environment's block, so only when no file declares
+      # appenders and every environment can take its block; otherwise they stay where they are.
       def install
         # `rails destroy` cannot put back what was removed, and must not delete the settings files.
         return if behavior == :revoke
@@ -52,7 +59,7 @@ module RailsSemanticLogger
 
       # Returns the cleaning of config/application.rb, and the plan of each environment.
       def plan(convert:)
-        app_result = @application.clean(convert_appenders: convert)
+        app_result = @application.clean(convert: convert)
         screen     = LoggerSettings.new(app_result.text).adds_screen_appender?
         [app_result, environments.map { |path| plan_environment(path, app_result, screen) }]
       end
@@ -60,56 +67,79 @@ module RailsSemanticLogger
       def plan_environment(path, app_result, screen)
         settings = settings(path)
         declared = @application.declares_appenders? || settings.declares_appenders?
-        result   = settings.clean(convert_appenders: !declared)
-        return Plan.new(path: path, text: result.text, result: result, declared: true) if declared
+        # An environment that loads another one gets that one's appenders, and keeps its own.
+        inherits = !declared && settings.loads_environment?(environment_names - [File.basename(path, ".rb")])
+        result   = settings.clean(convert: !declared && !inherits)
+        if declared || inherits
+          return Plan.new(path: path, text: result.text, result: result, declared: true, inherits: inherits)
+        end
 
-        inherits = environment_names - [File.basename(path, ".rb")]
-        if settings.loads_environment?(inherits)
-          return Plan.new(path: path, text: result.text, result: result, declared: true, inherits: true)
+        plan_block(Plan.new(path: path, result: result, declared: false), settings, app_result, screen)
+      end
+
+      # The environment whose file loads this one's and keeps settings that this one's appenders block
+      # would override or repeat, if any, such as a staging.rb that requires production.rb and sets
+      # `config.rails_semantic_logger.format`.
+      def loader_with_own_appenders(path)
+        name = File.basename(path, ".rb")
+        (environments - [path]).find do |other|
+          settings = settings(other)
+          settings.loads_environment?([name]) && settings.sets_own_appenders?
+        end
+      end
+
+      # Returns the plan with the text of the environment's file with its appenders block, or with the
+      # reason it cannot take one.
+      def plan_block(plan, settings, app_result, screen)
+        result = plan.result
+        return plan.tap { plan.reason = UNMOVED } if (app_result.unmoved + result.unmoved).any?
+
+        loader = loader_with_own_appenders(plan.path)
+        if loader
+          return plan.tap { plan.reason = "#{loader} loads it, and an appenders block would override its settings" }
         end
 
         block = AppendersBlock.new(
-          environment: File.basename(path, ".rb"),
+          environment: File.basename(plan.path, ".rb"),
           options:     app_result.options.merge(result.options),
           appenders:   app_result.appenders + result.appenders,
           colorize:    !(@application.colorize_logging_off? || settings.colorize_logging_off?),
           screen:      screen || LoggerSettings.new(result.text).adds_screen_appender?
-        ).to_s
-        text = LoggerSettings.new(result.text).with_block(block)
-        Plan.new(path: path, text: text && Ripper.sexp(text) ? text : nil, result: result, declared: false)
+        )
+        return plan.tap { plan.reason = EMPTY } if block.empty?
+
+        text = LoggerSettings.new(result.text).with_block(block.to_s)
+        return plan.tap { plan.reason = NO_CONFIGURE } unless text && Ripper.sexp(text)
+
+        plan.tap { plan.text = text }
       end
 
       def apply(plan, app_result)
-        options   = app_result.options.merge(plan.result.options)
-        appenders = app_result.appenders + plan.result.appenders
         if plan.inherits
-          skip(plan, "it loads another environment's settings, appenders included",
-               plan.result.options, plan.result.appenders)
+          skip(plan, "it loads another environment's settings, appenders included")
         elsif plan.declared
           where = settings(plan.path).declares_appenders? ? plan.path : APPLICATION
-          skip(plan, "its appenders are declared in #{where}", options, appenders)
+          skip(plan, "its appenders are declared in #{where}")
         elsif plan.text
           say_status :appenders, plan.path if write(plan.path, plan.text, plan.result)
         else
-          say_status :error, "#{plan.path}: left unchanged: found no `.configure do` block to add the appenders to, " \
-                             "or adding them would not be valid Ruby", :red
-          warn_unconverted(plan.path, options, appenders)
+          say_status :error, "#{plan.path}: left unchanged: #{plan.reason}", :red
+          warn_left(plan.path, plan.result)
+          warn_unconverted(plan.path, app_result.options.merge(plan.result.options),
+                           app_result.appenders + plan.result.appenders)
         end
       end
 
       # Writes the cleaned settings of an environment that gets no appenders block of its own.
-      def skip(plan, reason, options, appenders)
+      def skip(plan, reason)
         say_status :skip, "#{plan.path}: #{reason}", :yellow
-        warn_unconverted(plan.path, options, appenders)
         write(plan.path, plan.text, plan.result)
       end
 
       # Writes the text, when it changed and is valid Ruby, reporting what was removed, and each setting
       # that was left in place. Returns [String|nil] the text, when it wrote it.
       def write(path, text, result)
-        result.left.each do |setting|
-          say_status :warn, "#{path}: left in place, move it into the appenders: #{setting.lines.first.strip}", :yellow
-        end
+        warn_left(path, result)
         return if text == read(path)
 
         unless Ripper.sexp(text)
@@ -120,6 +150,12 @@ module RailsSemanticLogger
         result.removed.each { |line| say_status :remove, "#{path}: #{line.strip}", :red }
         create_file(path, text, force: true, verbose: false)
         text
+      end
+
+      def warn_left(path, result)
+        result.left.each do |setting|
+          say_status :warn, "#{path}: left in place, move it into the appenders: #{setting.lines.first.strip}", :yellow
+        end
       end
 
       # The deprecated appender options and the added appenders cannot be carried into appenders that the application

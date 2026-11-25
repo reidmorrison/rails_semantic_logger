@@ -40,6 +40,12 @@ module RailsSemanticLogger
         ERB.new(File.read(TEMPLATE), trim_mode: "-").result(binding)
       end
 
+      # Whether every line of the block would be commented out. A block that declares no appender
+      # declares nothing, so the engine would create its default appenders instead.
+      def empty?
+        !file? && !screen? && @appenders.empty?
+      end
+
       private
 
       attr_reader :environment
@@ -60,7 +66,9 @@ module RailsSemanticLogger
       end
 
       def file_arguments
-        arguments = %(file_name: "log/#{environment}.log", formatter: #{file_formatter})
+        # Rails.env, as the engine's default log file follows it, also when another environment's file
+        # loads this one, such as a staging.rb that starts with `require_relative "production"`.
+        arguments = %(file_name: "log/\#{Rails.env}.log", formatter: #{file_formatter})
         arguments += ", filter: #{@options[:filter]}" if @options[:filter]
         arguments
       end

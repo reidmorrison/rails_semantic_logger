@@ -11,6 +11,12 @@ module RailsSemanticLogger
       # The logger of Action Controller, whose name is the meter of its metrics.
       LOGGER_NAME = "ActionController::Base".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[
+        code.function.name http.response.status_code error.type rails.action_controller.filter
+        rails.action_controller.redirect.kind rails.action_controller.csrf.reason rails.cache.operation.name
+      ].freeze
+
       # How long the controller took to process the action, without the middleware.
       def process_action(event)
         payload    = event.payload
@@ -21,13 +27,14 @@ module RailsSemanticLogger
       end
 
       def halted_callback(event)
-        increment("rails.action_controller.halted_callbacks",
+        increment("rails.action_controller.halted_callbacks", "{callback}",
                   "rails.action_controller.filter" => filter(event.payload[:filter]))
       end
 
       # Rails 8.1+.
       def rescue_from_callback(event)
-        increment("rails.action_controller.rescued_exceptions", "error.type" => error_type(event.payload[:exception]))
+        increment("rails.action_controller.rescued_exceptions", "{exception}",
+                  "error.type" => error_type(event.payload[:exception]))
       end
 
       def redirect_to(event)
@@ -36,17 +43,18 @@ module RailsSemanticLogger
         dimensions["http.response.status_code"] = payload[:status] if payload[:status]
         function = function(payload[:request])
         dimensions["code.function.name"] = function if function
-        increment("rails.action_controller.redirects", dimensions)
+        increment("rails.action_controller.redirects", "{redirect}", dimensions)
       end
 
       # Rails 8.1+, with action_on_open_redirect = :notify.
       def open_redirect(_event)
-        increment("rails.action_controller.unsafe_redirects", "rails.action_controller.redirect.kind" => "open")
+        increment("rails.action_controller.unsafe_redirects", "{redirect}",
+                  "rails.action_controller.redirect.kind" => "open")
       end
 
       # Rails 8.1+, with action_on_path_relative_redirect = :notify.
       def unsafe_redirect(_event)
-        increment("rails.action_controller.unsafe_redirects",
+        increment("rails.action_controller.unsafe_redirects", "{redirect}",
                   "rails.action_controller.redirect.kind" => "path_relative")
       end
 
@@ -85,7 +93,7 @@ module RailsSemanticLogger
       private
 
       def csrf(reason)
-        increment("rails.action_controller.csrf_events", "rails.action_controller.csrf.reason" => reason)
+        increment("rails.action_controller.csrf_events", "{event}", "rails.action_controller.csrf.reason" => reason)
       end
 
       # A callback named by a method keeps its name; any other, such as a block, is named by its class,

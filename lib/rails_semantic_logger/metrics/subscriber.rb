@@ -25,8 +25,10 @@ module RailsSemanticLogger
 
       # Active Support raises a subscriber's exception in the code that it instruments, so a metric
       # that fails would fail the request, the query, or the job. It is reported once instead.
+      #
+      # Records nothing, without reading the event, while no metric appender collects the metrics.
       def call(event)
-        super
+        super if self.class.logger.collecting_metrics?
       rescue StandardError => e
         report(e)
       end
@@ -60,9 +62,10 @@ module RailsSemanticLogger
         exception.class.name || "_OTHER"
       end
 
-      # Adds `amount`, one by default, to the counter `name`.
-      def increment(name, dimensions = nil, amount = 1)
-        self.class.logger.increment(name, amount, dimensions: dimensions)
+      # Adds `amount`, one by default, to the counter `name`, of what is counted in `unit`, in the
+      # notation of OpenTelemetry (UCUM), such as "{redirect}".
+      def increment(name, unit, dimensions = nil, amount = 1)
+        self.class.logger.increment(name, amount, unit: unit, dimensions: dimensions)
       end
     end
   end

@@ -6,6 +6,9 @@ module RailsSemanticLogger
       # The logger of Action Mailer, whose name is the meter of its metrics.
       LOGGER_NAME = "ActionMailer::Base".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[rails.action_mailer.mailer code.function.name error.type].freeze
+
       # How long delivering a mail took. A mail skipped because perform_deliveries is false was not
       # delivered, so it is not recorded.
       def deliver(event)

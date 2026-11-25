@@ -11,6 +11,13 @@ module RailsSemanticLogger
       # The logger of Active Job, whose name is the meter of its metrics.
       LOGGER_NAME = "ActiveJob::Base".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[
+        messaging.system.name messaging.destination.name messaging.operation.name messaging.operation.type
+        messaging.active_job.job.class messaging.active_job.adapter.name active_job.step.name
+        active_job.step.interrupted error.type
+      ].freeze
+
       SYSTEM = "active_job".freeze
 
       def enqueue(event)
@@ -30,7 +37,7 @@ module RailsSemanticLogger
         sent    = sent_jobs(jobs, count, error)
         if sent
           sent.group_by { |job| job_dimensions(job) }.each do |dimensions, group|
-            increment("messaging.client.sent.messages", dimensions, group.size)
+            increment("messaging.client.sent.messages", "{message}", dimensions, group.size)
           end
         else
           count_unmarked(jobs, count)
@@ -67,24 +74,24 @@ module RailsSemanticLogger
       end
 
       def enqueue_retry(event)
-        increment("active_job.retries", failure_dimensions(event.payload))
+        increment("active_job.retries", "{retry}", failure_dimensions(event.payload))
       end
 
       def retry_stopped(event)
-        increment("active_job.exhausted_retries", failure_dimensions(event.payload))
+        increment("active_job.exhausted_retries", "{job}", failure_dimensions(event.payload))
       end
 
       def discard(event)
-        increment("active_job.discards", failure_dimensions(event.payload))
+        increment("active_job.discards", "{job}", failure_dimensions(event.payload))
       end
 
       # Continuations (Rails 8.1+).
       def interrupt(event)
-        increment("active_job.interrupts", job_dimensions(event.payload[:job]))
+        increment("active_job.interrupts", "{interrupt}", job_dimensions(event.payload[:job]))
       end
 
       def resume(event)
-        increment("active_job.resumes", job_dimensions(event.payload[:job]))
+        increment("active_job.resumes", "{resume}", job_dimensions(event.payload[:job]))
       end
 
       def step(event)
@@ -106,7 +113,7 @@ module RailsSemanticLogger
         payload = event.payload
         job     = payload[:job]
         error   = enqueue_error(payload)
-        increment("messaging.client.sent.messages", job_dimensions(job)) unless error || payload[:aborted]
+        increment("messaging.client.sent.messages", "{message}", job_dimensions(job)) unless error || payload[:aborted]
 
         dimensions = job_dimensions(job).merge(operation_dimensions(operation, "send"))
         dimensions["messaging.active_job.adapter.name"] = adapter_name(payload[:adapter]) if payload[:adapter]
@@ -161,7 +168,7 @@ module RailsSemanticLogger
 
         groups     = jobs.map { |job| job_dimensions(job) }.uniq
         dimensions = groups.size == 1 ? groups.first : {"messaging.system.name" => SYSTEM}
-        increment("messaging.client.sent.messages", dimensions, count)
+        increment("messaging.client.sent.messages", "{message}", dimensions, count)
       end
 
       # Rails reports an enqueue failure either as the event's exception or as the job's enqueue_error.

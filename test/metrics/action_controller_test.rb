@@ -89,6 +89,7 @@ module Metrics
           record(:redirect_to, status: 302, location: "https://example.com/", request: nil),
           name:       "rails.action_controller.redirects",
           kind:       :counter,
+          unit:       "{redirect}",
           dimensions: {"http.response.status_code" => 302}
         )
       end

@@ -17,6 +17,9 @@ module RailsSemanticLogger
     class Metrics
       NAME = "http.server.request.duration".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[http.request.method url.scheme http.route http.response.status_code error.type].freeze
+
       # The methods that OpenTelemetry knows. Any other is recorded as "_OTHER", so that a client
       # cannot grow the number of series by inventing methods.
       KNOWN_METHODS = Set.new(%w[CONNECT DELETE GET HEAD OPTIONS PATCH POST PUT QUERY TRACE]).freeze

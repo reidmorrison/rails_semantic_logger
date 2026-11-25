@@ -41,10 +41,10 @@ module RailsSemanticLogger
   autoload :Appenders, "rails_semantic_logger/appenders"
   autoload :Options, "rails_semantic_logger/options"
 
-  # Deprecator used for options that are being phased out in favor of declaring
-  # appenders directly (see RailsSemanticLogger::Appenders).
+  # Deprecator for this gem's deprecations, registered with the application as
+  # Rails.application.deprecators[:rails_semantic_logger].
   def self.deprecator
-    @deprecator ||= ActiveSupport::Deprecation.new("6.0", "rails_semantic_logger")
+    @deprecator ||= ActiveSupport::Deprecation.new("7.0", "rails_semantic_logger")
   end
 
   # Whether an entry that the logger logs at the level records a call site: the logger logs at that
@@ -147,8 +147,8 @@ module RailsSemanticLogger
   #   on_booted { RailsSemanticLogger.add_server_appenders }
   def self.add_server_appenders
     options = Rails.application.config.rails_semantic_logger
-    # Backward compatibility
-    if !options.appenders? && options.console_logger && !SemanticLogger.appenders.console_output?
+    # The default screen appender, when the application declared no appenders of its own.
+    if !options.appenders? && !SemanticLogger.appenders.console_output?
       SemanticLogger.add_appender(io: $stdout, formatter: :color)
     end
 
@@ -159,12 +159,11 @@ module RailsSemanticLogger
 
   # Console (REPL) counterpart of .add_server_appenders, used by the `rails console`
   # hook. When the application declared its own appenders, its `add_console`
-  # declarations apply; otherwise the deprecated `console_logger` toggle decides
-  # whether the default stderr console appender is added.
+  # declarations apply; otherwise the default stderr console appender is added.
   def self.add_console_appenders
     options = Rails.application.config.rails_semantic_logger
-    # Backward compatibility: honor the deprecated console_logger toggle.
-    if !options.appenders? && options.console_logger && !SemanticLogger.appenders.console_output?
+    # The default console appender, when the application declared no appenders of its own.
+    if !options.appenders? && !SemanticLogger.appenders.console_output?
       SemanticLogger.add_appender(io: $stderr, formatter: :color)
     end
 

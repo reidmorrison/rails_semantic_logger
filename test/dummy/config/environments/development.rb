@@ -36,6 +36,5 @@ Dummy::Application.configure do
   # Raises error for missing translations
   # config.action_view.raise_on_missing_translations = true
 
-  config.rails_semantic_logger.quiet_assets         = true
-  config.rails_semantic_logger.ap_options           = {multiline: true}
+  config.rails_semantic_logger.quiet_assets = true
 end

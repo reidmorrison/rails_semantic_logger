@@ -9,6 +9,22 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   [Upgrading to Semantic Logger v6](https://logger.reidmorrison.com/upgrading.html#upgrading-to-semantic-logger-v6):
   it records a `metric:` at every log level once a metric appender is added, and its metric
   appenders send a snapshot each interval.
+- Remove the appender options deprecated in v5: `config.rails_semantic_logger.format`,
+  `ap_options`, `filter`, `console_logger` and `add_file_appender`. Setting one now raises
+  `NoMethodError`. Declare the destinations instead, in `config.rails_semantic_logger.appenders`,
+  with the formatter, filter and Amazing Print options on each appender. Without an appenders block
+  the defaults are unchanged: `log/<environment>.log` in color (plain text when
+  `config.colorize_logging` is false), and the screen under `rails server` and `rails console`.
+- The default file appender no longer changes the formatter of the file and IO appenders that the
+  application added before Rails initialized, through `config.semantic_logger.add_appender`. Each
+  keeps the formatter it was given.
+- An application that set `add_file_appender = false` or `console_logger = false` must declare all its
+  appenders in `config.rails_semantic_logger.appenders`, including those it added with
+  `config.semantic_logger.add_appender`: declaring any turns off the default file appender and the
+  default screen appenders, which `console_logger` also controlled under `rails server` and Sidekiq.
+  Deleting the line alone brings back `log/<environment>.log`, or the screen output.
+- The deprecator, `Rails.application.deprecators[:rails_semantic_logger]`, stays registered, so
+  configuration that silences it keeps working.
 
 ## [5.3.0] - 2026-11-20
 

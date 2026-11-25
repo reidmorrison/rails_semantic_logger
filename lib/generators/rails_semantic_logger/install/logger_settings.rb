@@ -45,6 +45,7 @@ module RailsSemanticLogger
       APPENDERS        = /config\.rails_semantic_logger\.appenders\b/
       COLORIZE_OFF     = /\A\s*config\.colorize_logging\s*=\s*false\b/
       COLORIZE         = /\A\s*config\.colorize_logging\s*=/
+      LOG_PATH         = /\A\s*config\.paths\[\s*["']log["']\s*\]/
       # The start of an environment's settings, `Rails.application.configure do` or
       # `MyApp::Application.configure do`, with the comment that Rails writes first, if any.
       CONFIGURE = /
@@ -126,13 +127,20 @@ module RailsSemanticLogger
       end
 
       # Whether the file decides anything about its appenders: declares them, sets a deprecated appender
-      # option, adds an appender that writes to the screen, or sets `config.colorize_logging` to any
-      # value, anywhere (even `true` overrides a `false` in the file that it loads).
+      # option, adds an appender that writes to the screen, sets where the log file goes, or sets
+      # `config.colorize_logging` to any value, anywhere (even `true` overrides a `false` in the file
+      # that it loads).
       # An appenders block in a file that it loads, such as production.rb for a staging.rb that starts
       # with `require_relative "production"`, would add to, override or repeat them.
       def sets_own_appenders?
-        declares_appenders? ||
+        declares_appenders? || sets_log_path? ||
           @lines.each_index.any? { |index| appender_setting?(index) || @lines[index].match?(COLORIZE) }
+      end
+
+      # Whether the file sets where the log file goes, `config.paths["log"]`, which an appenders block
+      # above it would read before it is set.
+      def sets_log_path?
+        @lines.any? { |line| line.match?(LOG_PATH) }
       end
 
       # Whether the file turns colorized logging off, which makes the default log file plain text.

@@ -31,8 +31,6 @@ module Dummy
     # config.active_record.raise_in_transactional_callbacks = true
 
     config.semantic_logger.default_level = :trace
-    # Warning: Set to :error or higher in production to avoid performance issues.
-    config.semantic_logger.backtrace_level = :trace
 
     # Simulate an asset pipeline gem (sprockets-rails/propshaft both expose config.assets
     # with #quiet/#prefix) without adding the real gem, so the engine's quiet_assets

@@ -4,16 +4,13 @@ require_relative "test_helper"
 # that Rails Semantic Logger logs come from Rails' notifications, so the code that logs them is
 # Active Support's. They record the application code behind them instead, or no call site at all.
 module CallSiteTestHelpers
-  # Records call sites at every level, and no backtraces, while the block runs.
+  # Records call sites at every level while the block runs.
   def with_call_sites
     call_site_level                = SemanticLogger.call_site_level
-    backtrace_level                = SemanticLogger.backtrace_level
     SemanticLogger.call_site_level = :trace
-    SemanticLogger.backtrace_level = nil
     yield
   ensure
     SemanticLogger.call_site_level = call_site_level
-    SemanticLogger.backtrace_level = backtrace_level
   end
 
   # Gives the subscribers the cleaner while the block runs.
@@ -85,25 +82,18 @@ class CallSiteTest < ActiveSupport::TestCase
     before { @call_site_level = SemanticLogger.call_site_level }
     after { SemanticLogger.call_site_level = @call_site_level }
 
-    it "records call sites at every level in development" do
-      SemanticLogger.call_site_level = nil
+    it "records call sites at every level in development, rather than at Semantic Logger's level" do
+      SemanticLogger.call_site_level = :error
       RailsSemanticLogger.record_call_sites_in_development(ActiveSupport::EnvironmentInquirer.new("development"))
 
       assert_equal :trace, SemanticLogger.call_site_level
     end
 
-    it "keeps a level the application chose" do
-      SemanticLogger.call_site_level = :info
-      RailsSemanticLogger.record_call_sites_in_development(ActiveSupport::EnvironmentInquirer.new("development"))
-
-      assert_equal :info, SemanticLogger.call_site_level
-    end
-
-    it "does not record call sites in other environments" do
-      SemanticLogger.call_site_level = nil
+    it "keeps Semantic Logger's level in other environments" do
+      SemanticLogger.call_site_level = :error
       RailsSemanticLogger.record_call_sites_in_development(ActiveSupport::EnvironmentInquirer.new("production"))
 
-      assert_nil SemanticLogger.call_site_level
+      assert_equal :error, SemanticLogger.call_site_level
     end
   end
 
@@ -265,9 +255,12 @@ class CallSiteTest < ActiveSupport::TestCase
       end
     end
 
-    it "is false when call sites are off, as they are in the test environment" do
-      assert_nil SemanticLogger.call_site_level
-      refute RailsSemanticLogger.call_site?(logger, :fatal)
+    it "is false when call sites are off" do
+      with_call_sites do
+        SemanticLogger.call_site_level = nil
+
+        refute RailsSemanticLogger.call_site?(logger, :fatal)
+      end
     end
   end
 
@@ -309,13 +302,11 @@ class CallSiteTest < ActiveSupport::TestCase
     # The entry is logged at :debug, so the backtrace follows whether :debug is at or above the
     # backtrace level, whatever the logger's own level, which in the dummy application is :trace.
     it "logs the backtrace from the application code when the logger's level is below the entry's" do
-      backtrace_level                = SemanticLogger.backtrace_level
-      SemanticLogger.backtrace_level = :debug
-      messages                       = semantic_logger_events { Sample.where(name: "call site").first }
+      messages = with_backtrace_level(:debug) do
+        semantic_logger_events { Sample.where(name: "call site").first }
+      end
 
       assert_includes messages.first.backtrace.first, __FILE__
-    ensure
-      SemanticLogger.backtrace_level = backtrace_level
     end
   end
 

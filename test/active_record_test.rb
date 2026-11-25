@@ -40,19 +40,18 @@ class ActiveRecordTest < Minitest::Test
         assert_instance_of Integer, messages[0].payload[:allocations]
       end
 
-      it "records the backtrace of the code that ran the query, from the backtrace_level" do
-        original = SemanticLogger.backtrace_level
-
-        SemanticLogger.backtrace_level = :debug
-        traced                         = semantic_logger_events { Sample.first }.first
+      it "records the backtrace of the code that ran the query, from the deprecated backtrace_level" do
+        traced = with_backtrace_level(:debug) { semantic_logger_events { Sample.first }.first }
 
         assert_includes traced.backtrace.first, "test/active_record_test.rb", traced.backtrace
 
-        SemanticLogger.backtrace_level = :info
+        untraced = with_backtrace_level(:info) { semantic_logger_events { Sample.first }.first }
 
+        assert_nil untraced.backtrace
+      end
+
+      it "records no backtrace by default" do
         assert_nil semantic_logger_events { Sample.first }.first.backtrace
-      ensure
-        SemanticLogger.backtrace_level = original
       end
 
       it "sql with query cache" do

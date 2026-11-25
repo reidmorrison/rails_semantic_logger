@@ -18,6 +18,24 @@ Rails.backtrace_cleaner.remove_silencers!
 # Add Semantic Logger helpers for Minitest
 Minitest::Test.include SemanticLogger::Test::Minitest
 
+# Sets the deprecated SemanticLogger.backtrace_level while the block runs, without its deprecation
+# warning, to test what it still controls until Semantic Logger v7.
+def with_backtrace_level(level)
+  original = SemanticLogger.backtrace_level
+  silence_backtrace_level_deprecation { SemanticLogger.backtrace_level = level }
+  yield
+ensure
+  silence_backtrace_level_deprecation { SemanticLogger.backtrace_level = original }
+end
+
+def silence_backtrace_level_deprecation
+  deprecated           = Warning[:deprecated]
+  Warning[:deprecated] = false
+  yield
+ensure
+  Warning[:deprecated] = deprecated
+end
+
 ActionMailer::Base.delivery_method = :test
 
 # ActiveRecord filters bind values using ActiveRecord::Base.inspection_filter, which is built from

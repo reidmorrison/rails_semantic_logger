@@ -3,6 +3,10 @@ require_relative "../test_helper"
 module Metrics
   class ActiveRecordTest < Minitest::Test
     describe RailsSemanticLogger::Metrics::ActiveRecord do
+      it "records through the logger of Active Record, whose name is the meter" do
+        assert_equal "ActiveRecord::Base", RailsSemanticLogger::Metrics::ActiveRecord.logger.name
+      end
+
       def db_metrics(metrics)
         metrics.select { |metric| metric.name == "db.client.operation.duration" }
       end

@@ -4,6 +4,9 @@ module RailsSemanticLogger
     # OpenTelemetry's stable database client metric, in seconds. It leaves out the queries that never
     # reach the database (served from the query cache) and those that Rails runs to read the schema.
     class ActiveRecord < Subscriber
+      # The logger of Active Record, whose name is the meter of its metrics.
+      LOGGER_NAME = "ActiveRecord::Base".freeze
+
       NAME = "db.client.operation.duration".freeze
 
       # Rails' names for the queries it runs to read the schema or explain a query, as its own log

@@ -15,6 +15,7 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
   setup do
     prepare_destination
     write("config/environments/development.rb", DEVELOPMENT)
+    write("config/environments/production.rb", DEVELOPMENT)
   end
 
   test "writes the stack and the traffic task" do
@@ -59,19 +60,47 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  test "adds the OTLP appenders to development, keeping the default appenders" do
+  test "lists every environment's appenders, then adds the OTLP ones to development" do
     run_generator
 
     assert_file "config/environments/development.rb" do |config|
-      assert_includes config, 'config.semantic_logger.application = "dummy"'
-      assert_includes config, "appenders.add_defaults"
-      assert_includes config, "appenders.add(appender: :otlp)"
-      assert_includes config, "appenders.add(metric: :otlp, interval: 10)"
+      block = config[/  config\.rails_semantic_logger\.appenders do \|appenders\|\n.*?\n  end\n/m].to_s
+
+      assert_includes block, "    appenders.add(file_name: "
+      assert_includes block, "    appenders.add(appender: :otlp)\n    appenders.add(metric: :otlp, interval: 10)\n"
+      refute_includes config, "#   bin/rails generate rails_semantic_logger:observability"
+      application = "  end\n\n  # The service.name of the logs and metrics sent to the observability stack.\n  " \
+                    "config.semantic_logger.application = \"dummy\"\n"
+
+      assert_includes config, application
       refute_nil Ripper.sexp(config), "development.rb is not valid Ruby:\n#{config}"
+    end
+    assert_file "config/environments/production.rb" do |config|
+      assert_includes config, "appenders.add(file_name: "
+      refute_includes config, "\n    appenders.add(appender: :otlp)"
     end
   end
 
-  test "adds only the OTLP appenders when the application declares its own" do
+  test "adds the OTLP appenders inside the development appenders the application declared" do
+    write("config/environments/development.rb", <<~RUBY)
+      Rails.application.configure do
+        config.rails_semantic_logger.appenders do |list|
+          list.add(io: $stdout, formatter: :json)
+        end
+      end
+    RUBY
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      assert_match(/list\.add\(io: \$stdout, formatter: :json\)\n\n(?:    #.*\n)+/, config)
+      assert_includes config, "    list.add(appender: :otlp)\n    list.add(metric: :otlp, interval: 10)\n  end\n"
+      refute_includes config, "log/development.log"
+      refute_nil Ripper.sexp(config), config
+    end
+  end
+
+  test "adds a development block of only the OTLP appenders when config/application.rb declares the appenders" do
     write("config/application.rb", <<~RUBY)
       config.rails_semantic_logger.appenders do |appenders|
         appenders.add(io: $stdout, formatter: :json)
@@ -81,9 +110,82 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
     run_generator
 
     assert_file "config/environments/development.rb" do |config|
-      assert_includes config, "appenders.add(appender: :otlp)"
-      refute_includes config, "add_defaults"
+      assert_includes config, "    appenders.add(appender: :otlp)\n"
+      refute_includes config, "log/development.log"
+      refute_nil Ripper.sexp(config), config
     end
+  end
+
+  test "says where to add the OTLP appenders when it finds no appenders block, and changes nothing" do
+    unusual = "config = Rails.application.config\nconfig.enable_reloading = true\n"
+    write("config/environments/development.rb", unusual)
+
+    output = run_generator
+
+    assert_file "config/environments/development.rb", unusual
+    assert_includes output, "found no appenders block"
+    assert_includes output, "appenders.add(appender: :otlp)"
+  end
+
+  test "adds the OTLP appenders to a CRLF development file" do
+    write("config/environments/development.rb", DEVELOPMENT.gsub("\n", "\r\n"))
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      assert_includes config, "    appenders.add(appender: :otlp)\r\n"
+      refute_includes config, "\r\r"
+      refute_match(/[^\r]\n/, config)
+    end
+  end
+
+  test "adds a block of only the OTLP appenders when development declares its appenders with braces" do
+    declared = "Rails.application.configure do\n  " \
+               "config.rails_semantic_logger.appenders { |a| a.add(io: $stdout) }\nend\n"
+    write("config/environments/development.rb", declared)
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      assert_includes config, "{ |a| a.add(io: $stdout) }"
+      assert_includes config, "    appenders.add(appender: :otlp)\n"
+      refute_nil Ripper.sexp(config), config
+    end
+  end
+
+  test "adds a block of only the OTLP appenders to a CRLF file after MyApp::Application.configure" do
+    declared = "Dummy::Application.configure do\n  " \
+               "config.rails_semantic_logger.appenders { |a| a.add(io: $stdout) }\nend\n"
+    write("config/environments/development.rb", declared.gsub("\n", "\r\n"))
+
+    run_generator
+
+    assert_file "config/environments/development.rb" do |config|
+      assert_includes config,
+                      "Dummy::Application.configure do\r\n  config.rails_semantic_logger.appenders do |appenders|\r\n"
+      assert_includes config, "    appenders.add(appender: :otlp)\r\n"
+      refute_match(/[^\r]\n/, config)
+    end
+  end
+
+  test "leaves development alone when it already sends its metrics to OTLP" do
+    metrics = "Rails.application.configure do\n  " \
+              "config.rails_semantic_logger.appenders { |a| a.add(metric: :otlp) }\nend\n"
+    write("config/environments/development.rb", metrics)
+
+    run_generator
+
+    assert_file "config/environments/development.rb", metrics
+  end
+
+  test "keeps development's settings when destroyed" do
+    declared = "Rails.application.configure do\n  " \
+               "config.rails_semantic_logger.appenders { |a| a.add(io: $stdout) }\nend\n"
+    write("config/environments/development.rb", declared)
+
+    run_generator [], behavior: :revoke
+
+    assert_file "config/environments/development.rb", declared
   end
 
   test "leaves development alone when it already sends to OTLP" do
@@ -93,14 +195,6 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
     run_generator
 
     assert_file "config/environments/development.rb", configured
-  end
-
-  test "changes no other environment" do
-    write("config/environments/production.rb", DEVELOPMENT)
-
-    run_generator
-
-    assert_file "config/environments/production.rb", DEVELOPMENT
   end
 
   private

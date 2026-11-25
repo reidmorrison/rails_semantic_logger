@@ -85,18 +85,16 @@ module RailsSemanticLogger
       # own file loggers which would result in duplicate logging to the same log file
       Rails.logger = config.logger =
         begin
-          # The appenders the application declared, if any.
           if config.rails_semantic_logger.appenders?
+            # The application declared its own appenders; create those and skip the default file appender.
             RailsSemanticLogger.add_appenders(config.rails_semantic_logger.appenders)
-          end
-
-          if config.rails_semantic_logger.default_appenders?
+          else
             # The default file appender, log/<environment>.log, in color unless the application turned
-            # colorized logging off. Created after the declared ones, so that it is the internal logger.
+            # colorized logging off.
             path = config.paths["log"].first
             FileUtils.mkdir_p(File.dirname(path))
 
-            formatter = config.colorize_logging == false ? :default : {color: {ap: {multiline: false}}}
+            formatter = RailsSemanticLogger.default_file_formatter(colorize: config.colorize_logging != false)
 
             # Set internal logger to log to file only, in case another appender experiences errors during writes
             appender                       = SemanticLogger::Appender::File.new(path, formatter: formatter)
@@ -192,7 +190,7 @@ module RailsSemanticLogger
           config[:job_logger] = RailsSemanticLogger::Sidekiq::JobLogger
           RailsSemanticLogger::Sidekiq::JobLogger.metrics = Rails.application.config.rails_semantic_logger.metrics
 
-          # The declared server appenders, and the default screen appender (see .add_server_appenders)
+          # Add back the default console logger (unless the app declared its own appenders, or one exists)
           RailsSemanticLogger.add_server_appenders
 
           # Replace default error handler when present

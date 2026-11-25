@@ -5,14 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [6.0.0] - Unreleased
 
-- Add `appenders.add_defaults` to `config.rails_semantic_logger.appenders`, which keeps the default
-  log file and the default screen appenders of `rails server` and `rails console` alongside the
-  appenders the application declares. Without it, declaring any appender still replaces them.
+- `rails generate rails_semantic_logger:install`, from 5.4, converts the appender options that v6
+  removed. Setting one of them raises `NoMethodError`, which names the generator, except while
+  `rails generate` runs, so that the generator can load the application. In deployed environments the
+  block it writes also lists, commented out, text on stdout plus the logs and metrics over OTLP.
 - Add `rails generate rails_semantic_logger:observability`, which adds a local observability stack
   for development: an OpenTelemetry Collector, ClickHouse and Grafana in `compose.observability.yml`,
-  with Grafana's ClickHouse data source and the Rails, Jobs and Logs dashboards provisioned. It adds
-  the `:otlp` log appender and the `metric: :otlp` appender to `config/environments/development.rb`
-  only, and a `semantic_logger:traffic` task that sends sample data.
+  with Grafana's ClickHouse data source and the Rails, Jobs and Logs dashboards provisioned. It runs
+  `rails_semantic_logger:install`, then adds the `:otlp` log appender and the `metric: :otlp` appender
+  to the development appenders only, and a `semantic_logger:traffic` task that sends sample data.
 - Add a demo app in `demo/`, generated with `rails new` and the observability generator, that runs in
   Docker Compose with sample traffic. CI runs it end to end and checks that every dashboard panel
   returns data.

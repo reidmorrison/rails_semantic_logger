@@ -51,6 +51,8 @@ module RailsSemanticLogger
         ^[ \t]*(?:Rails\.application|[\w:]+::Application)\.configure\ do(?:[ \t]*\|\w+\|)?[ \t]*(?:\#.*)?\r?\n
         (?<comment>[ \t]*\#\ Settings\ specified\ here\ will\ take\ precedence.*\r?\n)?
       /x
+      # The start of an appenders block that more appenders can be added to.
+      APPENDERS_DO = /^(?<indent>[ \t]*)config\.rails_semantic_logger\.appenders\ do\ \|(?<name>\w+)\|[ \t]*\r?\n/
       # A line that loads the settings of another environment, such as `require_relative "production"`.
       LOADS_FILE = %r{\A\s*require(?:_relative)?\b.*["'](?:\./)?(?<name>\w+)(?:\.rb)?["']}
       # The start of the settings of config/application.rb.
@@ -133,6 +135,28 @@ module RailsSemanticLogger
       def sets_own_appenders?
         declares_appenders? ||
           @lines.each_index.any? { |index| appender_setting?(index) || @lines[index].match?(COLORIZE) }
+      end
+
+      # Whether the file sends to OTLP, through an OTLP log appender or metric appender.
+      def sends_to_otlp?
+        @lines.any? { |line| !comment?(line) && line.match?(/\b(?:appender|metric):\s*:otlp\b/) }
+      end
+
+      # Returns [String|nil] the text with lines added at the end of its appenders block, and `after` after
+      # the block, in the file's line endings, or nil when it has no `appenders do |name|` block. Yields
+      # the block's indentation and the name of its block variable, for the lines to add.
+      def with_appenders_added(after: "")
+        text  = @lines.join
+        start = text.match(APPENDERS_DO)
+        return unless start
+
+        indent = start[:indent]
+        close  = text.match(/^#{Regexp.escape(indent)}end\b.*\r?\n/, start.end(0))
+        return unless close
+
+        eol = start[0].end_with?("\r\n") ? "\r\n" : "\n"
+        lines = yield(indent, start[:name]).gsub(/\r?\n/, eol)
+        text[0...close.begin(0)] + lines + close[0] + after.gsub(/\r?\n/, eol) + text[close.end(0)..]
       end
 
       # Whether the file turns colorized logging off, which makes the default log file plain text.

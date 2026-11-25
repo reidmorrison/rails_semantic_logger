@@ -29,8 +29,7 @@ module RailsSemanticLogger
   #
   #     Unless the application declares its own appenders (see #appenders), Rails Semantic Logger
   #     writes to `log/<environment>.log`, in color unless `config.colorize_logging` is false, and to
-  #     the screen under `rails server`, Sidekiq in server mode, and `rails console`. An application
-  #     that declares its own can keep these with `appenders.add_defaults`.
+  #     the screen under `rails server`, Sidekiq in server mode, and `rails console`.
   #
   #     Note:
   #       When Semantic Logger fails to log to an appender it logs the error to an internal logger:
@@ -128,9 +127,22 @@ module RailsSemanticLogger
       end
     end
 
-    # The appender options that `config.rails_semantic_logger.appenders` replaces, deprecated, and
+    # The appender options that `config.rails_semantic_logger.appenders` replaces, deprecated in v5 and
     # removed in v6. `bin/rails generate rails_semantic_logger:install` converts them into appenders.
     DEPRECATED_APPENDER_OPTIONS = %i[format ap_options filter add_file_appender console_logger].freeze
+
+    # Setting one raises NoMethodError, naming the generator, except while that generator runs:
+    # `rails generate` loads config/application.rb, so raising there would keep it from rewriting it.
+    DEPRECATED_APPENDER_OPTIONS.each do |option|
+      define_method(:"#{option}=") do |_value|
+        next if self.class.generating?
+
+        raise NoMethodError,
+              "config.rails_semantic_logger.#{option} was removed in Rails Semantic Logger v6. Run " \
+              "`bin/rails generate rails_semantic_logger:install`, which replaces it with the appenders it " \
+              "stood for, in config.rails_semantic_logger.appenders."
+      end
+    end
 
     # Whether `rails generate` (or `rails destroy`) is running, which loads the application's
     # configuration to run a generator, such as rails_semantic_logger:install.
@@ -178,13 +190,7 @@ module RailsSemanticLogger
     #
     # Returns the underlying RailsSemanticLogger::Appenders collection. When at
     # least one appender has been declared, the default file appender and the default
-    # screen appenders of `rails server` and `rails console` are no longer created,
-    # unless the block also calls `appenders.add_defaults`, which keeps them:
-    #
-    #   config.rails_semantic_logger.appenders do |appenders|
-    #     appenders.add_defaults
-    #     appenders.add(appender: :otlp)
-    #   end
+    # screen appenders of `rails server` and `rails console` are no longer created.
     def appenders
       @appenders ||= RailsSemanticLogger::Appenders.new
       if block_given?
@@ -197,12 +203,6 @@ module RailsSemanticLogger
     # Whether the application declared its own appenders via #appenders.
     def appenders?
       defined?(@appenders) && @appenders.any?
-    end
-
-    # Whether Rails Semantic Logger creates its default appenders: when the application declared no
-    # appenders of its own, or declared them with `appenders.add_defaults`.
-    def default_appenders?
-      !appenders? || appenders.defaults?
     end
 
     # Marks that Rails Semantic Logger has already built its logger and the

@@ -26,12 +26,15 @@ module RailsSemanticLogger
       # colorize:    [true|false] whether colorized logging is on, as `config.colorize_logging` says.
       # screen:      [true|false] whether an appender that stays outside the block, such as one that
       #              config/application.rb adds, already writes to the screen.
-      def initialize(environment:, options: {}, appenders: [], colorize: true, screen: false)
-        @environment = environment
-        @options     = options
-        @appenders   = appenders
-        @colorize    = colorize
-        @screen      = screen
+      # observability: [true|false] whether development's block points to the observability generator,
+      #              which it does not when that generator is the one that runs.
+      def initialize(environment:, options: {}, appenders: [], colorize: true, screen: false, observability: true)
+        @environment   = environment
+        @options       = options
+        @appenders     = appenders
+        @colorize      = colorize
+        @screen        = screen
+        @observability = observability
       end
 
       # Returns [String] the block, indented for the `Rails.application.configure` block of the
@@ -51,6 +54,8 @@ module RailsSemanticLogger
       attr_reader :environment
 
       def development? = environment == "development"
+
+      def observability_hint? = development? && @observability
 
       def test? = environment == "test"
 

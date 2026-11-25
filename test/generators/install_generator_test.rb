@@ -125,13 +125,22 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     %w[production staging].each do |environment|
       assert_file "config/environments/#{environment}.rb" do |config|
         assert_includes config, "#   appenders.add(io: $stdout, formatter: :json)"
+        assert_includes config, "#   appenders.add(appender: :otlp)"
+        assert_includes config, "#   appenders.add(metric: :otlp)"
       end
     end
+  end
+
+  test "points development, only, to the observability generator, and lists no alternatives there" do
+    run_generator
+
     assert_file "config/environments/development.rb" do |config|
       refute_includes config, "formatter: :json"
+      assert_includes config, "#   bin/rails generate rails_semantic_logger:observability"
     end
     assert_file "config/environments/test.rb" do |config|
       refute_includes config, "formatter: :json"
+      refute_includes config, "observability"
     end
   end
 

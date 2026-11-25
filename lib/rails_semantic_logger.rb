@@ -137,9 +137,8 @@ module RailsSemanticLogger
   end
 
   # Create the appenders declared via `config.rails_semantic_logger.appenders` with
-  # `add_server`, then the default screen appender when the application declared no
-  # appenders of its own, or kept the defaults with `add_defaults`, and nothing writes
-  # to the screen yet.
+  # `add_server` (or the default console appender when the application declared no
+  # appenders of its own).
   #
   # Called automatically for the server contexts that have a first-party hook
   # (`rails server`, Sidekiq in server mode). App servers without such a hook (bare
@@ -150,26 +149,25 @@ module RailsSemanticLogger
   #   on_booted { RailsSemanticLogger.add_server_appenders }
   def self.add_server_appenders
     options = Rails.application.config.rails_semantic_logger
+    # The default screen appender, when the application declared no appenders of its own.
+    if !options.appenders? && !SemanticLogger.appenders.console_output?
+      SemanticLogger.add_appender(io: $stdout, formatter: :color)
+    end
+
     options.appenders.server.each { |args, block| add_declared_appender(args, &block) }
-
-    # The default screen appender, after the declared ones, so that it is not added beside a declared
-    # one that already writes to the screen.
-    return if !options.default_appenders? || SemanticLogger.appenders.console_output?
-
-    SemanticLogger.add_appender(io: $stdout, formatter: :color)
   end
 
   # Console (REPL) counterpart of .add_server_appenders, used by the `rails console`
-  # hook: the `add_console` declarations, then the default stderr console appender as
-  # .add_server_appenders adds its default.
+  # hook. When the application declared its own appenders, its `add_console`
+  # declarations apply; otherwise the default stderr console appender is added.
   def self.add_console_appenders
     options = Rails.application.config.rails_semantic_logger
+    # The default console appender, when the application declared no appenders of its own.
+    if !options.appenders? && !SemanticLogger.appenders.console_output?
+      SemanticLogger.add_appender(io: $stderr, formatter: :color)
+    end
+
     options.appenders.console.each { |args, block| add_declared_appender(args, &block) }
-
-    # The default console appender, after the declared ones (see .add_server_appenders).
-    return if !options.default_appenders? || SemanticLogger.appenders.console_output?
-
-    SemanticLogger.add_appender(io: $stderr, formatter: :color)
   end
 
   # Returns [Hash|Symbol] the formatter of the default log file, log/<environment>.log: in color,

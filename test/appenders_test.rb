@@ -34,19 +34,6 @@ class AppendersTest < Minitest::Test
       assert_equal 2, appenders.to_a.size
     end
 
-    describe "#add_defaults" do
-      it "records that the default appenders are kept, and declares no appender of its own" do
-        refute_predicate appenders, :defaults?
-
-        assert_same appenders, appenders.add_defaults
-        assert_predicate appenders, :defaults?
-        assert_predicate appenders, :any?
-        assert_empty appenders.to_a
-        assert_empty appenders.server
-        assert_empty appenders.console
-      end
-    end
-
     describe "#add_server" do
       it "keeps context declarations out of the init-time appenders" do
         appenders.add_server
@@ -158,28 +145,6 @@ class AppendersTest < Minitest::Test
       end
     end
 
-    describe "#default_appenders?" do
-      it "is true when the application declared no appenders" do
-        assert_predicate options, :default_appenders?
-      end
-
-      it "is false when the application declared its own appenders" do
-        options.appenders { |appenders| appenders.add(io: $stdout) }
-
-        refute_predicate options, :default_appenders?
-      end
-
-      it "is true when the application declared its own appenders and kept the defaults" do
-        options.appenders do |appenders|
-          appenders.add_defaults
-          appenders.add(io: $stdout)
-        end
-
-        assert_predicate options, :appenders?
-        assert_predicate options, :default_appenders?
-      end
-    end
-
     describe "the default file appender" do
       it "writes log/<environment>.log in color, with single-line Amazing Print" do
         appender = SemanticLogger.appenders.find do |app|
@@ -194,10 +159,35 @@ class AppendersTest < Minitest::Test
 
     describe "the appender options removed in v6" do
       %i[format ap_options filter console_logger add_file_appender].each do |option|
-        it "no longer accepts #{option}" do
-          assert_raises(NoMethodError) { options.public_send(:"#{option}=", nil) }
+        it "no longer accepts #{option}, naming the generator that replaces it" do
+          error = assert_raises(NoMethodError) { options.public_send(:"#{option}=", nil) }
+
+          assert_includes error.message, "bin/rails generate rails_semantic_logger:install"
           refute_respond_to options, option
         end
+      end
+
+      it "ignores them while `rails generate` runs, so that the install generator can boot the app" do
+        RailsSemanticLogger::Options.stub(:generating?, true) { options.format = :json }
+
+        refute_respond_to options, :format
+      end
+
+      it "counts `rails destroy` as a generator run, since it loads the application too" do
+        require "rails/command"
+        defined = Rails::Command.const_defined?(:DestroyCommand, false)
+        Rails::Command.const_set(:DestroyCommand, Class.new) unless defined
+
+        assert_predicate RailsSemanticLogger::Options, :generating?
+      ensure
+        Rails::Command.send(:remove_const, :DestroyCommand) unless defined
+      end
+    end
+
+    describe ".default_file_formatter" do
+      it "is the default log file's: single-line Amazing Print in color, or plain text" do
+        assert_equal({color: {ap: {multiline: false}}}, RailsSemanticLogger.default_file_formatter)
+        assert_equal :default, RailsSemanticLogger.default_file_formatter(colorize: false)
       end
     end
 
@@ -311,38 +301,6 @@ class AppendersTest < Minitest::Test
       end
 
       assert_predicate SemanticLogger.appenders, :console_output?
-    end
-
-    it "adds the default stdout appender as well when the app declared appenders with add_defaults" do
-      declared = RailsSemanticLogger::Appenders.new.add_defaults
-      declared.add_server(io: StringIO.new)
-
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:appenders?, true) do
-        options.stub(:appenders, declared) do
-          RailsSemanticLogger.add_server_appenders
-        end
-      end
-      added = SemanticLogger.appenders.to_a - @original_appenders
-
-      # The default stdout appender, and the declared one.
-      assert_equal 2, added.size
-      assert(added.all?(SemanticLogger::Appender::IO))
-    end
-
-    it "adds no default beside a declared screen appender when the app declared add_defaults" do
-      declared = RailsSemanticLogger::Appenders.new.add_defaults
-      declared.add_server
-
-      options = Rails.application.config.rails_semantic_logger
-      options.stub(:appenders?, true) do
-        options.stub(:appenders, declared) do
-          RailsSemanticLogger.add_server_appenders
-        end
-      end
-
-      # Only the declared stdout appender: each entry is written to the screen once.
-      assert_equal 1, (SemanticLogger.appenders.to_a - @original_appenders).size
     end
 
     it "adds no appender when the app owns appender config but declared no add_server" do

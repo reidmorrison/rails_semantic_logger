@@ -649,14 +649,73 @@ class InstallGeneratorTest < Rails::Generators::TestCase
     assert_file "config/environments/test.rb", /formatter: \{color: \{ap: \{multiline: false\}\}\}/
   end
 
-  test "leaves unchanged an environment that sets where the log file goes" do
-    production = ENVIRONMENT.sub("config.enable_reloading = true", 'config.paths["log"] = "/var/log/shop.log"')
-    write("config/environments/production.rb", production)
+  {
+    "assigned"                   => 'config.paths["log"] = "/var/log/shop.log"',
+    "without config"             => 'paths["log"] = "/var/log/shop.log"',
+    "through Rails.application"  => 'Rails.application.config.paths["log"] = "/var/log/shop.log"',
+    "unshifted"                  => 'config.paths["log"].unshift("/var/log/shop.log")',
+    "added"                      => 'config.paths.add "log", with: "/var/log/shop.log"',
+    "added over several lines"   => %(config.paths.add(\n    "log", with: "/var/log/shop.log"\n  )),
+    "added on the next line"     => %(config.paths\n    .add("log", with: "/var/log/shop.log")),
+    "globbed"                    => 'config.paths["log"].glob = "*.log"',
+    "tapped"                     => 'config.paths["log"].tap { |path| path.unshift("/var/log/shop.log") }',
+    "set inside a tap of paths"  => 'config.paths.tap { |paths| paths["log"] = "/var/log/shop.log" }',
+    "set inside a then of paths" => 'config.paths.then { |all| all["log"] = "/var/log/shop.log" }',
+    "set through a variable"     => %(all = config.paths\n  all["log"] = "/var/log/shop.log"),
+    "added through safe nav"     => 'config.paths&.add("log", with: "/var/log/shop.log")'
+  }.each do |how, setting|
+    test "leaves unchanged an environment that sets where the log file goes: #{how}" do
+      production = ENVIRONMENT.sub("config.enable_reloading = true", setting)
+      write("config/environments/production.rb", production)
+
+      output = run_generator
+
+      assert_includes output, "production.rb: left unchanged: it sets config.paths[\"log\"]"
+      assert_file "config/environments/production.rb", production
+    end
+  end
+
+  {
+    "a read"                     => 'config.x.log_file = config.paths["log"].first',
+    "a chained read"             => 'config.x.log_dir = File.dirname(config.paths["log"].expanded.first)',
+    "another path added"         => 'config.paths.add "app/services", eager_load: true',
+    "a comment that mentions it" => 'config.log_level = :info # the log file is config.paths["log"]',
+    "a block comment"            => %(config.x.a = 1\n=begin\nconfig.paths["log"] = "/var/log/shop.log"\n=end),
+    "another named path"         => 'config.paths["config/routes"] << "config/admin_routes.rb"',
+    "another read"               => 'config.x.log_dirs = config.paths["log"].existent_directories'
+  }.each do |what, line|
+    test "converts an environment whose file holds #{what} of the log path" do
+      write("config/environments/production.rb", ENVIRONMENT.sub("config.enable_reloading = true", line))
+
+      run_generator
+
+      assert_file "config/environments/production.rb", /config\.rails_semantic_logger\.appenders do/
+    end
+  end
+
+  test "follows the loads to an environment that sets where the log file goes" do
+    write("config/environments/staging.rb", %(require_relative "production"\n))
+    qa = %(require_relative "staging"\n\nRails.application.configure do\n  ) +
+         %(config.paths["log"] = "/var/log/qa.log"\nend\n)
+    write("config/environments/qa.rb", qa)
+    production = File.read(File.join(destination_root, "config/environments/production.rb"))
 
     output = run_generator
 
-    assert_includes output, "production.rb: left unchanged: it sets config.paths[\"log\"]"
+    assert_includes output, "production.rb: left unchanged: config/environments/qa.rb loads it " \
+                            "(through config/environments/staging.rb), and sets config.paths"
     assert_file "config/environments/production.rb", production
+  end
+
+  test "names the log path as the reason when the environment that loads this one sets it" do
+    staging = %(require_relative "production"\n\nRails.application.configure do\n  ) +
+              %(config.paths["log"] = "/var/log/staging.log"\nend\n)
+    write("config/environments/staging.rb", staging)
+
+    output = run_generator
+
+    assert_includes output, "production.rb: left unchanged: config/environments/staging.rb loads it, " \
+                            "and sets config.paths[\"log\"]"
   end
 
   test "reads the log file that config/application.rb sets, in each environment's block" do

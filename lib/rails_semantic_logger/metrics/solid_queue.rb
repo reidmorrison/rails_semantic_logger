@@ -5,6 +5,9 @@ module RailsSemanticLogger
     # Queue is a system of its own and no OpenTelemetry convention covers its operations, so it is
     # named under `solid_queue`. The jobs it runs are recorded by Active Job's metrics.
     class SolidQueue < Subscriber
+      # The logger of Solid Queue, whose name is the meter of its metrics.
+      LOGGER_NAME = "SolidQueue".freeze
+
       NAME = "solid_queue.operation.duration".freeze
 
       # The events that Solid Queue instruments, each "<event>.solid_queue".

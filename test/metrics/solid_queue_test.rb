@@ -3,6 +3,10 @@ require_relative "../test_helper"
 module Metrics
   class SolidQueueTest < Minitest::Test
     describe RailsSemanticLogger::Metrics::SolidQueue do
+      it "records through the logger of Solid Queue, whose name is the meter" do
+        assert_equal "SolidQueue", RailsSemanticLogger::Metrics::SolidQueue.logger.name
+      end
+
       let(:subscriber) { RailsSemanticLogger::Metrics::SolidQueue.new }
 
       def record(name, payload)

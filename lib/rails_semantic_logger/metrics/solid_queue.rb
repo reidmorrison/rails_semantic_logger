@@ -39,7 +39,8 @@ module RailsSemanticLogger
       # A recurring task that failed to enqueue its job reports only the message, as enqueue_error. The
       # error of fail_many_claimed is why the claimed jobs failed, not a failure of the operation.
       def failure_type(operation, payload)
-        return payload[:exception].first if payload[:exception]
+        raised = raised_error_type(payload)
+        return raised if raised
         return error_type(payload[:error]) if payload[:error].is_a?(Exception) && operation != "fail_many_claimed"
 
         "enqueue_error" if payload[:enqueue_error]

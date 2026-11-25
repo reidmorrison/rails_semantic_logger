@@ -57,7 +57,8 @@ module RailsSemanticLogger
         end
         operation = operation(payload[:sql])
         dimensions["db.operation.name"] = operation if operation
-        dimensions["error.type"] = payload[:exception].first if payload[:exception]
+        failure                  = raised_error_type(payload)
+        dimensions["error.type"] = failure if failure
         dimensions
       end
 

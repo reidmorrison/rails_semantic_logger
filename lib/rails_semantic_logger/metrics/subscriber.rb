@@ -81,6 +81,16 @@ module RailsSemanticLogger
         klass.name || "_OTHER"
       end
 
+      # The error.type of an event whose block raised, from the exception that Active Support adds to
+      # its payload, or nil when it did not raise. A payload that names the exception's class only,
+      # as :exception, is named by it, or "_OTHER" when the class has no name.
+      def raised_error_type(payload)
+        exception = payload[:exception_object]
+        return error_type(exception) if exception
+
+        payload[:exception] && (payload[:exception].first || "_OTHER")
+      end
+
       # Adds `amount`, one by default, to the counter `name`, of what is counted in `unit`, in the
       # notation of OpenTelemetry (UCUM), such as "{redirect}".
       def increment(name, unit, dimensions = nil, amount = 1)

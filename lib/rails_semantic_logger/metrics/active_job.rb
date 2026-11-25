@@ -126,7 +126,7 @@ module RailsSemanticLogger
         {
           "messaging.system.name"          => SYSTEM,
           "messaging.destination.name"     => job.queue_name.to_s,
-          "messaging.active_job.job.class" => job.class.name
+          "messaging.active_job.job.class" => class_name(job.class)
         }
       end
 

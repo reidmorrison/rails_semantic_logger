@@ -159,10 +159,35 @@ class AppendersTest < Minitest::Test
 
     describe "the appender options removed in v6" do
       %i[format ap_options filter console_logger add_file_appender].each do |option|
-        it "no longer accepts #{option}" do
-          assert_raises(NoMethodError) { options.public_send(:"#{option}=", nil) }
+        it "no longer accepts #{option}, naming the generator that replaces it" do
+          error = assert_raises(NoMethodError) { options.public_send(:"#{option}=", nil) }
+
+          assert_includes error.message, "bin/rails generate rails_semantic_logger:install"
           refute_respond_to options, option
         end
+      end
+
+      it "ignores them while `rails generate` runs, so that the install generator can boot the app" do
+        RailsSemanticLogger::Options.stub(:generating?, true) { options.format = :json }
+
+        refute_respond_to options, :format
+      end
+
+      it "counts `rails destroy` as a generator run, since it loads the application too" do
+        require "rails/command"
+        defined = Rails::Command.const_defined?(:DestroyCommand, false)
+        Rails::Command.const_set(:DestroyCommand, Class.new) unless defined
+
+        assert_predicate RailsSemanticLogger::Options, :generating?
+      ensure
+        Rails::Command.send(:remove_const, :DestroyCommand) unless defined
+      end
+    end
+
+    describe ".default_file_formatter" do
+      it "is the default log file's: single-line Amazing Print in color, or plain text" do
+        assert_equal({color: {ap: {multiline: false}}}, RailsSemanticLogger.default_file_formatter)
+        assert_equal :default, RailsSemanticLogger.default_file_formatter(colorize: false)
       end
     end
 

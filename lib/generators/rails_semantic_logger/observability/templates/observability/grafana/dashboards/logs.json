@@ -1,0 +1,212 @@
+{
+  "uid": "semantic-logger-logs",
+  "title": "Logs",
+  "description": "Search the log entries that Semantic Logger sends. Filter by text or by request id.",
+  "tags": [
+    "semantic_logger",
+    "rails"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 41,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "query": "SELECT DISTINCT ServiceName FROM otel.otel_logs WHERE Timestamp > now() - INTERVAL 1 DAY ORDER BY ServiceName",
+        "definition": "SELECT DISTINCT ServiceName FROM otel.otel_logs WHERE Timestamp > now() - INTERVAL 1 DAY ORDER BY ServiceName",
+        "refresh": 2,
+        "sort": 1,
+        "current": {}
+      },
+      {
+        "name": "search",
+        "label": "Search",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "value": ""
+        }
+      },
+      {
+        "name": "request_id",
+        "label": "Request id",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "value": ""
+        }
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Semantic Logger",
+      "type": "dashboards",
+      "tags": [
+        "semantic_logger"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Log volume by level",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(Timestamp) AS time, SeverityText AS level, count() AS entries\nFROM otel.otel_logs\nWHERE ServiceName = ${service:sqlstring} AND $__timeFilter(Timestamp)\n  AND (${search:sqlstring} = '' OR Body ILIKE concat('%', ${search:sqlstring}, '%')\n       OR LogAttributes['exception.message'] ILIKE concat('%', ${search:sqlstring}, '%'))\n  AND (${request_id:sqlstring} = '' OR LogAttributes['request_id'] = ${request_id:sqlstring})\nGROUP BY time, level\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "id": 1
+    },
+    {
+      "type": "table",
+      "title": "Errors by exception",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "table",
+          "format": 1,
+          "rawSql": "SELECT LogAttributes['exception.type'] AS exception, count() AS errors, max(Timestamp) AS last_seen,\n       any(LogAttributes['exception.message']) AS example_message\nFROM otel.otel_logs\nWHERE ServiceName = ${service:sqlstring} AND $__timeFilter(Timestamp)\n  AND (${search:sqlstring} = '' OR Body ILIKE concat('%', ${search:sqlstring}, '%')\n       OR LogAttributes['exception.message'] ILIKE concat('%', ${search:sqlstring}, '%'))\n  AND (${request_id:sqlstring} = '' OR LogAttributes['request_id'] = ${request_id:sqlstring}) AND SeverityNumber >= 17 AND LogAttributes['exception.type'] != ''\nGROUP BY exception\nORDER BY errors DESC\nLIMIT 20"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Error and fatal entries that carry an exception, by exception.type.",
+      "id": 2
+    },
+    {
+      "type": "table",
+      "title": "Top loggers",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "table",
+          "format": 1,
+          "rawSql": "SELECT ScopeName AS logger, count() AS entries,\n       countIf(SeverityNumber >= 13) AS warnings_and_errors\nFROM otel.otel_logs\nWHERE ServiceName = ${service:sqlstring} AND $__timeFilter(Timestamp)\n  AND (${search:sqlstring} = '' OR Body ILIKE concat('%', ${search:sqlstring}, '%')\n       OR LogAttributes['exception.message'] ILIKE concat('%', ${search:sqlstring}, '%'))\n  AND (${request_id:sqlstring} = '' OR LogAttributes['request_id'] = ${request_id:sqlstring})\nGROUP BY logger\nORDER BY entries DESC\nLIMIT 20"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Log entries by logger name, the instrumentation scope of each record.",
+      "id": 3
+    },
+    {
+      "type": "logs",
+      "title": "Log entries",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "logs",
+          "format": 2,
+          "rawSql": "SELECT Timestamp AS timestamp,\n       if(Body != '', Body, concat(LogAttributes['exception.type'], ': ', LogAttributes['exception.message'])) AS body,\n       SeverityText AS level, ScopeName AS logger,\n       LogAttributes AS attributes\nFROM otel.otel_logs\nWHERE ServiceName = ${service:sqlstring} AND $__timeFilter(Timestamp)\n  AND (${search:sqlstring} = '' OR Body ILIKE concat('%', ${search:sqlstring}, '%')\n       OR LogAttributes['exception.message'] ILIKE concat('%', ${search:sqlstring}, '%'))\n  AND (${request_id:sqlstring} = '' OR LogAttributes['request_id'] = ${request_id:sqlstring})\nORDER BY Timestamp DESC\nLIMIT 500"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "id": 4
+    }
+  ]
+}

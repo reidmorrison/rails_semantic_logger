@@ -1,0 +1,277 @@
+{
+  "uid": "semantic-logger-jobs",
+  "title": "Jobs",
+  "description": "Active Job throughput, failures, duration and queue time.",
+  "tags": [
+    "semantic_logger",
+    "rails"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 41,
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "query": "SELECT DISTINCT ServiceName FROM otel.otel_logs WHERE Timestamp > now() - INTERVAL 1 DAY ORDER BY ServiceName",
+        "definition": "SELECT DISTINCT ServiceName FROM otel.otel_logs WHERE Timestamp > now() - INTERVAL 1 DAY ORDER BY ServiceName",
+        "refresh": 2,
+        "sort": 1,
+        "current": {}
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Semantic Logger",
+      "type": "dashboards",
+      "tags": [
+        "semantic_logger"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Active Job",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "Jobs performed by class",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, Attributes['messaging.active_job.job.class'] AS job, sum(Count) / $__interval_s AS rate\nFROM otel.otel_metrics_exponential_histogram\nWHERE MetricName = 'messaging.process.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND Attributes['messaging.system.name'] = 'active_job'\nGROUP BY time, job\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Jobs performed per second, from messaging.process.duration.",
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "Failed jobs by error",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, Attributes['error.type'] AS error, sum(Count) / $__interval_s AS rate\nFROM otel.otel_metrics_exponential_histogram\nWHERE MetricName = 'messaging.process.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND Attributes['messaging.system.name'] = 'active_job' AND Attributes['error.type'] != ''\nGROUP BY time, error\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Jobs whose perform raised, per second, by error.type.",
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Job duration p95 by class",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT time, job, q[1] AS p95\nFROM (\n  SELECT $__timeInterval(TimeUnix) AS time, Attributes['messaging.active_job.job.class'] AS job,\n         quantilesExactWeighted(0.95)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) AS q\n  FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'messaging.process.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND c > 0 AND Attributes['messaging.system.name'] = 'active_job'\n  GROUP BY time, job\n)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue time p95 by queue",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT time, queue, q[1] AS p95\nFROM (\n  SELECT $__timeInterval(TimeUnix) AS time, Attributes['messaging.destination.name'] AS queue,\n         quantilesExactWeighted(0.95)(pow(2, (PositiveOffset + i - 1 + 0.5) * pow(2, -Scale)), c) AS q\n  FROM otel.otel_metrics_exponential_histogram\n  ARRAY JOIN PositiveBucketCounts AS c, arrayEnumerate(PositiveBucketCounts) AS i\n  WHERE MetricName = 'active_job.queue.duration' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix) AND c > 0\n  GROUP BY time, queue\n)\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "How long jobs waited between being due and starting, from active_job.queue.duration.",
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Jobs enqueued by class",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, Attributes['messaging.active_job.job.class'] AS job, sum(Value) / $__interval_s AS rate\nFROM otel.otel_metrics_sum\nWHERE MetricName = 'messaging.client.sent.messages' AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\nGROUP BY time, job\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Jobs enqueued per second, from the messaging.client.sent.messages counter.",
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Retries and discards",
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "format": 0,
+          "rawSql": "SELECT $__timeInterval(TimeUnix) AS time, MetricName AS metric, sum(Value) / $__interval_s AS rate\nFROM otel.otel_metrics_sum\nWHERE MetricName IN ('active_job.retries', 'active_job.exhausted_retries', 'active_job.discards')\n  AND ServiceName = ${service:sqlstring} AND $__timeFilter(TimeUnix)\nGROUP BY time, metric\nORDER BY time"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "active_job.retries, active_job.exhausted_retries and active_job.discards per second.",
+      "id": 7
+    }
+  ]
+}

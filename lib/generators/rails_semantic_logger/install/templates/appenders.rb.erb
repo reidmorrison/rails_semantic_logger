@@ -11,11 +11,22 @@
 <% end -%>
     <%= line("appenders.add_server(io: $stdout, formatter: :color)", active: screen?) %>
     <%= line("appenders.add_console(io: $stderr, formatter: :color)", active: screen?) %>
-<% if deployed? -%>
+<% if observability_hint? -%>
 
-    # Or, in a container (Docker, Kubernetes), replace the lines above with JSON on stdout, one line
-    # per entry, and no log file:
+    # To also send the logs and metrics to a local OpenTelemetry Collector, ClickHouse and Grafana:
+    #   bin/rails generate rails_semantic_logger:observability
+<% elsif deployed? -%>
+
+    # Or replace the lines above with one of these:
+    #
+    # A. Containers (Docker, Kubernetes): JSON on stdout, one line per entry, and no log file.
     #   appenders.add(io: $stdout, formatter: :json)
+    #
+    # B. Readable text on stdout, plus the logs and metrics over OTLP to an OpenTelemetry Collector
+    #    or agent, at OTEL_EXPORTER_OTLP_ENDPOINT, http://localhost:4318 by default.
+    #   appenders.add(io: $stdout, formatter: :default)
+    #   appenders.add(appender: :otlp)
+    #   appenders.add(metric: :otlp)
 <% end -%>
   end
 

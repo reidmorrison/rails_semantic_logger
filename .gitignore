@@ -19,5 +19,5 @@ TODO.md
 test/dummy/db/test.sqlite3
 mise.toml
 
-# Scratch output of the generator tests
+# Scratch output of the generator tests and the demo
 /tmp/

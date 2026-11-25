@@ -36,6 +36,10 @@ module RailsSemanticLogger
       EMPTY        = "its appenders block would declare no appender, so the engine would create its " \
                      "default appenders instead".freeze
 
+      # Set by the observability generator, which adds the OTLP appenders that the hint points to.
+      class_option :observability_hint, type: :boolean, default: true, hide: true,
+                                        desc: "Point development's appenders to the observability generator"
+
       desc "Remove the Rails logger settings that Rails Semantic Logger ignores, and list each " \
            "environment's appenders in config.rails_semantic_logger.appenders."
 
@@ -124,19 +128,26 @@ module RailsSemanticLogger
         reason = unlistable(plan, settings, app_result)
         return plan.tap { plan.reason = reason } if reason
 
-        block = AppendersBlock.new(
-          environment: File.basename(plan.path, ".rb"),
-          options:     app_result.options.merge(result.options),
-          appenders:   app_result.appenders + result.appenders,
-          colorize:    !(@application.colorize_logging_off? || settings.colorize_logging_off?),
-          screen:      screen || LoggerSettings.new(result.text).adds_screen_appender?
-        )
+        block = appenders_block(plan, settings, app_result, screen)
         return plan.tap { plan.reason = EMPTY } if block.empty?
 
         text = LoggerSettings.new(result.text).with_block(block.to_s)
         return plan.tap { plan.reason = NO_CONFIGURE } unless text && Ripper.sexp(text)
 
         plan.tap { plan.text = text }
+      end
+
+      # The environment's appenders block, from its settings and those of config/application.rb.
+      def appenders_block(plan, settings, app_result, screen)
+        result = plan.result
+        AppendersBlock.new(
+          environment:   File.basename(plan.path, ".rb"),
+          options:       app_result.options.merge(result.options),
+          appenders:     app_result.appenders + result.appenders,
+          colorize:      !(@application.colorize_logging_off? || settings.colorize_logging_off?),
+          screen:        screen || LoggerSettings.new(result.text).adds_screen_appender?,
+          observability: options[:observability_hint]
+        )
       end
 
       def apply(plan, app_result)

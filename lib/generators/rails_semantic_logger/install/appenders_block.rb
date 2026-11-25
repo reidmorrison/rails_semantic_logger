@@ -20,18 +20,35 @@ module RailsSemanticLogger
     class AppendersBlock
       TEMPLATE = File.expand_path("templates/appenders.rb.erb", __dir__)
 
+      # The lines of development's block that point to the observability generator (see the template),
+      # with the blank line above them.
+      OBSERVABILITY_HINT = %r{
+        ^[ \t]*\r?\n
+        [ \t]*\#\ To\ also\ send\ the\ logs\ and\ metrics\ to\ a\ local\ OpenTelemetry\ Collector.*\r?\n
+        [ \t]*\#\ \ \ bin/rails\ generate\ rails_semantic_logger:observability[ \t]*\r?\n
+      }x
+
+      # Returns [String] the text of an environment's file without the lines of its block that point to
+      # the observability generator, for that generator once it has run.
+      def self.without_observability_hint(text)
+        text.sub(OBSERVABILITY_HINT, "")
+      end
+
       # environment: [String] such as "production", from the name of the environment's file.
       # options:     [Hash] the value of each deprecated appender option, by name, as Ruby source (see LoggerSettings).
       # appenders:   [Array<String>] the arguments of each appender the application added itself.
       # colorize:    [true|false] whether colorized logging is on, as `config.colorize_logging` says.
       # screen:      [true|false] whether an appender that stays outside the block, such as one that
       #              config/application.rb adds, already writes to the screen.
-      def initialize(environment:, options: {}, appenders: [], colorize: true, screen: false)
-        @environment = environment
-        @options     = options
-        @appenders   = appenders
-        @colorize    = colorize
-        @screen      = screen
+      # observability: [true|false] whether development's block points to the observability generator,
+      #              which it does not when that generator is the one that runs.
+      def initialize(environment:, options: {}, appenders: [], colorize: true, screen: false, observability: true)
+        @environment   = environment
+        @options       = options
+        @appenders     = appenders
+        @colorize      = colorize
+        @screen        = screen
+        @observability = observability
       end
 
       # Returns [String] the block, indented for the `Rails.application.configure` block of the
@@ -51,6 +68,8 @@ module RailsSemanticLogger
       attr_reader :environment
 
       def development? = environment == "development"
+
+      def observability_hint? = development? && @observability
 
       def test? = environment == "test"
 

@@ -66,3 +66,47 @@ jobs:
 
       - name: Run RuboCop
         run: bundle exec rubocop
+
+  demo:
+    # End-to-end test of the observability generator: builds the demo app with `rails new` and the
+    # generator, runs it with the generator's Collector, ClickHouse and Grafana stack, sends traffic,
+    # then checks that every dashboard panel returns rows through Grafana.
+    name: Demo end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Start the demo
+        run: docker compose -f demo/compose.yml up --build --detach --wait app clickhouse otel-collector grafana
+
+      - name: Wait for Grafana
+        run: |
+          for attempt in $(seq 1 60); do
+            curl --silent --fail http://localhost:3001/api/health && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Send traffic
+        run: |
+          docker compose -f demo/compose.yml up --detach traffic
+          docker compose -f demo/compose.yml run --rm traffic bin/rails demo:spike
+          docker compose -f demo/compose.yml run --rm traffic bin/rails demo:errors
+          # The app sends its metrics every 10 seconds; give it several intervals.
+          sleep 45
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Check every dashboard panel
+        run: ruby demo/check_dashboards.rb lib/generators/rails_semantic_logger/observability/templates/observability/grafana/dashboards demo
+
+      - name: Show the logs of each service
+        if: failure()
+        run: docker compose -f demo/compose.yml logs --no-color --tail 200
+
+      - name: Stop the demo
+        if: always()
+        run: docker compose -f demo/compose.yml down --volumes

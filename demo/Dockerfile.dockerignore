@@ -1,0 +1,7 @@
+.git
+tmp
+gemfiles
+test
+pkg
+*.gem
+Gemfile.lock

@@ -1,0 +1,43 @@
+# The Rails Semantic Logger demo: a generated Rails app, sample traffic, and the observability stack
+# that `rails generate rails_semantic_logger:observability` writes. Needs only Docker.
+#
+#   docker compose -f demo/compose.yml up --build -d
+#   open http://localhost:3001       # Grafana
+#
+#   docker compose -f demo/compose.yml run --rm traffic bin/rails demo:spike
+#   docker compose -f demo/compose.yml run --rm traffic bin/rails demo:errors
+name: rails-semantic-logger-demo
+
+include:
+  # The generator's own stack, so that the demo always runs what users get.
+  - ../lib/generators/rails_semantic_logger/observability/templates/compose.observability.yml
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile
+    image: rails-semantic-logger-demo
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - otel-collector
+    healthcheck:
+      test: ["CMD", "ruby", "-rnet/http", "-e", "exit Net::HTTP.get_response(URI('http://localhost:3000/up')).is_a?(Net::HTTPSuccess)"]
+      interval: 30s
+      start_period: 120s
+      start_interval: 2s
+
+  traffic:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile
+    image: rails-semantic-logger-demo
+    command: ["bin/rails", "demo:traffic"]
+    environment:
+      APP_URL: http://app:3000
+    depends_on:
+      app:
+        condition: service_healthy

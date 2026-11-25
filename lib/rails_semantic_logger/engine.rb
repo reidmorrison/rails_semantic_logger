@@ -94,7 +94,7 @@ module RailsSemanticLogger
             path = config.paths["log"].first
             FileUtils.mkdir_p(File.dirname(path))
 
-            formatter = config.colorize_logging == false ? :default : {color: {ap: {multiline: false}}}
+            formatter = RailsSemanticLogger.default_file_formatter(colorize: config.colorize_logging != false)
 
             # Set internal logger to log to file only, in case another appender experiences errors during writes
             appender                       = SemanticLogger::Appender::File.new(path, formatter: formatter)

@@ -72,6 +72,7 @@ module RailsSemanticLogger
       # Time every request for http.server.request.duration. First in the stack, so that it sees every
       # request, and since an application can delete any other middleware.
       if config.rails_semantic_logger.metrics
+        RailsSemanticLogger::Metrics.declare_dimension_keys
         config.middleware.unshift(RailsSemanticLogger::Rack::Metrics)
 
         # The metrics of each Rails component, recorded whatever is logged. Decided here, with the

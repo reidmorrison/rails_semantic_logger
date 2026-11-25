@@ -8,6 +8,9 @@ module RailsSemanticLogger
       # The logger of Solid Queue, whose name is the meter of its metrics.
       LOGGER_NAME = "SolidQueue".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[solid_queue.operation.name error.type].freeze
+
       NAME = "solid_queue.operation.duration".freeze
 
       # The events that Solid Queue instruments, each "<event>.solid_queue".

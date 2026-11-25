@@ -6,6 +6,9 @@ module RailsSemanticLogger
       # The logger of Active Support's cache, whose name is the meter of its metrics.
       LOGGER_NAME = "ActiveSupport::Cache::Store".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[rails.cache.operation.name rails.cache.store rails.cache.hit].freeze
+
       NAME = "rails.cache.operation.duration".freeze
 
       # The cache events that Active Support instruments, each "<event>.active_support".

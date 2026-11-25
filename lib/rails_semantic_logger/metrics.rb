@@ -28,5 +28,29 @@ module RailsSemanticLogger
       Cache.attach_to(:active_support)
       SolidQueue.attach_to(:solid_queue)
     end
+
+    # The recorders of the Rails metrics, each of which names the dimension keys it records.
+    RECORDERS = %w[
+      RailsSemanticLogger::Rack::Metrics RailsSemanticLogger::Metrics::ActionController
+      RailsSemanticLogger::Metrics::ActionView RailsSemanticLogger::Metrics::ActiveRecord
+      RailsSemanticLogger::Metrics::ActiveJob RailsSemanticLogger::Metrics::ActionMailer
+      RailsSemanticLogger::Metrics::Cache RailsSemanticLogger::Metrics::SolidQueue
+      RailsSemanticLogger::Sidekiq::JobLogger
+    ].freeze
+
+    # Declares the dimension keys of the Rails metrics safe from SemanticLogger.sensitive_keys, which
+    # Rails Semantic Logger fills from config.filter_parameters, and which match keys by substring: an
+    # application that filters :name or :type would otherwise redact messaging.destination.name and
+    # error.type, merging every series of a metric into one. Called by the engine before it creates the
+    # appenders, since a metric appender keeps the redaction of what it already holds.
+    def self.declare_dimension_keys
+      SemanticLogger.safe_dimension_keys |= dimension_keys
+    end
+
+    # Returns [Array<String>] the dimension keys that the Rails metrics record.
+    def self.dimension_keys
+      RECORDERS.flat_map { |recorder| Object.const_get(recorder)::DIMENSION_KEYS }.uniq
+    end
+
   end
 end

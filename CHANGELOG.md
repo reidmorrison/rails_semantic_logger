@@ -109,6 +109,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   seconds of every operation Solid Queue instruments, by `solid_queue.operation.name` (`claim`,
   `start_process`, ...) and `error.type`, whatever level it is logged at. The log entries no longer
   carry a `metric`.
+- Requires Semantic Logger `~> 6.0`.
+- The Rails metrics declare their dimension keys with `SemanticLogger.safe_dimension_keys`, so that
+  an application whose `config.filter_parameters` holds `:name` or `:type`, which match keys by
+  substring, no longer redacts `messaging.destination.name` or `error.type`, merging every series of
+  a metric into one.
+- Each counter has a unit: `{redirect}`, `{callback}`, `{exception}`, `{event}`, `{message}`, `{retry}`,
+  `{job}`, `{interrupt}`, and `{resume}`.
+- Without a metric appender the Rails metrics do no work, not even building their dimensions: each
+  recorder asks `collecting_metrics?` first.
 
 ## [5.3.0] - 2026-11-20
 

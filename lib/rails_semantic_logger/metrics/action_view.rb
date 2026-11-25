@@ -7,6 +7,9 @@ module RailsSemanticLogger
       # The logger of Action View, whose name is the meter of its metrics.
       LOGGER_NAME = "ActionView::Base".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[rails.action_view.render.kind rails.action_view.template].freeze
+
       NAME = "rails.action_view.render.duration".freeze
 
       # The directory that holds the templates, of the application, a gem, or an engine.

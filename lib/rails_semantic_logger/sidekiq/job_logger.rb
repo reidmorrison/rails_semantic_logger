@@ -30,6 +30,12 @@ module RailsSemanticLogger
       # How long a job ran: OpenTelemetry's messaging convention for processing a message.
       PROCESS_DURATION = "messaging.process.duration".freeze
 
+      # The dimensions it records, which no sensitive key redacts (see Metrics.declare_dimension_keys).
+      DIMENSION_KEYS = %w[
+        messaging.system.name messaging.destination.name messaging.operation.name messaging.sidekiq.job.class
+        error.type
+      ].freeze
+
       def call(item, queue, &block)
         klass  = item["wrapped"] || item["class"]
         logger = klass ? SemanticLogger[klass] : Sidekiq.logger

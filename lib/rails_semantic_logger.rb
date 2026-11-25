@@ -154,9 +154,7 @@ module RailsSemanticLogger
       SemanticLogger.add_appender(io: $stdout, formatter: :color)
     end
 
-    options.appenders.server.each do |args, block|
-      SemanticLogger.add_appender(**args, &block)
-    end
+    options.appenders.server.each { |args, block| add_declared_appender(args, &block) }
   end
 
   # Console (REPL) counterpart of .add_server_appenders, used by the `rails console`
@@ -169,9 +167,14 @@ module RailsSemanticLogger
       SemanticLogger.add_appender(io: $stderr, formatter: :color)
     end
 
-    options.appenders.console.each do |args, block|
-      SemanticLogger.add_appender(**args, &block)
-    end
+    options.appenders.console.each { |args, block| add_declared_appender(args, &block) }
+  end
+
+  # Returns [Hash|Symbol] the formatter of the default log file, log/<environment>.log: in color,
+  # with single-line Amazing Print, or plain text when the application turned colorized logging off. The
+  # rails_semantic_logger:install generator writes it into the appenders it lists.
+  def self.default_file_formatter(colorize: true)
+    colorize ? {color: {ap: {multiline: false}}} : :default
   end
 
   # Create each appender declared via `config.rails_semantic_logger.appenders`.
@@ -180,7 +183,7 @@ module RailsSemanticLogger
   def self.add_appenders(appenders)
     internal_logger = nil
     appenders.each do |args, block|
-      appender = SemanticLogger.add_appender(**args, &block)
+      appender = add_declared_appender(args, &block)
       internal_logger ||= appender if appender.is_a?(SemanticLogger::Appender::File)
     end
     SemanticLogger.internal_logger = internal_logger if internal_logger
@@ -191,6 +194,14 @@ module RailsSemanticLogger
   def self.give_logger(load_hook, logger)
     ActiveSupport.on_load(load_hook) { self.logger = logger if self.logger.equal?(::Rails.logger) }
   end
+
+  # Adds one declared appender, creating the directory of its log file, if any, as the engine does for
+  # the default log file, log/<environment>.log, since Semantic Logger's file appender does not.
+  def self.add_declared_appender(args, &)
+    FileUtils.mkdir_p(File.dirname(args[:file_name].to_s)) if args[:file_name]
+    SemanticLogger.add_appender(**args, &)
+  end
+  private_class_method :add_declared_appender
 
   # Swap an existing subscriber with a new one
   def self.swap_subscriber(old_class, new_class, notifier)

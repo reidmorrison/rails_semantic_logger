@@ -38,7 +38,7 @@ module RailsSemanticLogger
 
       def call(item, queue, &block)
         klass  = item["wrapped"] || item["class"]
-        logger = klass ? SemanticLogger[klass] : Sidekiq.logger
+        logger = klass ? SemanticLogger[klass] : ::Sidekiq.logger
 
         SemanticLogger.tagged(queue: queue) do
           # Nil while no metric appender collects the metrics, so that the job's metrics cost nothing.

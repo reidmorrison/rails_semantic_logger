@@ -127,6 +127,16 @@ module RailsSemanticLogger
       end
     end
 
+    # The appender options that `config.rails_semantic_logger.appenders` replaces, deprecated, and
+    # removed in v6. `bin/rails generate rails_semantic_logger:install` converts them into appenders.
+    DEPRECATED_APPENDER_OPTIONS = %i[format ap_options filter add_file_appender console_logger].freeze
+
+    # Whether `rails generate` (or `rails destroy`) is running, which loads the application's
+    # configuration to run a generator, such as rails_semantic_logger:install.
+    def self.generating?
+      defined?(::Rails::Command::GenerateCommand) || defined?(::Rails::Command::DestroyCommand) ? true : false
+    end
+
     # Setup default values
     def initialize
       @semantic                   = true

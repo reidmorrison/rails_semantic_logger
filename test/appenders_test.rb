@@ -376,5 +376,24 @@ class AppendersTest < Minitest::Test
       SemanticLogger.internal_logger = original_internal
       FileUtils.remove_entry(dir) if dir
     end
+
+    it "creates the directory of a declared log file, as it does for the default log file" do
+      dir  = Dir.mktmpdir
+      path = File.join(dir, "log", "custom.log")
+
+      appenders = RailsSemanticLogger::Appenders.new
+      appenders.add(file_name: path, formatter: :default)
+      original_internal = SemanticLogger.internal_logger
+
+      RailsSemanticLogger.add_appenders(appenders)
+      added = SemanticLogger.appenders.to_a.last
+
+      assert File.directory?(File.join(dir, "log"))
+      assert_equal path, added.file_name
+    ensure
+      SemanticLogger.remove_appender(added) if added
+      SemanticLogger.internal_logger = original_internal
+      FileUtils.remove_entry(dir) if dir
+    end
   end
 end

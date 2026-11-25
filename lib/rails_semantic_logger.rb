@@ -236,3 +236,4 @@ end
 
 require("rails_semantic_logger/extensions/mongoid/config") if defined?(Mongoid)
 require("rails_semantic_logger/extensions/active_support/logger") if defined?(ActiveSupport::Logger)
+require("rails_semantic_logger/extensions/action_view/structured_event_start")

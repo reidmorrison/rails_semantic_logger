@@ -194,6 +194,26 @@ class RackMetricsTest < Minitest::Test
       metric.dimensions["http.route"]
     end
 
+    it "records an engine's new mount once Rails has drawn the routes again" do
+      mounted = engine
+      routes.draw { mount mounted, at: "/blog" }
+
+      assert_equal "/blog/posts/:id", route_of("/blog/posts/5")
+
+      routes.draw { mount mounted, at: "/journal" }
+      RailsSemanticLogger::Rack::Metrics.routes_drawn!
+
+      assert_equal "/journal/posts/:id", route_of("/journal/posts/5")
+    end
+
+    it "counts the times that Rails has drawn the routes" do
+      drawn = RailsSemanticLogger::Rack::Metrics.routes_drawn
+
+      ActiveSupport.run_load_hooks(:after_routes_loaded, Rails.application)
+
+      assert_equal drawn + 1, RailsSemanticLogger::Rack::Metrics.routes_drawn
+    end
+
     it "records an engine mounted at the root by its own template" do
       mounted = engine
       routes.draw { mount mounted, at: "/" }

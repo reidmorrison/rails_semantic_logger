@@ -28,9 +28,25 @@ module RailsSemanticLogger
       # instrumentation leaves out of http.route too.
       FORMAT_SEGMENT = "(.:format)".freeze
 
+      # Rails draws the routes again as it reloads them, as in development, into the same route sets,
+      # so the routes that each middleware keeps are dropped once it has: this counts the times it has.
+      @routes_drawn = Concurrent::AtomicFixnum.new
+
+      class << self
+        # The times that Rails has drawn the routes.
+        def routes_drawn
+          @routes_drawn.value
+        end
+
+        # Called each time that Rails has drawn the routes.
+        def routes_drawn!
+          @routes_drawn.increment
+        end
+      end
+
       def initialize(app)
         @app    = app
-        @mounts = Concurrent::Map.new
+        @mounts = [self.class.routes_drawn, Concurrent::Map.new]
       end
 
       # Times nothing while no metric appender collects the metrics.
@@ -49,9 +65,20 @@ module RailsSemanticLogger
         RailsSemanticLogger::Rack::Logger.logger
       end
 
+      # The routes that it keeps (see Arrival), as long as Rails has not drawn them again since: a
+      # request that reads them while another replaces them keeps the ones that it read, which were
+      # current when it arrived.
+      def mounts
+        drawn, mounts = @mounts
+        current       = self.class.routes_drawn
+        return mounts if drawn == current
+
+        (@mounts = [current, Concurrent::Map.new]).last
+      end
+
       def timed_call(env)
         start                 = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-        arrival               = Arrival.new(env, @mounts)
+        arrival               = Arrival.new(env, mounts)
         status, headers, body = @app.call(env)
         # A hijacked connection, such as a WebSocket, has no HTTP response to time.
         return [status, headers, body] if status.to_i < 100
@@ -216,3 +243,5 @@ module RailsSemanticLogger
     end
   end
 end
+
+ActiveSupport.on_load(:after_routes_loaded) { RailsSemanticLogger::Rack::Metrics.routes_drawn! }

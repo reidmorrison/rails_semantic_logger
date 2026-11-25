@@ -63,6 +63,22 @@ class AppendersTest < Minitest::Test
         assert_equal({formatter: :json, io: $stderr, level: :warn}, appenders.server.first[0])
       end
 
+      it "gives a metric appender, an appender instance, or a logger no formatter" do
+        appender = SemanticLogger::Appender::IO.new($stdout)
+        logger   = Logger.new($stdout)
+        appenders.add_server(metric: :otlp)
+        appenders.add_server(appender: appender)
+        appenders.add_server(logger: logger)
+
+        assert_equal([{metric: :otlp}, {appender: appender}, {logger: logger}], appenders.server.map(&:first))
+      end
+
+      it "gives a file the :color formatter by default" do
+        appenders.add_server(file_name: "log/server.log")
+
+        assert_equal({formatter: :color, file_name: "log/server.log"}, appenders.server.first[0])
+      end
+
       it "is chainable and accumulates" do
         result = appenders.add_server.add_server(file_name: "log/server.log")
 

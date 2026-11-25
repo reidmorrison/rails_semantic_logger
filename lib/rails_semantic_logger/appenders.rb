@@ -29,6 +29,9 @@ module RailsSemanticLogger
     # supplied to #add_server / #add_console, the context's default stream is used.
     DESTINATIONS = %i[io file_name appender logger metric].freeze
 
+    # The destinations that take the default formatter: a stream or a file.
+    FORMATTED_DESTINATIONS = %i[io file_name].freeze
+
     def initialize
       @definitions = []
       @server      = []
@@ -49,8 +52,8 @@ module RailsSemanticLogger
     # generators), so it only appears where it is useful.
     #
     # Accepts the same arguments (and optional block) as SemanticLogger.add_appender.
-    # When no destination is given it defaults to `$stdout`; the formatter defaults
-    # to `:color`.
+    # When no destination is given it defaults to `$stdout`; the formatter of a
+    # stream or a file defaults to `:color`.
     def add_server(**args, &block)
       @server << [defaults(args, io: $stdout), block]
       self
@@ -81,10 +84,14 @@ module RailsSemanticLogger
     private
 
     # Apply the context default stream and formatter, without overriding a
-    # destination (io/file_name/...) the caller already supplied.
+    # destination (io/file_name/...) the caller already supplied. Colored text is
+    # meant for a screen or a file that a person reads, so only a stream or a file
+    # gets the default formatter; any other destination keeps its own. (A metric
+    # appender also refuses one, with an ArgumentError.)
     def defaults(args, io:)
-      args = {formatter: :color}.merge(args)
+      args      = args.dup
       args[:io] = io unless DESTINATIONS.any? { |key| args.key?(key) }
+      args[:formatter] = :color if !args.key?(:formatter) && FORMATTED_DESTINATIONS.any? { |key| args.key?(key) }
       args
     end
   end

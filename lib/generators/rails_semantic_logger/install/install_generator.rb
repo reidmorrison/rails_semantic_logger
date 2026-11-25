@@ -32,6 +32,7 @@ module RailsSemanticLogger
                      "or adding them would not be valid Ruby".freeze
       UNMOVED      = "an appenders block would override or repeat the settings left in place: " \
                      "move them into config.rails_semantic_logger.appenders".freeze
+      LOG_PATH     = "it sets config.paths[\"log\"], which its appenders block would read before it is set".freeze
       EMPTY        = "its appenders block would declare no appender, so the engine would create its " \
                      "default appenders instead".freeze
 
@@ -81,27 +82,51 @@ module RailsSemanticLogger
         plan_block(Plan.new(path: path, result: result, declared: false), settings, app_result, screen)
       end
 
+      # Why the environment cannot take an appenders block, if it cannot: settings that stay in place,
+      # in its file or another that it shares, would be overridden by the block, or read too late.
+      def unlistable(plan, settings, app_result)
+        return UNMOVED if (app_result.unmoved + plan.result.unmoved).any?
+        return LOG_PATH if settings.sets_log_path?
+
+        loader, *through = loader_with_own_appenders(plan.path)
+        return unless loader
+
+        loads = through.empty? ? "#{loader} loads it" : "#{loader} loads it (through #{through.join(', ')})"
+        if settings(loader).sets_log_path?
+          return "#{loads}, and sets config.paths[\"log\"] after its appenders block would read it"
+        end
+
+        "#{loads}, and an appenders block would override its settings"
+      end
+
       # The environment whose file loads this one's and keeps settings that this one's appenders block
       # would override or repeat, if any, such as a staging.rb that requires production.rb and sets
       # `config.rails_semantic_logger.format`.
-      def loader_with_own_appenders(path)
-        name = File.basename(path, ".rb")
-        (environments - [path]).find do |other|
-          settings = settings(other)
-          settings.loads_environment?([name]) && settings.sets_own_appenders?
+      # Follows the loads, so that a qa.rb that loads staging.rb, which loads production.rb, counts.
+      # Returns [Array<String>|nil] the loader, then the environments it loads this one through, if any,
+      # such as ["config/environments/qa.rb", "config/environments/staging.rb"].
+      def loader_with_own_appenders(path, seen = [path])
+        loaders(path, seen).each do |loader|
+          return [loader] if settings(loader).sets_own_appenders?
+
+          chain = loader_with_own_appenders(loader, seen << loader)
+          return chain << loader if chain
         end
+        nil
+      end
+
+      # The other environments whose file loads this one's.
+      def loaders(path, seen)
+        name = File.basename(path, ".rb")
+        (environments - seen).select { |other| settings(other).loads_environment?([name]) }
       end
 
       # Returns the plan with the text of the environment's file with its appenders block, or with the
       # reason it cannot take one.
       def plan_block(plan, settings, app_result, screen)
         result = plan.result
-        return plan.tap { plan.reason = UNMOVED } if (app_result.unmoved + result.unmoved).any?
-
-        loader = loader_with_own_appenders(plan.path)
-        if loader
-          return plan.tap { plan.reason = "#{loader} loads it, and an appenders block would override its settings" }
-        end
+        reason = unlistable(plan, settings, app_result)
+        return plan.tap { plan.reason = reason } if reason
 
         block = appenders_block(plan, settings, app_result, screen)
         return plan.tap { plan.reason = EMPTY } if block.empty?

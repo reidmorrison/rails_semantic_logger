@@ -43,7 +43,8 @@ module RailsSemanticLogger
       private
 
       # The logger of Rack, whose requests it measures, which Rack::Logger owns: the one instance through
-      # which the requests are logged too. The name of the logger that records a metric is its meter.
+      # which the requests are logged too, while `config.rails_semantic_logger.semantic` puts Rack::Logger
+      # in place of Rails' own. The name of the logger that records a metric is its meter.
       def logger
         RailsSemanticLogger::Rack::Logger.logger
       end

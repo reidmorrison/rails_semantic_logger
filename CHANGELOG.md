@@ -139,8 +139,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   a controller without a logger of its own, such as an `ActionController::Metal` one, are named after
   it rather than `Rails`, and `Rails.logger.level` no longer applies to them: set their own logger's
   level. A controller under `ActionController::Base` already logged through its own logger.
-- The cache store gets the logger `ActiveSupport::Cache::Store`, through which Rails also logs each
-  cache operation at `:debug`.
+- The cache store gets the logger `ActiveSupport::Cache::Store`, a `SemanticLogger::DebugAsTraceLogger`.
+  Rails logs each cache operation through it, such as `Cache read: <key>`, which it logs at `:trace`
+  rather than `:debug`, so that these lines appear only at `:trace`. The errors that a cache store
+  swallows, such as a Redis or Memcached one, are now logged at `:error`.
 - With `replace_solid_queue_logger = false`, no Solid Queue metrics are recorded, as no Sidekiq ones
   are with `replace_sidekiq_logger = false`: they are recorded through its logger.
 - Action View: the `Rendering` entry of a template rendered within a layout includes the layout,

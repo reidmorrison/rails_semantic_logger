@@ -30,6 +30,27 @@ module Metrics
                      loggers.values.first(6).map(&:name)
       end
 
+      it "attaches every subscriber, and Solid Queue's only when told to" do
+        attached = []
+        stubbed  = []
+        RailsSemanticLogger::Metrics::SUBSCRIBERS.each_key do |name|
+          subscriber = RailsSemanticLogger::Metrics.const_get(name)
+          subscriber.define_singleton_method(:attach_to) { |namespace| attached << [name, namespace] }
+          stubbed << subscriber
+        end
+
+        RailsSemanticLogger::Metrics.attach(solid_queue: false)
+
+        assert_equal RailsSemanticLogger::Metrics::SUBSCRIBERS.except("SolidQueue").to_a, attached
+
+        attached.clear
+        RailsSemanticLogger::Metrics.attach
+
+        assert_equal RailsSemanticLogger::Metrics::SUBSCRIBERS.to_a, attached
+      ensure
+        stubbed.each { |subscriber| subscriber.singleton_class.send(:remove_method, :attach_to) }
+      end
+
       it "keeps a dimension key that a sensitive key matches" do
         original = SemanticLogger.sensitive_keys
         SemanticLogger.sensitive_keys = %i[name type]

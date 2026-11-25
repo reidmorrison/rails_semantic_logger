@@ -77,7 +77,8 @@ module RailsSemanticLogger
 
         # The metrics of each Rails component, recorded whatever is logged. Decided here, with the
         # middleware, so that the setting is read once, when the logger is initialized.
-        config.after_initialize { RailsSemanticLogger::Metrics.attach }
+        solid_queue = config.rails_semantic_logger.replace_solid_queue_logger
+        config.after_initialize { RailsSemanticLogger::Metrics.attach(solid_queue: solid_queue) }
       end
 
       # Existing loggers are ignored because servers like trinidad supply their
@@ -139,18 +140,24 @@ module RailsSemanticLogger
       # The cache store has no logger: give it one of its own name, through which its entries are logged
       # and its metrics recorded.
       ActiveSupport::Cache::Store.logger ||= SemanticLogger["ActiveSupport::Cache::Store"]
+    end
 
-      # Rails gives Action Controller and Active Job its own logger, from hooks that run as they load,
-      # so give each a logger of its own name from hooks registered once those have been, which run
-      # after them: the one instance through which its entries are logged, whose level silences them,
-      # and its metrics recorded. Named by a String, and set as each loads, so that no framework is
-      # loaded before the application has initialized. Action Controller's API controllers share it.
-      config.after_initialize do
-        action_controller = SemanticLogger["ActionController::Base"]
-        ActiveSupport.on_load(:action_controller) { self.logger = action_controller }
-        active_job = SemanticLogger["ActiveJob::Base"]
-        ActiveSupport.on_load(:active_job) { self.logger = active_job }
-      end
+    # Rails gives Action Controller and Active Job its own logger as each loads, from hooks that its
+    # initializers register: Action Controller's `action_controller.set_configs`, and Active Job's
+    # `active_job.logger`, whose logger `active_job.set_configs` replaces by one the application
+    # configured. Give each a logger of its own name instead, from a hook registered after those, so
+    # that it runs after them, and before the application's initializers: the one instance through
+    # which its entries are logged, whose level silences them, and its metrics recorded. Named by a
+    # String, and set as each loads, so that no framework is loaded before the application has
+    # initialized. Action Controller's API controllers share it.
+    initializer "rails_semantic_logger.action_controller_logger",
+                after: "action_controller.set_configs", before: :load_config_initializers do
+      RailsSemanticLogger.give_logger(:action_controller, SemanticLogger["ActionController::Base"])
+    end
+
+    initializer "rails_semantic_logger.active_job_logger",
+                after: "active_job.set_configs", before: :load_config_initializers do
+      RailsSemanticLogger.give_logger(:active_job, SemanticLogger["ActiveJob::Base"])
     end
 
     # Before any initializers run, but after the gems have been loaded

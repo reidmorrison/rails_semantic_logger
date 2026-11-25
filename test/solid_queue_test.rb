@@ -18,6 +18,23 @@ class SolidQueueTest < Minitest::Test
         {process_id: 42, job_ids: [1, 2, 3], claimed_job_ids: [1, 2], size: 3}
       end
 
+      it "logs through Solid Queue's logger, at the level set on it" do
+        solid_queue = SemanticLogger::Logger.new("CustomSolidQueue", :info)
+
+        messages = ::SolidQueue.stub(:logger, solid_queue) do
+          semantic_logger_events { subscriber.claim(event) }
+        end
+
+        assert_empty messages
+
+        solid_queue.level = :debug
+        messages = ::SolidQueue.stub(:logger, solid_queue) do
+          semantic_logger_events { subscriber.claim(event) }
+        end
+
+        assert_equal "CustomSolidQueue", messages.first&.name
+      end
+
       it "logs a structured debug event" do
         messages = semantic_logger_events do
           subscriber.claim(event)

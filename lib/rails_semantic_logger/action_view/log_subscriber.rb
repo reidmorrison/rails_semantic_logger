@@ -25,7 +25,16 @@ module RailsSemanticLogger
       class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
 
       class << self
-        attr_accessor :rendered_log_level
+        attr_reader :rendered_log_level
+
+        # Sets the level of the render entries, "Rendering" and "Rendered", such as :info. Refuses a
+        # level that Semantic Logger does not know, as `Start` logs at it from the code that renders,
+        # so that a mistake fails here, as the application starts, rather than every render.
+        def rendered_log_level=(level)
+          raise ArgumentError, "The rendered log level cannot be nil" if level.nil?
+
+          @rendered_log_level = SemanticLogger::Levels.level(SemanticLogger::Levels.index(level))
+        end
 
         # Looked up on first use rather than when this file loads: referencing ActionView::Base
         # loads it, and Rails 8.2+ reports that when it happens before the application has
@@ -130,45 +139,35 @@ module RailsSemanticLogger
         )
       end
 
-      def start(name, id, payload)
-        if ["render_template.action_view", "render_layout.action_view"].include?(name) && should_log?
-          qualifier        = " layout" if name == "render_layout.action_view"
-          payload          = {template: from_rails_root(payload[:identifier])}
-          payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
-
-          logger.send(self.class.rendered_log_level, message: "Rendering#{qualifier}", payload: payload,
-                                                     call_site: call_site)
-        end
-
-        super
-      end
-
+      # Logs "Rendering" as a template or layout starts to render, at the rendered level, as the
+      # "Rendered" entries are, so that `config.rails_semantic_logger.rendered` shows both. Rails' own
+      # Start logs them at :debug whatever the level of its "Rendered" lines.
+      #
+      # Active Support may leave it out of the render events below that level (see
+      # SilencedBelowLevel).
       class Start
+        include RailsSemanticLogger::SilencedBelowLevel
+
         def start(name, _id, payload)
           return unless %w[render_template.action_view render_layout.action_view].include?(name)
 
-          qualifier        = " layout" if name == "render_layout.action_view"
-          payload          = {template: from_rails_root(payload[:identifier])}
-          payload[:within] = from_rails_root(payload[:layout]) if payload[:layout]
+          qualifier      = " layout" if name == "render_layout.action_view"
+          entry          = {template: from_rails_root(payload[:identifier])}
+          entry[:within] = from_rails_root(payload[:layout]) if payload[:layout]
+          level          = log_level_of(name)
 
-          logger.debug(message: "Rendering#{qualifier}", payload: payload, call_site: call_site)
+          logger.public_send(level, message: "Rendering#{qualifier}", payload: entry, call_site: call_site(level))
         end
 
         def finish(name, id, payload)
         end
 
-        # Whether Active Support may leave it out of the render events: while Action View logs nothing
-        # at :debug, the level of its "Rendering" entries. Asked each time an event starts, so that a
-        # render below the log level builds no event when its other listeners are silenced too, as in
-        # Rails' own Start. Never raises, as it is asked from the code that renders: when the answer is
-        # not known, it listens.
-        def silenced?(_name)
-          logger.nil? || !logger.debug?
-        rescue StandardError
-          false
-        end
-
         private
+
+        # The rendered level, which the log subscriber owns, as it is set now.
+        def log_level_of(_name)
+          LogSubscriber.rendered_log_level
+        end
 
         def from_rails_root(string)
           string = string.sub(rails_root, "")
@@ -184,8 +183,8 @@ module RailsSemanticLogger
           @logger ||= ::ActionView::Base.logger
         end
 
-        def call_site
-          LogSubscriber.call_site(logger, :debug)
+        def call_site(level)
+          LogSubscriber.call_site(logger, level)
         end
       end
 
@@ -240,8 +239,8 @@ module RailsSemanticLogger
         self.class.logger
       end
 
-      # Every render is logged at the rendered level, which the application can change at any time.
-      # The "Rendering" entries are Start's, which answers for itself.
+      # Every render is logged at the rendered level, which the application can change at any time,
+      # as are the "Rendering" entries, which are Start's.
       def log_level_of(_name)
         self.class.rendered_log_level
       end

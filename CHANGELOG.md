@@ -143,6 +143,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   cache operation at `:debug`.
 - With `replace_solid_queue_logger = false`, no Solid Queue metrics are recorded, as no Sidekiq ones
   are with `replace_sidekiq_logger = false`: they are recorded through its logger.
+- Action View: the `Rendering` entry of a template rendered within a layout includes the layout,
+  as `within`, as Rails' own `Rendering ... within ...` line does. It was always left out.
+- Action View: the `Rendering` entries are logged at the rendered level, as the `Rendered` entries
+  are, so that `config.rails_semantic_logger.rendered = true` shows both at `:info`. They were always
+  logged at `:debug`, as Rails logs its own.
+- Solid Queue: its log subscriber logs through `SolidQueue.logger`, so that a level set on it
+  applies to the subscriber's entries too. It logged through a logger of its own of the same name.
 
 ## [5.3.0] - 2026-11-20
 

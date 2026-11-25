@@ -96,6 +96,11 @@ Key points for maintainers:
 - **No heuristic server detection.** App servers without a first-party hook (bare `puma`, `rackup`, Passenger, Unicorn) are deliberately *not* auto-detected — no `$PROGRAM_NAME` matching, no `Puma::Launcher` patch ("sometimes works" is unsupportable). Those users call `RailsSemanticLogger.add_server_appenders` from the server's own definitive boot hook, e.g. `on_booted { RailsSemanticLogger.add_server_appenders }` in `config/puma.rb`.
 - Tests live in `test/appenders_test.rb`.
 
+### Replaced loggers: one instance, no guards
+The engine replaces the loggers of Rails' components and of the integrations (`ActiveRecord::Base.logger`, `SolidQueue.logger`, `Sidekiq.logger`, ...) with Semantic Logger loggers. Whatever in this gem logs or records metrics for a component uses that same instance (`::SolidQueue.logger`, `::Sidekiq.logger`), never a new one from `SemanticLogger[...]` with the same name: an application silences a logger by its level, which then applies to everything that logs through it.
+
+Replacing one of these loggers with `nil`, a Ruby `Logger`, or any logger that is not a Semantic Logger one is not supported, and breaks both its log entries and its metrics. Do not add code that guards against it (falling back to another logger, or checking its class): document that applications must not replace them, and use the log level to silence one.
+
 ### Extensions (`lib/rails_semantic_logger/extensions/`)
 Monkey-patches / overrides of third-party and Rails internals, each loaded conditionally on the relevant constant being defined (e.g. `extensions/mongoid/config.rb`, `extensions/active_support/tagged_logging.rb`, `extensions/action_dispatch/debug_exceptions.rb`). These keep integrations isolated and only activated when the host app uses that library.
 

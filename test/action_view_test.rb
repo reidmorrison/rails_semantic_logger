@@ -147,6 +147,27 @@ class ActionViewTest < ActionDispatch::IntegrationTest
         messages.select { |m| m.name == "ActionView::Base" }
       end
 
+      it "logs Rendering at the rendered level, as it logs Rendered" do
+        rendered = RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info
+
+        messages = semantic_logger_events { get "/welcome/index" }
+        levels   = action_view_events(messages).to_h { |m| [m.message, m.level] }
+
+        names    = ["Rendering layout", "Rendering", "Rendered", "Rendered layout"]
+
+        assert_equal(names.to_h { |name| [name, :info] }, levels.slice(*names))
+      ensure
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = rendered
+      end
+
+      it "logs the layout that a template is rendering within, as Rails does" do
+        messages  = semantic_logger_events { get "/welcome/index" }
+        rendering = action_view_events(messages).find { |m| m.message == "Rendering" }
+
+        assert_equal "layouts/application", rendering&.payload&.dig(:within)
+      end
+
       it "logs the layout and template render" do
         messages = semantic_logger_events do
           get "/welcome/index"

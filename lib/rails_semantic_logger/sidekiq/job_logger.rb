@@ -38,7 +38,9 @@ module RailsSemanticLogger
           dimensions = {"messaging.system.name" => "sidekiq", "messaging.destination.name" => queue}
 
           latency = job_latency_ms(item)
-          metrics.time(QUEUE_DURATION, duration: latency, dimensions: dimensions) if latency && self.class.metrics
+          if latency && self.class.metrics
+            metrics_logger.time(QUEUE_DURATION, duration: latency, dimensions: dimensions)
+          end
           logger.info("Start #perform", call_site: false) if perform_messages_enabled?
 
           process(logger, klass, dimensions, &block)
@@ -80,8 +82,8 @@ module RailsSemanticLogger
       ensure
         if self.class.metrics
           duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
-          metrics.time(PROCESS_DURATION, duration:   duration_ms,
-                                         dimensions: process_dimensions(dimensions, klass, error))
+          metrics_logger.time(PROCESS_DURATION, duration:   duration_ms,
+                                                dimensions: process_dimensions(dimensions, klass, error))
         end
       end
 
@@ -101,10 +103,13 @@ module RailsSemanticLogger
         handled && error.cause ? error.cause : error
       end
 
-      # Records the job metrics. Not the job's logger, which can be Sidekiq's, and the application can
-      # make that a plain Ruby Logger, which records no metrics.
-      def metrics
-        RailsSemanticLogger::Metrics.logger
+      # The logger that records the job metrics: Sidekiq's, since the name of the logger that records a
+      # metric is its meter, so that every job's metrics share one meter, with the job's class as a
+      # dimension. Not the job's logger, which logs its entries: one meter for each job class would
+      # split each metric across them. Found by its name, as an application can make Sidekiq's logger
+      # one that records no metrics.
+      def metrics_logger
+        @metrics_logger ||= SemanticLogger[::Sidekiq]
       end
 
       def perform_messages_enabled?

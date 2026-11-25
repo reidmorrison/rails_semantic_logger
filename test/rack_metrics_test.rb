@@ -144,6 +144,141 @@ class RackMetricsTest < Minitest::Test
     end
   end
 
+  describe "the route of a mounted engine" do
+    let(:engine) do
+      Class.new(::Rails::Engine) do
+        def self.name = "RackMetricsTest::Engine"
+      end
+    end
+    let(:routes) { ActionDispatch::Routing::RouteSet.new }
+    let(:middleware) { RailsSemanticLogger::Rack::Metrics.new(routes) }
+
+    before do
+      engine.routes.draw do
+        get "posts/:id", to: ->(_env) { [200, {}, ["post"]] }
+        get "drafts/:id", to: ->(_env) { [404, {"x-cascade" => "pass"}, []] }
+      end
+    end
+
+    def route_of(path)
+      env    = ::Rack::MockRequest.env_for("http://example.com#{path}", "action_dispatch.routes" => routes)
+      metric = assert_metric(
+        semantic_logger_metrics do
+          _status, _headers, body = middleware.call(env)
+          body.close
+        end,
+        name: "http.server.request.duration"
+      )
+      metric.dimensions["http.route"]
+    end
+
+    it "records an engine mounted at the root by its own template" do
+      mounted = engine
+      routes.draw { mount mounted, at: "/" }
+
+      assert_equal "/posts/:id", route_of("/posts/5")
+    end
+
+    it "records the application's route that served a request an engine passed on, without the engine's mount" do
+      mounted = engine
+      routes.draw do
+        mount mounted, at: "/blog"
+        get "blog/drafts/:id", to: ->(_env) { [200, {}, ["draft"]] }
+      end
+
+      assert_equal "/blog/drafts/:id", route_of("/blog/drafts/5")
+    end
+
+    it "records no route for a request that an engine passed on to another mount" do
+      mounted = engine
+      routes.draw do
+        mount mounted, at: "/blog"
+        mount ->(_env) { [200, {}, ["legacy"]] }, at: "/blog/drafts"
+      end
+
+      assert_nil route_of("/blog/drafts/5")
+    end
+
+    it "records the route of a Rack application that an engine mounts, below the engine's mount" do
+      mounted = engine
+      mounted.routes.draw { mount ->(_env) { [200, {}, ["admin"]] }, at: "/admin" }
+      routes.draw do
+        mount mounted, at: "/blog"
+        mount mounted, at: "/journal", as: "journal"
+      end
+
+      assert_equal "/journal/admin", route_of("/journal/admin/users")
+    end
+
+    it "records the route of a Rack application that an engine mounted at the root mounts" do
+      mounted = engine
+      mounted.routes.draw { mount ->(_env) { [200, {}, ["admin"]] }, at: "/admin" }
+      routes.draw { mount mounted, at: "/" }
+
+      assert_equal "/admin", route_of("/admin/users")
+    end
+
+    it "records the route of a Rack application that an engine mounts at a dynamic path" do
+      mounted = engine
+      mounted.routes.draw { mount ->(_env) { [200, {}, ["admin"]] }, at: "/:tenant/admin" }
+      routes.draw { mount mounted, at: "/blog" }
+
+      assert_equal "/blog/:tenant/admin", route_of("/blog/acme/admin/users")
+    end
+
+    it "records the mount of the engine that mounts the Rack application, whatever the order of the mounts" do
+      mounted = engine
+      mounted.routes.draw { mount ->(_env) { [200, {}, ["admin"]] }, at: "/admin" }
+      routes.draw do
+        mount mounted, at: "/:locale"
+        mount mounted, at: "/", as: "root_blog"
+      end
+
+      assert_equal "/admin", route_of("/admin/users")
+    end
+
+    it "records the route of the Rack application that served, of several that an engine mounts at one template" do
+      mounted = engine
+      mounted.routes.draw do
+        mount ->(_env) { [200, {}, ["a"]] }, at: "/:id/admin", constraints: {id: /\d+/}
+        mount ->(_env) { [200, {}, ["b"]] }, at: "/:id/admin", constraints: {id: /[a-z]+/}, as: "lettered"
+      end
+      routes.draw { mount mounted, at: "/blog" }
+
+      assert_equal "/blog/:id/admin", route_of("/blog/acme/admin/x")
+    end
+
+    it "records the engine's own root route as the engine's mount" do
+      mounted = engine
+      mounted.routes.draw { root to: ->(_env) { [200, {}, ["home"]] } }
+      routes.draw do
+        mount mounted, at: "/blog"
+        mount mounted, at: "/:locale", as: "localized"
+      end
+
+      assert_equal "/blog", route_of("/blog")
+      assert_equal "/:locale", route_of("/en")
+    end
+
+    it "records a Rack application that an engine mounts at its root as the engine's mount" do
+      mounted = engine
+      mounted.routes.draw { mount ->(_env) { [200, {}, ["home"]] }, at: "/" }
+      routes.draw { mount mounted, at: "/blog" }
+
+      assert_equal "/blog", route_of("/blog/anything")
+    end
+
+    it "records no route for a request passed on to a mount whose template starts like the engine's path" do
+      mounted = engine
+      routes.draw do
+        mount mounted, at: "/blog"
+        mount ->(_env) { [200, {}, ["legacy"]] }, at: "/blog/blog"
+      end
+
+      assert_nil route_of("/blog/blog/drafts/5")
+    end
+  end
+
   class RequestTest < ActionDispatch::IntegrationTest
     describe "the application's middleware" do
       it "places the request metrics first, so that it sees every request" do

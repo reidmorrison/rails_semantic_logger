@@ -13,7 +13,7 @@ module RailsSemanticLogger
     # hijacked connection, such as a WebSocket, is not an HTTP response, so it is not recorded.
     #
     # Knows: OpenTelemetry's attribute rules for HTTP server requests.
-    # Asks:  RailsSemanticLogger::Metrics.logger to record the metric.
+    # Asks:  the Rack logger to record the metric.
     class Metrics
       NAME = "http.server.request.duration".freeze
 
@@ -28,6 +28,9 @@ module RailsSemanticLogger
       def initialize(app)
         @app    = app
         @mounts = Concurrent::Map.new
+        # The logger of Rack, whose requests it measures: the name of the logger that records a metric
+        # is its meter.
+        @logger = SemanticLogger[::Rack]
       end
 
       def call(env)
@@ -51,8 +54,7 @@ module RailsSemanticLogger
       # exception that it raised.
       def record(env, start, status, exception, arrival:, route: true)
         duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
-        RailsSemanticLogger::Metrics.logger.time(NAME, duration:   duration_ms,
-                                                       dimensions: dimensions(env, status, exception, arrival, route))
+        @logger.time(NAME, duration: duration_ms, dimensions: dimensions(env, status, exception, arrival, route))
       rescue StandardError
         nil
       end
@@ -109,8 +111,9 @@ module RailsSemanticLogger
       # that the route recorded is built only from route templates, never from the path that a mount
       # matched, which can hold values, such as a locale.
       class Arrival
-        # mounts: the application's routes that mount each engine, by the engine's routes, kept by the
-        # middleware, so that the application's routes are searched once for each engine.
+        # mounts: kept by the middleware, so that each is searched for once: the application's routes
+        # that mount each engine, by the engine's routes, and the engine's route of each template, by the
+        # engine's routes and the template.
         def initialize(env, mounts)
           @root   = env["SCRIPT_NAME"].to_s
           @routes = env["action_dispatch.routes"]
@@ -124,33 +127,64 @@ module RailsSemanticLogger
         # application's own router for its routes and for a mounted Rack application, whose template is
         # the mount. A mounted engine's router replaces it with its own template, below the mount, and
         # its routes with its own, so the template of the application's mount of that engine goes before
-        # it.
+        # it. An engine that passes the request on leaves its routes on the request, but not its mount:
+        # the router restores SCRIPT_NAME, so a request whose SCRIPT_NAME is the application's root was
+        # served by the application's own routes.
         def route(request)
           pattern = request.route_uri_pattern
           return unless pattern
 
-          inner = request.routes
-          mount = inner.equal?(@routes) || inner.nil? ? "" : mount_template(request, inner)
+          inner   = request.routes
+          mounted = request.script_name.to_s.delete_prefix(@root)
+          mount   = inner.equal?(@routes) || inner.nil? || mounted.empty? ? "" : mount_template(inner, mounted, pattern)
           return unless mount
 
-          "#{@root}#{mount}#{strip(pattern)}"
+          template = strip(pattern)
+          # The engine's root, its own root route or a Rack application that it mounts at its root, is
+          # recorded as the engine's mount, as its URL is.
+          template = "" if template == "/" && !mount.empty?
+          "#{@root}#{mount}#{template}"
         end
 
         private
 
         # The template of the application's route that mounts the engine whose routes these are, or nil
         # when none does, such as an engine that another engine mounts, which is then recorded without a
-        # route. An engine mounted more than once is matched against the path that its mount matched.
-        def mount_template(request, inner)
+        # route.
+        #
+        # The mount must account for the path that the mounts matched, through the engine's route that
+        # served the request, whose template is on the request: all of it when that is a route of the
+        # engine's own, or all but the rest, which that route matches, when it is a Rack application
+        # that the engine mounts. Otherwise the engine passed the request on and another mount served
+        # it, whose template is not known: no route is recorded.
+        def mount_template(inner, mounted, pattern)
+          served = served_by(inner, pattern)
           mounts = @mounts.compute_if_absent(inner) { mounts_of(inner) }
-          mount  =
-            if mounts.size == 1
-              mounts.first
-            else
-              mounted = request.script_name.to_s.delete_prefix(@root)
-              mounts.find { |route| (match = route.path.match(mounted)) && match.post_match.empty? }
-            end
-          strip(mount.path.spec.to_s) if mount
+          mount  = mounts.find do |route|
+            match = route.path.match(mounted)
+            match && served.any? { |candidate| below?(candidate, match.post_match) }
+          end
+          # The template below it starts with "/", so that of a mount at the root ends without one.
+          strip(mount.path.spec.to_s).delete_suffix("/") if mount
+        end
+
+        # The engine's routes with the template `pattern`: several when they differ only in their
+        # constraints.
+        def served_by(inner, pattern)
+          @mounts.compute_if_absent([inner, pattern]) do
+            inner.routes.select { |route| route.path.spec.to_s == pattern }
+          end
+        end
+
+        # Whether the engine's `route` matches `rest`, the path below the engine's mount: none for a
+        # route of the engine's own, and all of it for a Rack application that the engine mounts. The
+        # engine's mount at the root leaves no "/" before the rest, and a mount at the engine's root
+        # leaves no rest.
+        def below?(route, rest)
+          return rest.empty? if route.path.anchored
+
+          match = route.path.match(rest.start_with?("/") ? rest : "/#{rest}")
+          match ? match.post_match.empty? : false
         end
 
         # The application's routes that mount the engine whose routes these are.

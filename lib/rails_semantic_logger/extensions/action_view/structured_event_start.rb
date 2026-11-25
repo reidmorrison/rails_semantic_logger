@@ -21,8 +21,9 @@ ActiveSupport.on_load(:action_view, run_once: true) do
     ActiveSupport::Notifications.notifier.all_listeners_for(name).each do |listener|
       next unless listener.delegate.is_a?(start)
 
-      ActiveSupport::Notifications.unsubscribe(listener)
+      # Subscribed again before it is unsubscribed, so that the event never has no Start listener.
       ActiveSupport::Notifications.subscribe(name, listener.delegate)
+      ActiveSupport::Notifications.unsubscribe(listener)
     end
   end
 end

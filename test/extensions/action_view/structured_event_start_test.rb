@@ -33,6 +33,8 @@ class StructuredEventStartTest < Minitest::Test
       it "listens to #{name} in debug mode" do
         listeners = start_listeners(name)
 
+        assert_equal 1, listeners.size, listeners
+
         ActiveSupport.event_reporter.with_debug do
           refute(listeners.any? { |listener| listener.silenced?(name) })
         end

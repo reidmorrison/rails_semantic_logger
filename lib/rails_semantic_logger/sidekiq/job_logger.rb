@@ -64,13 +64,23 @@ module RailsSemanticLogger
 
       private
 
-      # Runs the job, logging it unless perform messages are turned off, and records how long it ran
-      # whether or not it is logged: the settings that turn off the perform messages are about logging.
-      # Times the job and records its duration with the dimensions, unless they are nil: no metric was
-      # collected when the job started, which decides for the whole job.
+      # Runs the job, and records how long it ran whether or not it is logged: the settings that turn
+      # off the perform messages are about logging. Records nothing when the dimensions are nil: no
+      # metric was collected when the job started, which decides for the whole job.
+      #
+      # Sidekiq's logger times the job, and asks for its dimensions once it has ended, with the
+      # exception it raised, if any.
       def process(logger, klass, dimensions, &block)
-        start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
-        error = nil
+        return perform(logger, &block) unless dimensions
+
+        metrics_logger.time(
+          PROCESS_DURATION,
+          dimensions: ->(_result, error) { process_dimensions(dimensions, klass, error) }
+        ) { perform(logger, &block) }
+      end
+
+      # Runs the job, logging it unless perform messages are turned off.
+      def perform(logger, &block)
         if perform_messages_enabled?
           logger.measure_info(
             "Completed #perform",
@@ -82,18 +92,12 @@ module RailsSemanticLogger
         elsif block
           yield
         end
-      rescue Exception => e # rubocop:disable Lint/RescueException -- recorded, then raised again
-        error = e
-        raise
-      ensure
-        if dimensions
-          duration_ms = (::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start) * 1000
-          metrics_logger.time(PROCESS_DURATION, duration:   duration_ms,
-                                                dimensions: process_dimensions(dimensions, klass, error))
-        end
       end
 
       # OpenTelemetry names a system-specific attribute after its system, as `messaging.sidekiq.*`.
+      #
+      # Gives the error.type itself, which Semantic Logger keeps: for a job that Sidekiq will retry, the
+      # exception that ends the block is Sidekiq::JobRetry::Handled, not the one the job raised.
       def process_dimensions(dimensions, klass, error)
         process = dimensions.merge("messaging.operation.name" => "process")
         process["messaging.sidekiq.job.class"] = klass if klass

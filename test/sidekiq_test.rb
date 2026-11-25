@@ -137,16 +137,17 @@ class SidekiqTest < Minitest::Test
       it "records the job metrics through Sidekiq's logger, the meter of every job's metrics" do
         sidekiq  = SemanticLogger::Logger.new(::Sidekiq)
         recorded = []
-        sidekiq.define_singleton_method(:time) do |name, **options|
+        sidekiq.define_singleton_method(:time) do |name, **options, &block|
           recorded << name
-          super(name, **options)
+          super(name, **options, &block)
         end
         lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
 
-        SemanticLogger.stub(:[], lookup) { semantic_logger_metrics { processor.send(:process, uow) } }
+        metrics = SemanticLogger.stub(:[], lookup) { semantic_logger_metrics { processor.send(:process, uow) } }
 
         assert_equal "Sidekiq", sidekiq.name
         assert_equal %w[sidekiq.queue.duration messaging.process.duration], recorded
+        assert_metric(metrics, name: "messaging.process.duration", kind: :histogram)
       end
 
       it "records how long the job ran as messaging.process.duration" do

@@ -182,7 +182,10 @@ class SidekiqTest < Minitest::Test
         sidekiq  = SemanticLogger::Logger.new(::Sidekiq)
         recorded = []
         sidekiq.define_singleton_method(:collecting_metrics?) { false }
-        sidekiq.define_singleton_method(:time) { |name, **| recorded << name }
+        sidekiq.define_singleton_method(:time) do |name, **, &block|
+          recorded << name
+          block&.call
+        end
         lookup = ->(name) { name == ::Sidekiq ? sidekiq : SemanticLogger::Logger.new(name) }
 
         SemanticLogger.stub(:[], lookup) { processor.send(:process, uow) }

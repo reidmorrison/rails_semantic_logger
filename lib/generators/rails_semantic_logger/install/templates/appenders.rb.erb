@@ -1,0 +1,21 @@
+  # Where the logs go. Rails Semantic Logger creates exactly the appenders listed here, so change this
+  # block to send them elsewhere. Each line takes the arguments of SemanticLogger.add_appender (see
+  # https://logger.reidmorrison.com/appenders.html), and its method says when the appender is created:
+  #   add:         always
+  #   add_server:  only when serving requests: `rails server`, or Sidekiq in server mode
+  #   add_console: only inside `rails console`
+  config.rails_semantic_logger.appenders do |appenders|
+    <%= line("appenders.add(#{file_arguments})", active: file?) %>
+<% @appenders.each do |args| -%>
+    appenders.add(<%= args %>)
+<% end -%>
+    <%= line("appenders.add_server(io: $stdout, formatter: :color)", active: screen?) %>
+    <%= line("appenders.add_console(io: $stderr, formatter: :color)", active: screen?) %>
+<% if deployed? -%>
+
+    # Or, in a container (Docker, Kubernetes), replace the lines above with JSON on stdout, one line
+    # per entry, and no log file:
+    #   appenders.add(io: $stdout, formatter: :json)
+<% end -%>
+  end
+

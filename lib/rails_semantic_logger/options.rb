@@ -185,6 +185,16 @@ module RailsSemanticLogger
       end
     end
 
+    # The appender options that `config.rails_semantic_logger.appenders` replaces, deprecated, and
+    # removed in v6. `bin/rails generate rails_semantic_logger:install` converts them into appenders.
+    DEPRECATED_APPENDER_OPTIONS = %i[format ap_options filter add_file_appender console_logger].freeze
+
+    # Whether `rails generate` (or `rails destroy`) is running, which loads the application's
+    # configuration to run a generator, such as rails_semantic_logger:install.
+    def self.generating?
+      defined?(::Rails::Command::GenerateCommand) || defined?(::Rails::Command::DestroyCommand) ? true : false
+    end
+
     # Setup default values
     def initialize
       @semantic                   = true
@@ -315,10 +325,15 @@ module RailsSemanticLogger
 
     private
 
+    # Not while `rails generate` runs: it loads the application's configuration, and the
+    # rails_semantic_logger:install generator that the warning names is what removes the option.
     def deprecate_appender_option(option, via: "appenders.add(...)")
+      return if self.class.generating?
+
       message =
         "`config.rails_semantic_logger.#{option}=` is deprecated and will be removed in a future release. " \
-        "Declare the destination and formatting directly instead, via " \
+        "Run `bin/rails generate rails_semantic_logger:install`, which replaces it with the appenders it " \
+        "stands for, or declare the destination and formatting directly, via " \
         "`config.rails_semantic_logger.appenders { |appenders| #{via} }`."
 
       # Skip this method and the setter that called it, so the warning is attributed

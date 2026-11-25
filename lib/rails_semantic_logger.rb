@@ -173,6 +173,14 @@ module RailsSemanticLogger
     end
   end
 
+  # Returns [Hash|Symbol] the formatter of the default log file, log/<environment>.log, while the
+  # deprecated `format` and `ap_options` options are unset: in color, with single-line Amazing Print,
+  # or plain text when the application turned colorized logging off. The
+  # rails_semantic_logger:install generator writes it into the appenders it lists.
+  def self.default_file_formatter(colorize: true)
+    colorize ? {color: {ap: {multiline: false}}} : :default
+  end
+
   # Create each appender declared via `config.rails_semantic_logger.appenders`.
   # The first file appender (if any) becomes the internal logger, so that any
   # failures writing to other appenders are still recorded somewhere durable.

@@ -212,6 +212,39 @@ class AppendersTest < Minitest::Test
         assert_empty messages
       end
 
+      it "names the generator that replaces the option" do
+        messages = AppendersTest.capture_deprecations(options) { options.format = :json }
+
+        assert_includes messages.first, "bin/rails generate rails_semantic_logger:install"
+      end
+
+      it "does not warn while `rails generate` runs, but still sets the option" do
+        messages = RailsSemanticLogger::Options.stub(:generating?, true) do
+          AppendersTest.capture_deprecations(options) { options.format = :json }
+        end
+
+        assert_empty messages
+        assert_equal :json, options.format
+      end
+
+      it "counts `rails destroy` as a generator run, since it loads the application too" do
+        require "rails/command"
+        defined = Rails::Command.const_defined?(:DestroyCommand, false)
+        Rails::Command.const_set(:DestroyCommand, Class.new) unless defined
+
+        assert_predicate RailsSemanticLogger::Options, :generating?
+      ensure
+        Rails::Command.send(:remove_const, :DestroyCommand) unless defined
+      end
+
+      it "gives the default log file the formatter that the generator lists" do
+        defaults = RailsSemanticLogger::Options.new
+
+        assert_equal :default, defaults.format
+        assert_equal({color: {ap: defaults.ap_options}}, RailsSemanticLogger.default_file_formatter)
+        assert_equal :default, RailsSemanticLogger.default_file_formatter(colorize: false)
+      end
+
       it "warns immediately once flushed, so later assignments are not swallowed" do
         options.flush_deprecations!
 

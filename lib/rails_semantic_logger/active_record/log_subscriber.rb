@@ -27,6 +27,8 @@
 module RailsSemanticLogger
   module ActiveRecord
     class LogSubscriber < ActiveSupport::LogSubscriber
+      include RailsSemanticLogger::SilencedBelowLevel
+
       IGNORE_PAYLOAD_NAMES = %w[SCHEMA EXPLAIN].freeze
 
       # The application's, as Rails gives its own Active Record log subscriber for verbose_query_logs.
@@ -110,6 +112,11 @@ module RailsSemanticLogger
 
       def logger
         ::ActiveRecord::Base.logger
+      end
+
+      # Both of its events, a query and a strict loading violation, are logged at :debug only.
+      def log_level_of(_name)
+        :debug
       end
 
       def bind_values(payload)

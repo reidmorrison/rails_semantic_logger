@@ -13,6 +13,8 @@ require "action_mailer"
 module RailsSemanticLogger
   module ActionMailer
     class LogSubscriber < ::ActiveSupport::LogSubscriber
+      include RailsSemanticLogger::SilencedBelowLevel
+
       # The application's, to find the application code that sent the mail.
       class_attribute :backtrace_cleaner, default: ::Rails.backtrace_cleaner
 
@@ -158,6 +160,12 @@ module RailsSemanticLogger
 
       def logger
         ::ActionMailer::Base.logger
+      end
+
+      # Both of its events, a delivery and a mailer action, are logged only while the logger logs at
+      # :debug, as Rails does.
+      def log_level_of(_name)
+        :debug
       end
     end
   end

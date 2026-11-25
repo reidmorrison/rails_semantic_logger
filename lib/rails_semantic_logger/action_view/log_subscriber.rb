@@ -16,6 +16,8 @@ module RailsSemanticLogger
   module ActionView
     # Output Semantic logs from Action View.
     class LogSubscriber < ActiveSupport::LogSubscriber
+      include RailsSemanticLogger::SilencedBelowLevel
+
       VIEWS_PATTERN = %r{^app/views/}
 
       # The application's, to find the application code that rendered a template: the action, or
@@ -155,6 +157,14 @@ module RailsSemanticLogger
         def finish(name, id, payload)
         end
 
+        # Whether Active Support may leave it out of the render events: while Action View logs nothing
+        # at :debug, the level of its "Rendering" entries. Asked each time an event starts, so that a
+        # render below the log level builds no event when its other listeners are silenced too, as in
+        # Rails' own Start.
+        def silenced?(_name)
+          logger.nil? || !logger.debug?
+        end
+
         private
 
         def from_rails_root(string)
@@ -225,6 +235,12 @@ module RailsSemanticLogger
 
       def logger
         self.class.logger
+      end
+
+      # Every render, and its "Rendering" entry, is logged at the rendered level, which the
+      # application can change at any time.
+      def log_level_of(_name)
+        self.class.rendered_log_level
       end
 
       def call_site

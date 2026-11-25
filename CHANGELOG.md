@@ -119,6 +119,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   recorder asks `collecting_metrics?` first. The metric subscribers are then also silenced (they
   answer `silenced?`), so that Active Support builds no event for them, and skips an event whose
   other listeners are all silenced too, such as a cache read.
+- The log subscribers of Active Record, Action View, Action Mailer, Active Job, and Solid Queue are
+  silenced below the level they log each event at, as Rails' own are, so that Active Support no
+  longer builds an event for every SQL query and render whatever the log level. Each is silenced only
+  when it would log nothing: a job's `perform` is still logged at `:warn` when it fails. Action
+  Controller's is not silenced, as it logs through each controller's own logger.
 - Each component's metrics are recorded through its own logger, whose name Semantic Logger 6.0
   sends as the metrics' meter (the OTLP instrumentation scope): `Rack`, `ActionController::Base`,
   `ActionView::Base`, `ActiveRecord::Base`, `ActiveJob::Base`, `ActionMailer::Base`,

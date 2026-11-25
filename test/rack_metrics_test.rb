@@ -182,11 +182,11 @@ class RackMetricsTest < Minitest::Test
       end
     end
 
-    def route_of(path)
+    def route_of(path, through: middleware)
       env    = ::Rack::MockRequest.env_for("http://example.com#{path}", "action_dispatch.routes" => routes)
       metric = assert_metric(
         semantic_logger_metrics do
-          _status, _headers, body = middleware.call(env)
+          _status, _headers, body = through.call(env)
           body.close
         end,
         name: "http.server.request.duration"
@@ -201,17 +201,39 @@ class RackMetricsTest < Minitest::Test
       assert_equal "/blog/posts/:id", route_of("/blog/posts/5")
 
       routes.draw { mount mounted, at: "/journal" }
-      RailsSemanticLogger::Rack::Metrics.routes_drawn!
 
       assert_equal "/journal/posts/:id", route_of("/journal/posts/5")
     end
 
-    it "counts the times that Rails has drawn the routes" do
-      drawn = RailsSemanticLogger::Rack::Metrics.routes_drawn
+    it "keeps no routes kept while Rails was still drawing them" do
+      routes.draw { get "first", to: ->(_env) { [200, {}, ["first"]] } }
+      drawing = middleware.mounts_for(routes)
 
-      ActiveSupport.run_load_hooks(:after_routes_loaded, Rails.application)
+      # As each route that Rails draws next is added, without the routes being cleared.
+      routes.disable_clear_and_finalize = true
+      routes.draw { get "second", to: ->(_env) { [200, {}, ["second"]] } }
 
-      assert_equal drawn + 1, RailsSemanticLogger::Rack::Metrics.routes_drawn
+      refute_same drawing, middleware.mounts_for(routes)
+      assert_same middleware.mounts_for(routes), middleware.mounts_for(routes)
+    end
+
+    it "records an engine's new mount for the request that drew the routes again" do
+      mounted   = engine
+      redraw    = nil
+      reloading = RailsSemanticLogger::Rack::Metrics.new(
+        lambda do |env|
+          redraw&.call
+          routes.call(env)
+        end
+      )
+      routes.draw { mount mounted, at: "/blog" }
+
+      assert_equal "/blog/posts/:id", route_of("/blog/posts/5", through: reloading)
+
+      # As ActionDispatch::Reloader, below the middleware, reloads the routes in development.
+      redraw = -> { routes.draw { mount mounted, at: "/journal" } }
+
+      assert_equal "/journal/posts/:id", route_of("/journal/posts/5", through: reloading)
     end
 
     it "records an engine mounted at the root by its own template" do

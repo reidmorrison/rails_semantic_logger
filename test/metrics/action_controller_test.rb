@@ -73,6 +73,14 @@ module Metrics
             dimensions: {"rails.action_controller.filter" => "Proc"}
           )
         end
+
+        it "counts a callback object of an anonymous class as _OTHER" do
+          assert_metric(
+            record(:halted_callback, filter: Class.new.new),
+            name:       "rails.action_controller.halted_callbacks",
+            dimensions: {"rails.action_controller.filter" => "_OTHER"}
+          )
+        end
       end
 
       it "counts a rescue_from by the exception class" do

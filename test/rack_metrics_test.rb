@@ -31,6 +31,19 @@ class RackMetricsTest < Minitest::Test
       assert_same body, returned
     end
 
+    it "records through Rack's logger, the one that logs the requests" do
+      rack_logger = RailsSemanticLogger::Rack::Logger.logger
+      recorded    = []
+
+      semantic_logger_metrics do
+        rack_logger.stub(:time, ->(name, **) { recorded << name }) do
+          middleware.call(::Rack::MockRequest.env_for("http://example.com/articles/1"))[2].close
+        end
+      end
+
+      assert_equal ["http.server.request.duration"], recorded
+    end
+
     it "records the request duration in seconds once the body is closed" do
       env     = ::Rack::MockRequest.env_for("http://example.com/articles/1")
       metrics = semantic_logger_metrics { @body = middleware.call(env)[2] }

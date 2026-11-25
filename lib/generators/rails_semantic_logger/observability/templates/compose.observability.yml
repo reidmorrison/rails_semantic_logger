@@ -5,7 +5,8 @@
 # Grafana:    http://localhost:3001 (no login)
 # ClickHouse: http://localhost:8123/play (user dev, password dev)
 #
-# Development only: nothing here is authenticated, and the Collector keeps no disk queue.
+# Development only: nothing here is authenticated, so each port listens on this machine only, and the
+# Collector keeps no disk queue.
 
 services:
   clickhouse:
@@ -15,7 +16,7 @@ services:
       CLICKHOUSE_PASSWORD: dev
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     ports:
-      - "8123:8123"
+      - "127.0.0.1:8123:8123"
     ulimits:
       nofile:
         soft: 262144
@@ -32,7 +33,7 @@ services:
     volumes:
       - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "4318:4318"
+      - "127.0.0.1:4318:4318"
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -50,7 +51,7 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     depends_on:
       clickhouse:
         condition: service_healthy

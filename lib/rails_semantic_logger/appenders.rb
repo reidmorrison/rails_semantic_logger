@@ -9,7 +9,7 @@ module RailsSemanticLogger
   #
   # When at least one appender is declared this way, Rails Semantic Logger stops
   # building its own default file appender and default screen appenders, and instead
-  # creates exactly the appenders declared here.
+  # creates exactly the appenders declared here, unless #add_defaults keeps them too.
   #
   # The methods name the *context* in which the appender is created; the
   # destination and formatting are ordinary `SemanticLogger.add_appender` arguments:
@@ -36,6 +36,22 @@ module RailsSemanticLogger
       @definitions = []
       @server      = []
       @console     = []
+      @defaults    = false
+    end
+
+    # Keep Rails Semantic Logger's default appenders as well as the ones declared here: the default
+    # log file, and the default screen appender under `rails server` and `rails console`. What those
+    # are, such as the file's path and formatter, stays Rails Semantic Logger's to decide; this only
+    # records that the application wants them. The default log file is added beside the declared
+    # appenders, so do not also declare one that writes to it. Returns self so calls can be chained.
+    def add_defaults
+      @defaults = true
+      self
+    end
+
+    # Whether #add_defaults was declared.
+    def defaults?
+      @defaults
     end
 
     # Declare an appender. Accepts the same arguments (and optional block) as
@@ -78,7 +94,7 @@ module RailsSemanticLogger
     end
 
     def any?
-      @definitions.any? || @server.any? || @console.any?
+      @defaults || @definitions.any? || @server.any? || @console.any?
     end
 
     private

@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [6.0.0] - Unreleased
 
+- Add `appenders.add_defaults` to `config.rails_semantic_logger.appenders`, which keeps the default
+  log file and the default screen appenders of `rails server` and `rails console` alongside the
+  appenders the application declares. Without it, declaring any appender still replaces them.
 - Add `rails generate rails_semantic_logger:observability`, which adds a local observability stack
   for development: an OpenTelemetry Collector, ClickHouse and Grafana in `compose.observability.yml`,
   with Grafana's ClickHouse data source and the Rails, Jobs and Logs dashboards provisioned. It adds

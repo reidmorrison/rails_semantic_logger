@@ -29,7 +29,8 @@ module RailsSemanticLogger
   #
   #     Unless the application declares its own appenders (see #appenders), Rails Semantic Logger
   #     writes to `log/<environment>.log`, in color unless `config.colorize_logging` is false, and to
-  #     the screen under `rails server`, Sidekiq in server mode, and `rails console`.
+  #     the screen under `rails server`, Sidekiq in server mode, and `rails console`. An application
+  #     that declares its own can keep these with `appenders.add_defaults`.
   #
   #     Note:
   #       When Semantic Logger fails to log to an appender it logs the error to an internal logger:
@@ -167,7 +168,13 @@ module RailsSemanticLogger
     #
     # Returns the underlying RailsSemanticLogger::Appenders collection. When at
     # least one appender has been declared, the default file appender and the default
-    # screen appenders of `rails server` and `rails console` are no longer created.
+    # screen appenders of `rails server` and `rails console` are no longer created,
+    # unless the block also calls `appenders.add_defaults`, which keeps them:
+    #
+    #   config.rails_semantic_logger.appenders do |appenders|
+    #     appenders.add_defaults
+    #     appenders.add(appender: :otlp)
+    #   end
     def appenders
       @appenders ||= RailsSemanticLogger::Appenders.new
       if block_given?
@@ -180,6 +187,12 @@ module RailsSemanticLogger
     # Whether the application declared its own appenders via #appenders.
     def appenders?
       defined?(@appenders) && @appenders.any?
+    end
+
+    # Whether Rails Semantic Logger creates its default appenders: when the application declared no
+    # appenders of its own, or declared them with `appenders.add_defaults`.
+    def default_appenders?
+      !appenders? || appenders.defaults?
     end
 
     # Marks that Rails Semantic Logger has already built its logger and the

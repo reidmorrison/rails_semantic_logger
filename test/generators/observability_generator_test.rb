@@ -59,14 +59,12 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
     end
   end
 
-  test "adds the OTLP appenders to development, with the default appenders" do
+  test "adds the OTLP appenders to development, keeping the default appenders" do
     run_generator
 
     assert_file "config/environments/development.rb" do |config|
       assert_includes config, 'config.semantic_logger.application = "dummy"'
-      assert_includes config, 'appenders.add(file_name: "log/development.log", formatter: :color)'
-      assert_includes config, "appenders.add_server"
-      assert_includes config, "appenders.add_console"
+      assert_includes config, "appenders.add_defaults"
       assert_includes config, "appenders.add(appender: :otlp)"
       assert_includes config, "appenders.add(metric: :otlp, interval: 10)"
       refute_nil Ripper.sexp(config), "development.rb is not valid Ruby:\n#{config}"
@@ -84,8 +82,7 @@ class ObservabilityGeneratorTest < Rails::Generators::TestCase
 
     assert_file "config/environments/development.rb" do |config|
       assert_includes config, "appenders.add(appender: :otlp)"
-      refute_includes config, "appenders.add_server"
-      refute_includes config, "log/development.log"
+      refute_includes config, "add_defaults"
     end
   end
 

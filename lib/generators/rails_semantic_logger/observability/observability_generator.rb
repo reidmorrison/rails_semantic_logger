@@ -72,16 +72,10 @@ module RailsSemanticLogger
         RUBY
       end
 
-      # Declaring any appender replaces Rails Semantic Logger's default ones, so declare them again,
-      # unless the application already declares its own.
+      # Declaring any appender replaces Rails Semantic Logger's default ones, so keep them, unless the
+      # application already declares its own.
       def default_appenders
-        return "" if declares_appenders?
-
-        <<~RUBY.lines.map { |line| "  #{line}" }.join
-          appenders.add(file_name: "log/development.log", formatter: :color)
-          appenders.add_server
-          appenders.add_console
-        RUBY
+        declares_appenders? ? "" : "  appenders.add_defaults\n"
       end
 
       def declares_appenders?

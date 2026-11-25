@@ -55,8 +55,7 @@ module RailsSemanticLogger
   # to look for the entry's call site. The level is any that Semantic Logger accepts, such as :info
   # or ::Logger::INFO.
   def self.call_site?(logger, level)
-    index = SemanticLogger::Levels.index(level)
-    index >= SemanticLogger.call_site_level_index && logger.public_send(:"#{SemanticLogger::Levels.level(index)}?")
+    SemanticLogger.call_site?(level) && logger.public_send(:"#{SemanticLogger.normalize_level(level)}?")
   end
 
   # Returns the call site of an entry about the exception that the logger logs at the level, or nil
@@ -184,7 +183,7 @@ module RailsSemanticLogger
       appender = SemanticLogger.add_appender(**args, &block)
       internal_logger ||= appender if appender.is_a?(SemanticLogger::Appender::File)
     end
-    SemanticLogger::Processor.logger = internal_logger if internal_logger
+    SemanticLogger.internal_logger = internal_logger if internal_logger
   end
 
   # Gives the framework that loads as `load_hook`, such as :active_job, the logger, as it loads,

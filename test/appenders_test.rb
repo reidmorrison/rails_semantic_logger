@@ -357,7 +357,7 @@ class AppendersTest < Minitest::Test
       io                = StringIO.new
       dir               = Dir.mktmpdir
       path              = File.join(dir, "custom.log")
-      original_internal = SemanticLogger::Processor.logger
+      original_internal = SemanticLogger.internal_logger
       original_count    = SemanticLogger.appenders.size
 
       appenders = RailsSemanticLogger::Appenders.new
@@ -369,11 +369,11 @@ class AppendersTest < Minitest::Test
       added = SemanticLogger.appenders.to_a.last(2)
 
       assert_equal 2, SemanticLogger.appenders.size - original_count
-      assert_kind_of SemanticLogger::Appender::File, SemanticLogger::Processor.logger
-      assert_equal path, SemanticLogger::Processor.logger.file_name
+      assert_kind_of SemanticLogger::Appender::File, SemanticLogger.internal_logger
+      assert_equal path, SemanticLogger.internal_logger.file_name
     ensure
       added&.each { |appender| SemanticLogger.remove_appender(appender) }
-      SemanticLogger::Processor.logger = original_internal
+      SemanticLogger.internal_logger = original_internal
       FileUtils.remove_entry(dir) if dir
     end
   end

@@ -59,7 +59,7 @@ module RailsSemanticLogger
         return if @reported
 
         @reported = true
-        SemanticLogger::Processor.logger.warn(
+        SemanticLogger.internal_logger.warn(
           "#{self.class.name} failed to record a metric. Further failures are not reported.", exception
         )
       rescue StandardError

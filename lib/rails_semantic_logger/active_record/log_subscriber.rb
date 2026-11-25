@@ -81,11 +81,9 @@ module RailsSemanticLogger
           call_site: frame&.call_site || false
         }
 
-        # Log the location of the query itself. The entry is logged at :debug, so that is the level
-        # to compare, as Semantic Logger does, rather than the logger's own level.
-        if SemanticLogger::Levels.index(:debug) >= SemanticLogger.backtrace_level_index
-          log[:backtrace] = SemanticLogger::Utils.strip_backtrace(caller)
-        end
+        # Log the location of the query itself, from the application code that ran it. The entry is
+        # logged at :debug, so that is the level to ask about, rather than the logger's own level.
+        log[:backtrace] = SemanticLogger.application_backtrace if SemanticLogger.backtrace?(:debug)
 
         logger.debug(log)
       end

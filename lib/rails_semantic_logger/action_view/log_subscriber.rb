@@ -31,9 +31,7 @@ module RailsSemanticLogger
         # level that Semantic Logger does not know, as `Start` logs at it from the code that renders,
         # so that a mistake fails here, as the application starts, rather than every render.
         def rendered_log_level=(level)
-          raise ArgumentError, "The rendered log level cannot be nil" if level.nil?
-
-          @rendered_log_level = SemanticLogger::Levels.level(SemanticLogger::Levels.index(level))
+          @rendered_log_level = SemanticLogger.normalize_level(level)
         end
 
         # Looked up on first use rather than when this file loads: referencing ActionView::Base

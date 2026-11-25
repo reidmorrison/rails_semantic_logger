@@ -36,7 +36,7 @@ module RailsSemanticLogger
   #       the default log file, or, when the application declares its own appenders, its first file
   #       appender, else STDERR.
   #       Example, change the default internal logger to log to stdout:
-  #         SemanticLogger::Processor.logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
+  #         SemanticLogger.internal_logger = SemanticLogger::Appender::IO.new($stdout, level: :warn)
   #
   # * Do not record the Rails metrics, such as `http.server.request.duration`, nor the Sidekiq job
   #   metrics (`sidekiq.queue.duration` and `messaging.process.duration`).

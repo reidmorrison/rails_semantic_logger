@@ -162,6 +162,16 @@ class SilencedBelowLevelTest < Minitest::Test
         ::ActionView::Base.stub(:logger, nil) { assert start.silenced?("render_template.action_view") }
       end
 
+      it "follows the rendered level, as it is set now" do
+        rendered = RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = :info
+
+        at_level(::ActionView::Base.logger, :info) { refute start.silenced?("render_template.action_view") }
+        at_level(::ActionView::Base.logger, :warn) { assert start.silenced?("render_template.action_view") }
+      ensure
+        RailsSemanticLogger::ActionView::LogSubscriber.rendered_log_level = rendered
+      end
+
       it "listens when Action View's logger cannot tell whether it logs at :debug" do
         ::ActionView::Base.stub(:logger, Object.new) { refute start.silenced?("render_template.action_view") }
       end

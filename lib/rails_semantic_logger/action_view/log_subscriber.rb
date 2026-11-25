@@ -130,32 +130,35 @@ module RailsSemanticLogger
         )
       end
 
+      # Logs "Rendering" as a template or layout starts to render, at the rendered level, as the
+      # "Rendered" entries are, so that `config.rails_semantic_logger.rendered` shows both. Rails' own
+      # Start logs them at :debug whatever the level of its "Rendered" lines.
+      #
+      # Active Support may leave it out of the render events below that level (see
+      # SilencedBelowLevel).
       class Start
+        include RailsSemanticLogger::SilencedBelowLevel
+
         def start(name, _id, payload)
           return unless %w[render_template.action_view render_layout.action_view].include?(name)
 
           qualifier      = " layout" if name == "render_layout.action_view"
           entry          = {template: from_rails_root(payload[:identifier])}
           entry[:within] = from_rails_root(payload[:layout]) if payload[:layout]
+          level          = log_level_of(name)
 
-          logger.debug(message: "Rendering#{qualifier}", payload: entry, call_site: call_site)
+          logger.public_send(level, message: "Rendering#{qualifier}", payload: entry, call_site: call_site(level))
         end
 
         def finish(name, id, payload)
         end
 
-        # Whether Active Support may leave it out of the render events: while Action View logs nothing
-        # at :debug, the level of its "Rendering" entries. Asked each time an event starts, so that a
-        # render below the log level builds no event when its other listeners are silenced too, as in
-        # Rails' own Start. Never raises, as it is asked from the code that renders: when the answer is
-        # not known, it listens.
-        def silenced?(_name)
-          logger.nil? || !logger.debug?
-        rescue StandardError
-          false
-        end
-
         private
+
+        # The rendered level, which the log subscriber owns, as it is set now.
+        def log_level_of(_name)
+          LogSubscriber.rendered_log_level
+        end
 
         def from_rails_root(string)
           string = string.sub(rails_root, "")
@@ -171,8 +174,8 @@ module RailsSemanticLogger
           @logger ||= ::ActionView::Base.logger
         end
 
-        def call_site
-          LogSubscriber.call_site(logger, :debug)
+        def call_site(level)
+          LogSubscriber.call_site(logger, level)
         end
       end
 
@@ -227,8 +230,8 @@ module RailsSemanticLogger
         self.class.logger
       end
 
-      # Every render is logged at the rendered level, which the application can change at any time.
-      # The "Rendering" entries are Start's, which answers for itself.
+      # Every render is logged at the rendered level, which the application can change at any time,
+      # as are the "Rendering" entries, which are Start's.
       def log_level_of(_name)
         self.class.rendered_log_level
       end

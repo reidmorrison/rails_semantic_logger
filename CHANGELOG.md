@@ -132,6 +132,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   component's meter, and their class is a dimension.
 - Action View: the `Rendering` entry of a template rendered within a layout includes the layout,
   as `within`, as Rails' own `Rendering ... within ...` line does. It was always left out.
+- Action View: the `Rendering` entries are logged at the rendered level, as the `Rendered` entries
+  are, so that `config.rails_semantic_logger.rendered = true` shows both at `:info`. They were always
+  logged at `:debug`, as Rails logs its own.
 - Solid Queue: its log subscriber logs through `SolidQueue.logger`, so that a level set on it
   applies to the subscriber's entries too. It logged through a logger of its own of the same name.
 

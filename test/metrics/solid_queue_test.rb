@@ -43,6 +43,14 @@ module Metrics
         )
       end
 
+      it "records an exception of an anonymous class that the operation raised as _OTHER" do
+        assert_metric(
+          record(:start_process, exception: [nil, "down"], exception_object: Class.new(StandardError).new("down")),
+          name:       "solid_queue.operation.duration",
+          dimensions: {"solid_queue.operation.name" => "start_process", "error.type" => "_OTHER"}
+        )
+      end
+
       it "records a recurring task that failed to enqueue its job as an error" do
         assert_metric(
           record(:enqueue_recurring_task, task: "cleanup", active_job_id: nil, enqueue_error: "boom"),

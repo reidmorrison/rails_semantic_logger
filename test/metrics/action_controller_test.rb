@@ -19,6 +19,28 @@ module Metrics
       end
 
       describe "#process_action" do
+        it "records an exception of an anonymous class as _OTHER" do
+          exception = Class.new(StandardError).new("boom")
+          metrics   = record(
+            :process_action,
+            controller:       "ArticlesController",
+            action:           "show",
+            exception:        [nil, "boom"],
+            exception_object: exception
+          )
+
+          metric = assert_metric(metrics, name: "rails.action_controller.process_action.duration")
+
+          assert_equal "_OTHER", metric.dimensions["error.type"]
+        end
+
+        it "records an anonymous controller without a code.function.name" do
+          metric = assert_metric(record(:process_action, controller: nil, action: "show", status: 200),
+                                 name: "rails.action_controller.process_action.duration")
+
+          refute metric.dimensions.key?("code.function.name")
+        end
+
         it "records the action's duration with the controller and action" do
           metrics = record(:process_action, controller: "ArticlesController", action: "index", status: 200)
 

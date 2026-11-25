@@ -65,6 +65,14 @@ dimensions: job_dimensions)
           )
         end
 
+        it "records a job of an anonymous class as _OTHER" do
+          metrics = semantic_logger_metrics { Class.new(ReportJob).perform_now }
+
+          metric = assert_metric(metrics, name: "messaging.process.duration")
+
+          assert_equal "_OTHER", metric.dimensions["messaging.active_job.job.class"]
+        end
+
         it "records the exception class of a job that raised" do
           metrics = semantic_logger_metrics do
             assert_raises(ArgumentError) { ReportJob.perform_now(fail: true) }

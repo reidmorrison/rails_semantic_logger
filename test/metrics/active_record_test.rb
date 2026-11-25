@@ -51,6 +51,13 @@ module Metrics
         assert_equal "ActiveRecord::StatementInvalid", metric.dimensions["error.type"]
       end
 
+      it "records a query that raised an exception of an anonymous class as _OTHER" do
+        subscriber = RailsSemanticLogger::Metrics::ActiveRecord.new
+        payload    = {sql: "SELECT 1", exception: [nil, "boom"], exception_object: Class.new(StandardError).new}
+
+        assert_equal "_OTHER", subscriber.send(:dimensions, payload)["error.type"]
+      end
+
       describe "operation" do
         let(:subscriber) { RailsSemanticLogger::Metrics::ActiveRecord.new }
 

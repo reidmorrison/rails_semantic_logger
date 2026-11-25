@@ -20,9 +20,12 @@ module RailsSemanticLogger
       # How long the controller took to process the action, without the middleware.
       def process_action(event)
         payload    = event.payload
-        dimensions = {"code.function.name" => "#{payload[:controller]}##{payload[:action]}"}
+        dimensions = {}
+        # An anonymous controller has no name, so it is recorded without one, as an anonymous mailer is.
+        dimensions["code.function.name"]        = "#{payload[:controller]}##{payload[:action]}" if payload[:controller]
         dimensions["http.response.status_code"] = payload[:status] if payload[:status]
-        dimensions["error.type"]                = payload[:exception].first if payload[:exception]
+        failure                                 = raised_error_type(payload)
+        dimensions["error.type"]                = failure if failure
         time("rails.action_controller.process_action.duration", event, dimensions)
       end
 
@@ -102,12 +105,14 @@ module RailsSemanticLogger
         filter.is_a?(Symbol) || filter.is_a?(String) ? filter.to_s : class_name(filter.class)
       end
 
-      # "ArticlesController#show": the controller and action handling the request, when known.
+      # "ArticlesController#show": the controller and action handling the request, when known. An
+      # anonymous controller has no name, so there is none.
       def function(request)
         controller = request&.controller_instance
-        return unless controller
+        name       = controller&.class&.name
+        return unless name
 
-        "#{controller.class.name}##{controller.action_name}"
+        "#{name}##{controller.action_name}"
       end
     end
   end

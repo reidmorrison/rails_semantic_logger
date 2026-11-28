@@ -28,6 +28,8 @@ ensure
   silence_backtrace_level_deprecation { SemanticLogger.backtrace_level = original }
 end
 
+# Turns off every Ruby deprecation warning while the block runs, not only Semantic Logger's, as
+# Warning[:deprecated] is the process's: one that another thread reports meanwhile is dropped too.
 def silence_backtrace_level_deprecation
   deprecated           = Warning[:deprecated]
   Warning[:deprecated] = false

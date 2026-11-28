@@ -93,7 +93,9 @@ module RailsSemanticLogger
   # site level that Semantic Logger starts with. The engine calls this before the application's
   # configuration is read, so that config/application.rb, config/environments/development.rb or an
   # initializer can choose another level, or turn it off with
-  # `config.semantic_logger.call_site_level = nil`. Other environments keep Semantic Logger's level.
+  # `config.semantic_logger.call_site_level = nil`. It replaces a level set before then, such as by a
+  # gem or above the application's class in config/application.rb. Other environments keep Semantic
+  # Logger's level.
   def self.record_call_sites_in_development(env)
     SemanticLogger.call_site_level = :trace if env.development?
   end

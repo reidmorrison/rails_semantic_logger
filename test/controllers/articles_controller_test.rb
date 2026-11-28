@@ -333,8 +333,9 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
         begin
           ActionController::Base.action_on_open_redirect = :notify
           ActionController::Base.raise_on_open_redirects = false
-          messages = semantic_logger_events do
-            get open_redirector_articles_url
+          # Also capture a backtrace for every entry at :warn, which must not replace the redirect's.
+          messages = with_backtrace_level(:warn) do
+            semantic_logger_events { get open_redirector_articles_url }
           end
 
           open_redirect = messages.find { |m| m.message == "Open redirect detected" }
@@ -351,7 +352,10 @@ class ArticlesControllerTest < ActionDispatch::IntegrationTest
             },
             metric:  :nil
           )
-          refute_empty open_redirect.backtrace.to_a, "expected the redirect's stack trace as the backtrace"
+          # The stack trace of the redirect starts where Rails redirects, not in this gem's subscriber.
+          # Rails' own frames are kept as test_helper removes Rails.backtrace_cleaner's silencers.
+          assert_includes open_redirect.backtrace.to_a.first, "action_controller/metal/redirecting.rb",
+                          "expected the redirect's stack trace as the backtrace"
         ensure
           ActionController::Base.action_on_open_redirect = original_action
           ActionController::Base.raise_on_open_redirects = original_raise

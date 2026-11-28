@@ -326,7 +326,8 @@ module RailsSemanticLogger
       # as the entry's backtrace. The backtrace goes with the log call rather than in a logging block's
       # result: since semantic_logger 5.2 a block cannot replace a backtrace the entry already has,
       # and the entry captures this subscriber's own stack whenever :warn is at or above the
-      # `backtrace_level`, as it is in the Rails console.
+      # deprecated `backtrace_level`. An appender that captures its own backtraces, such as
+      # `:sentry_ruby` at :warn, keeps the one the entry already has.
       def log_redirect_warning(event, message:, payload:)
         logger = controller_logger(event)
         return unless logger&.warn?

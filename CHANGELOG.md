@@ -164,6 +164,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   logged at `:debug`, as Rails logs its own.
 - Solid Queue: its log subscriber logs through `SolidQueue.logger`, so that a level set on it
   applies to the subscriber's entries too. It logged through a logger of its own of the same name.
+- Development still records the call site of every entry, now that Semantic Logger v6 records the
+  call sites of the entries at `:error` and above by default: `SemanticLogger.call_site_level` is set
+  to `:trace` before the application's configuration is read, rather than only while it was `nil`,
+  so it replaces a level set before then, such as by a gem or above the application's class in
+  `config/application.rb`. Set another level, or `nil`, in `config/application.rb`,
+  `config/environments/development.rb`, or an initializer. Other environments keep Semantic Logger's
+  `:error`. The Rails console still records them at its log level, whatever was set.
+- Active Record: a query's entry carries the backtrace of the application code that ran it only while
+  the deprecated `SemanticLogger.backtrace_level` is `:debug` or below, which Semantic Logger v6 no
+  longer sets by default. The entry's call site says where the query ran.
 
 ## [Unreleased]
 
